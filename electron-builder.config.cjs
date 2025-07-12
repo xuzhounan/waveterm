@@ -18,26 +18,23 @@ const config = {
     npmRebuild: false,
     nodeGypRebuild: false,
     electronCompile: false,
+    asar: true,
     files: [
-        {
-            from: "./dist",
-            to: "./dist",
-            filter: ["**/*", "!bin/*", "bin/wavesrv.${arch}*", "bin/wsh*"],
-        },
-        {
-            from: ".",
-            to: ".",
-            filter: ["package.json"],
-        },
-        "!node_modules", // We don't need electron-builder to package in Node modules as Vite has already bundled any code that our program is using.
+        "dist/main/**/*",
+        "dist/preload/**/*", 
+        "dist/frontend/**/*",
+        "dist/bin/**/*",
+        "dist/docsite/**/*",
+        "dist/schema/**/*",
+        "package.json",
+        "!node_modules/**/*",
+        "!dist/mac-arm64/**/*",
+        "!dist/builder-*.yml",
+        "!dist/builder-*.yaml"
     ],
     directories: {
         output: "make",
     },
-    asarUnpack: [
-        "dist/bin/**/*", // wavesrv and wsh binaries
-        "dist/docsite/**/*", // the static docsite
-    ],
     mac: {
         target: [
             {

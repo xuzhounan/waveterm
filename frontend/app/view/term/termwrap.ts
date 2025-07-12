@@ -18,6 +18,8 @@ import { Terminal } from "@xterm/xterm";
 import debug from "debug";
 import { debounce } from "throttle-debounce";
 import { FitAddon } from "./fitaddon";
+import { EnhancedIMEHandler } from "./enhanced-ime";
+import { EnhancedKeybindingsHandler } from "./enhanced-keybindings";
 
 const dlog = debug("wave:termwrap");
 
@@ -154,6 +156,15 @@ export class TermWrap {
     private toDispose: TermTypes.IDisposable[] = [];
     pasteActive: boolean = false;
 
+    // 增强功能
+    private enhancedIME: EnhancedIMEHandler | null = null;
+    private enhancedKeybindings: EnhancedKeybindingsHandler | null = null;
+    
+    // 输入过滤器 - 防止 caps 键切换时的重复输入
+    private lastInputData = "";
+    private lastInputTime = 0;
+    private inputFilterEnabled = true;
+
     constructor(
         blockId: string,
         connectElem: HTMLDivElement,
@@ -211,13 +222,32 @@ export class TermWrap {
         this.terminal.parser.registerOscHandler(7, (data: string) => {
             return handleOsc7Command(data, this.blockId, this.loaded);
         });
-        this.terminal.attachCustomKeyEventHandler(waveOptions.keydownHandler);
+        // 创建增强的键盘事件处理器
+        const enhancedKeyHandler = (event: KeyboardEvent): boolean => {
+            // 首先让增强功能处理
+            if (this.handleEnhancedKeydown && this.handleEnhancedKeydown(event)) {
+                return false; // 阻止进一步处理
+            }
+            
+            // 然后让原始处理器处理
+            if (waveOptions.keydownHandler) {
+                return waveOptions.keydownHandler(event);
+            }
+            
+            return true; // 允许默认处理
+        };
+        
+        this.terminal.attachCustomKeyEventHandler(enhancedKeyHandler);
         this.connectElem = connectElem;
         this.mainFileSubject = null;
         this.heldData = [];
         this.handleResize_debounced = debounce(50, this.handleResize.bind(this));
         this.terminal.open(this.connectElem);
         this.handleResize();
+        
+        // 初始化增强功能
+        console.log('🔧 Initializing terminal enhancements for blockId:', this.blockId);
+        this.initializeEnhancements();
         let pasteEventHandler = () => {
             this.pasteActive = true;
             setTimeout(() => {
@@ -277,6 +307,15 @@ export class TermWrap {
         if (!this.loaded) {
             return;
         }
+
+        // 应用输入过滤，防止 caps 键切换时的重复输入
+        if (this.inputFilterEnabled && this.shouldFilterInput(data)) {
+            console.log('🎯 Filtered duplicate input:', data, 'blockId:', this.blockId);
+            return;
+        }
+        
+        console.log('🎯 Processing terminal input:', data, 'blockId:', this.blockId);
+
         if (this.pasteActive) {
             this.pasteActive = false;
             if (this.multiInputCallback) {
@@ -418,5 +457,123 @@ export class TermWrap {
                 this.runProcessIdleTimeout();
             });
         }, 5000);
+    }
+
+    /**
+     * 初始化增强功能
+     */
+    private initializeEnhancements() {
+        try {
+            // 初始化增强的 IME 处理，传入输入过滤器重置回调
+            this.enhancedIME = new EnhancedIMEHandler(
+                this.terminal, 
+                this.connectElem,
+                () => this.resetInputFilter() // 当 IME 状态变化时重置输入过滤器
+            );
+
+            // 初始化增强的快捷键绑定
+            this.enhancedKeybindings = new EnhancedKeybindingsHandler(this.terminal, (data: string) => {
+                if (this.sendDataHandler) {
+                    this.sendDataHandler(data);
+                }
+            });
+
+            console.log("✅ Enhanced terminal features initialized for blockId:", this.blockId);
+            console.log("🎯 IME Handler:", !!this.enhancedIME);
+            console.log("🎯 Keybindings Handler:", !!this.enhancedKeybindings);
+        } catch (error) {
+            console.warn("⚠️ Failed to initialize enhanced terminal features:", error);
+        }
+    }
+
+    /**
+     * 增强的键盘处理（在原有处理之前调用）
+     */
+    public handleEnhancedKeydown(event: KeyboardEvent): boolean {
+        console.log('🎯 handleEnhancedKeydown called for key:', event.key, 'blockId:', this.blockId);
+        
+        if (!this.enhancedKeybindings) {
+            console.log('🎯 No enhanced keybindings available');
+            return false;
+        }
+
+        const result = this.enhancedKeybindings.handleKeydown(event);
+        if (result) {
+            console.log('🎯 Enhanced keybinding handled key:', event.key);
+        }
+        return result;
+    }
+
+    /**
+     * 获取 IME 状态
+     */
+    public getIMEState() {
+        return this.enhancedIME?.getCompositionState() || { isComposing: false, compositionText: "" };
+    }
+
+    /**
+     * 输入过滤器 - 防止重复输入
+     */
+    private shouldFilterInput(data: string): boolean {
+        const now = Date.now();
+        const timeDiff = now - this.lastInputTime;
+        
+        // 检查是否是重复的单字符输入（在很短时间内）
+        if (data === this.lastInputData && timeDiff < 50 && data.length === 1) {
+            return true;
+        }
+        
+        // 更激进的过滤：检查是否是输入法切换后的重复字符
+        if (data === this.lastInputData && timeDiff < 500 && /^[a-zA-Z]$/.test(data)) {
+            // 检查 IME 状态
+            const imeState = this.getIMEState();
+            if (!imeState.isComposing) {
+                console.log('🎯 Aggressive filter triggered for:', data, 'timeDiff:', timeDiff);
+                return true;
+            }
+        }
+        
+        // 特殊处理：如果是连续的相同字符且频率很高
+        if (data === this.lastInputData && data.length === 1) {
+            if (timeDiff < 100) {
+                return true;
+            }
+        }
+        
+        // 更新状态
+        this.lastInputData = data;
+        this.lastInputTime = now;
+        
+        return false;
+    }
+
+    /**
+     * 重置输入过滤器（在输入法状态变化时调用）
+     */
+    public resetInputFilter() {
+        this.lastInputData = "";
+        this.lastInputTime = 0;
+        console.log('🎯 Input filter reset');
+    }
+
+    /**
+     * 启用/禁用输入过滤
+     */
+    public setInputFilterEnabled(enabled: boolean) {
+        this.inputFilterEnabled = enabled;
+        if (enabled) {
+            this.resetInputFilter();
+        }
+    }
+
+    /**
+     * 清理增强功能
+     */
+    public disposeEnhancements() {
+        if (this.enhancedIME) {
+            this.enhancedIME.dispose();
+            this.enhancedIME = null;
+        }
+        this.enhancedKeybindings = null;
     }
 }

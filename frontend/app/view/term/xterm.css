@@ -77,17 +77,40 @@
 }
 
 .xterm .composition-view {
-    /* TODO: Composition position got messed up somewhere */
-    background: #000;
-    color: #fff;
+    /* 增强的中文输入法候选框样式 */
+    background: rgba(0, 0, 0, 0.9);
+    color: #ffffff;
+    border: 1px solid #555;
+    border-radius: 3px;
+    padding: 2px 6px;
+    font-size: 14px;
+    font-family: inherit;
     display: none;
     position: absolute;
     white-space: nowrap;
-    z-index: 1;
+    z-index: 1000;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    pointer-events: none;
+    /* 确保在所有元素之上 */
+    transform: translateZ(0);
 }
 
 .xterm .composition-view.active {
     display: block;
+}
+
+/* 确保 helper textarea 正确定位 */
+.xterm .xterm-helper-textarea {
+    position: absolute;
+    opacity: 0;
+    left: -9999em;
+    top: 0;
+    width: 0;
+    height: 0;
+    z-index: -10;
+    pointer-events: none;
+    /* 保持在视口内以确保 IME 事件正常 */
+    clip: rect(0, 0, 0, 0);
 }
 
 .xterm .xterm-viewport {

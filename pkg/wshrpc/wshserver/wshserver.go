@@ -331,6 +331,7 @@ func (ws *WshServer) ControllerInputCommand(ctx context.Context, data wshrpc.Com
 			return fmt.Errorf("error decoding input data: %w", err)
 		}
 		inputUnion.InputData = inputBuf[:nw]
+		log.Printf("📥 收到命令 (BlockId: %s): %q", data.BlockId, string(inputBuf[:nw]))
 	}
 	return bc.SendInput(inputUnion)
 }

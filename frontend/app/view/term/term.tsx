@@ -451,6 +451,14 @@ class TermViewModel implements ViewModel {
         if (waveEvent.type != "keydown") {
             return true;
         }
+
+        // 首先尝试增强的键盘处理
+        if (this.termRef.current?.handleEnhancedKeydown?.(event)) {
+            event.preventDefault();
+            event.stopPropagation();
+            return false;
+        }
+
         if (this.keyDownHandler(waveEvent)) {
             event.preventDefault();
             event.stopPropagation();
