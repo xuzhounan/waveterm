@@ -49,6 +49,7 @@ const MultiLineInput = memo(
             const [lineHeight, setLineHeight] = useState(24); // Default line height fallback of 24px
             const [paddingTop, setPaddingTop] = useState(0);
             const [paddingBottom, setPaddingBottom] = useState(0);
+            const [isComposing, setIsComposing] = useState(false);
 
             useImperativeHandle(ref, () => textareaRef.current as HTMLTextAreaElement);
 
@@ -76,8 +77,11 @@ const MultiLineInput = memo(
             };
 
             const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-                setInternalValue(e.target.value);
-                onChange?.(e);
+                // Only process input if not in composition mode to prevent duplicate input
+                if (!isComposing) {
+                    setInternalValue(e.target.value);
+                    onChange?.(e);
+                }
 
                 // Adjust the height of the textarea after text change
                 adjustTextareaHeight();
@@ -91,6 +95,23 @@ const MultiLineInput = memo(
             const handleBlur = () => {
                 manageFocus?.(false);
                 onBlur?.();
+            };
+
+            const handleCompositionStart = () => {
+                setIsComposing(true);
+            };
+
+            const handleCompositionEnd = (e: React.CompositionEvent<HTMLTextAreaElement>) => {
+                setIsComposing(false);
+                // Process the composition result
+                setInternalValue(e.currentTarget.value);
+                // Trigger onChange with a synthetic event
+                const syntheticEvent = {
+                    target: e.currentTarget,
+                    currentTarget: e.currentTarget,
+                } as React.ChangeEvent<HTMLTextAreaElement>;
+                onChange?.(syntheticEvent);
+                adjustTextareaHeight();
             };
 
             useEffect(() => {
@@ -121,6 +142,8 @@ const MultiLineInput = memo(
                     onKeyDown={onKeyDown}
                     onFocus={handleFocus}
                     onBlur={handleBlur}
+                    onCompositionStart={handleCompositionStart}
+                    onCompositionEnd={handleCompositionEnd}
                     placeholder={placeholder}
                     maxLength={maxLength}
                     autoFocus={autoFocus}

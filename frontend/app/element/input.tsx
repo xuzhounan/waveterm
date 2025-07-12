@@ -97,6 +97,7 @@ const Input = memo(
             ref
         ) => {
             const [internalValue, setInternalValue] = useState(defaultValue);
+            const [isComposing, setIsComposing] = useState(false);
             const inputRef = useRef<HTMLInputElement>(null);
 
             useImperativeHandle(ref, () => inputRef.current as HTMLInputElement);
@@ -108,11 +109,14 @@ const Input = memo(
                     return;
                 }
 
-                if (value === undefined) {
-                    setInternalValue(inputValue);
-                }
+                // Only process input if not in composition mode to prevent duplicate input
+                if (!isComposing) {
+                    if (value === undefined) {
+                        setInternalValue(inputValue);
+                    }
 
-                onChange && onChange(inputValue);
+                    onChange && onChange(inputValue);
+                }
             };
 
             const handleFocus = () => {
@@ -128,6 +132,25 @@ const Input = memo(
                 onBlur?.();
             };
 
+            const handleCompositionStart = () => {
+                setIsComposing(true);
+            };
+
+            const handleCompositionEnd = (e: React.CompositionEvent<HTMLInputElement>) => {
+                setIsComposing(false);
+                const inputValue = e.currentTarget.value;
+                
+                if (isNumber && inputValue !== "" && !/^\d*$/.test(inputValue)) {
+                    return;
+                }
+                
+                // Process the composition result
+                if (value === undefined) {
+                    setInternalValue(inputValue);
+                }
+                onChange && onChange(inputValue);
+            };
+
             const inputValue = value ?? internalValue;
 
             return (
@@ -141,6 +164,8 @@ const Input = memo(
                     onKeyDown={onKeyDown}
                     onFocus={handleFocus}
                     onBlur={handleBlur}
+                    onCompositionStart={handleCompositionStart}
+                    onCompositionEnd={handleCompositionEnd}
                     placeholder={placeholder}
                     maxLength={maxLength}
                     autoFocus={autoFocus}

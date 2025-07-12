@@ -12,13 +12,18 @@ echo "📁 清理构建目录..."
 rm -rf make/
 rm -rf dist/mac-arm64/
 
-# 构建 Go 后端
-echo "🛠️  编译 Go 后端服务..."
+# 构建 Go 后端和工具
+echo "🛠️  编译 Go 后端和工具..."
 if command -v go &> /dev/null; then
+    # 编译 wavesrv 后端
     cd cmd/server
     CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 go build -o ../../bin/wavesrv.arm64 .
     cd ../..
-    echo "✅ Go 后端编译完成"
+    
+    # 编译 wsh 命令
+    go build -o bin/wsh cmd/wsh/main-wsh.go
+    
+    echo "✅ Go 后端和工具编译完成"
 else
     echo "⚠️  警告: Go 未安装，跳过后端编译"
 fi
@@ -61,15 +66,27 @@ echo "📄 复制应用文件..."
 cp -R dist/ "$RESOURCES_DIR/app/"
 cp package.json "$RESOURCES_DIR/app/"
 
+# 复制后端文件
+echo "🔍 复制后端文件..."
+mkdir -p "$RESOURCES_DIR/app/bin"
+
 # 复制 wavesrv 后端
-echo "🔍 复制 wavesrv 后端..."
 if [ -f "bin/wavesrv.arm64" ]; then
-    mkdir -p "$RESOURCES_DIR/app/bin"
     cp bin/wavesrv.arm64 "$RESOURCES_DIR/app/bin/"
     chmod +x "$RESOURCES_DIR/app/bin/wavesrv.arm64"
     echo "✅ wavesrv 后端文件已复制"
 else
     echo "❌ 错误: wavesrv 后端文件缺失，应用无法正常运行"
+    exit 1
+fi
+
+# 复制 wsh 命令
+if [ -f "bin/wsh" ]; then
+    cp bin/wsh "$RESOURCES_DIR/app/bin/"
+    chmod +x "$RESOURCES_DIR/app/bin/wsh"
+    echo "✅ wsh 命令已复制"
+else
+    echo "❌ 错误: wsh 命令缺失，终端功能可能无法正常工作"
     exit 1
 fi
 
