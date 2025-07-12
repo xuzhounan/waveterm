@@ -16,7 +16,7 @@ rm -rf dist/mac-arm64/
 echo "🛠️  编译 Go 后端服务..."
 if command -v go &> /dev/null; then
     cd cmd/server
-    CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -o ../../bin/wavesrv.arm64 .
+    CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 go build -o ../../bin/wavesrv.arm64 .
     cd ../..
     echo "✅ Go 后端编译完成"
 else
@@ -61,12 +61,16 @@ echo "📄 复制应用文件..."
 cp -R dist/ "$RESOURCES_DIR/app/"
 cp package.json "$RESOURCES_DIR/app/"
 
-# 确保 wavesrv 后端存在
-echo "🔍 检查 wavesrv 后端..."
+# 复制 wavesrv 后端
+echo "🔍 复制 wavesrv 后端..."
 if [ -f "bin/wavesrv.arm64" ]; then
-    echo "✅ wavesrv 后端文件存在"
+    mkdir -p "$RESOURCES_DIR/app/bin"
+    cp bin/wavesrv.arm64 "$RESOURCES_DIR/app/bin/"
+    chmod +x "$RESOURCES_DIR/app/bin/wavesrv.arm64"
+    echo "✅ wavesrv 后端文件已复制"
 else
-    echo "⚠️  警告: wavesrv 后端文件缺失，应用可能无法正常运行"
+    echo "❌ 错误: wavesrv 后端文件缺失，应用无法正常运行"
+    exit 1
 fi
 
 # 注意：跳过 npm install，Electron 应用在打包时已包含所需依赖
