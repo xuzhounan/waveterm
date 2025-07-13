@@ -91,9 +91,12 @@ const (
 	Command_StreamWaveAi         = "streamwaveai"
 	Command_StreamCpuData        = "streamcpudata"
 	Command_Test                 = "test"
-	Command_SetConfig            = "setconfig"
-	Command_SetConnectionsConfig = "connectionsconfig"
-	Command_GetFullConfig        = "getfullconfig"
+	Command_SetConfig                = "setconfig"
+	Command_SetConnectionsConfig     = "connectionsconfig"
+	Command_SetWorkspaceWidgetConfig    = "setworkspacewidgetconfig"
+	Command_EnsureWorkspaceWidgetConfig = "ensureworkspacewidgetconfig"
+	Command_DebugWorkspaceWidgets       = "debugworkspacewidgets"
+	Command_GetFullConfig            = "getfullconfig"
 	Command_RemoteStreamFile     = "remotestreamfile"
 	Command_RemoteTarStream      = "remotetarstream"
 	Command_RemoteFileInfo       = "remotefileinfo"
@@ -194,6 +197,9 @@ type WshRpcInterface interface {
 	TestCommand(ctx context.Context, data string) error
 	SetConfigCommand(ctx context.Context, data MetaSettingsType) error
 	SetConnectionsConfigCommand(ctx context.Context, data ConnConfigRequest) error
+	SetWorkspaceWidgetConfigCommand(ctx context.Context, data WorkspaceWidgetConfigRequest) error
+	EnsureWorkspaceWidgetConfigCommand(ctx context.Context, data EnsureWorkspaceWidgetConfigRequest) error
+	DebugWorkspaceWidgetsCommand(ctx context.Context, data EnsureWorkspaceWidgetConfigRequest) (map[string]interface{}, error)
 	GetFullConfigCommand(ctx context.Context) (wconfig.FullConfigType, error)
 	BlockInfoCommand(ctx context.Context, blockId string) (*BlockInfoData, error)
 	WaveInfoCommand(ctx context.Context) (*WaveInfoData, error)
@@ -609,6 +615,16 @@ func (m MetaSettingsType) MarshalJSON() ([]byte, error) {
 type ConnConfigRequest struct {
 	Host        string              `json:"host"`
 	MetaMapType waveobj.MetaMapType `json:"metamaptype"`
+}
+
+type WorkspaceWidgetConfigRequest struct {
+	WorkspaceId string                `json:"workspaceid" wshcontext:"WorkspaceId"`
+	WidgetKey   string                `json:"widgetkey"`
+	Config      wconfig.WidgetConfigType `json:"config"`
+}
+
+type EnsureWorkspaceWidgetConfigRequest struct {
+	WorkspaceId string `json:"workspaceid" wshcontext:"WorkspaceId"`
 }
 
 type ConnStatus struct {

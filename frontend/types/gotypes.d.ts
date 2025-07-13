@@ -287,6 +287,18 @@ declare global {
         metamaptype: MetaType;
     };
 
+    // wshrpc.WorkspaceWidgetConfigRequest
+    type WorkspaceWidgetConfigRequest = {
+        workspaceid: string;
+        widgetkey: string;
+        config: WidgetConfigType;
+    };
+
+    // wshrpc.EnsureWorkspaceWidgetConfigRequest
+    type EnsureWorkspaceWidgetConfigRequest = {
+        workspaceid: string;
+    };
+
     // wshrpc.ConnExtData
     type ConnExtData = {
         connname: string;
@@ -465,6 +477,7 @@ declare global {
         mimetypes: {[key: string]: MimeTypeConfigType};
         defaultwidgets: {[key: string]: WidgetConfigType};
         widgets: {[key: string]: WidgetConfigType};
+        workspacewidgets: {[key: string]: {[key: string]: WidgetConfigType}};
         presets: {[key: string]: MetaType};
         termthemes: {[key: string]: TermThemeType};
         connections: {[key: string]: ConnKeywords};

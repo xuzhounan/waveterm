@@ -154,15 +154,16 @@ type WebBookmark struct {
 }
 
 type FullConfigType struct {
-	Settings       SettingsType                   `json:"settings" merge:"meta"`
-	MimeTypes      map[string]MimeTypeConfigType  `json:"mimetypes"`
-	DefaultWidgets map[string]WidgetConfigType    `json:"defaultwidgets"`
-	Widgets        map[string]WidgetConfigType    `json:"widgets"`
-	Presets        map[string]waveobj.MetaMapType `json:"presets"`
-	TermThemes     map[string]TermThemeType       `json:"termthemes"`
-	Connections    map[string]ConnKeywords        `json:"connections"`
-	Bookmarks      map[string]WebBookmark         `json:"bookmarks"`
-	ConfigErrors   []ConfigError                  `json:"configerrors" configfile:"-"`
+	Settings         SettingsType                            `json:"settings" merge:"meta"`
+	MimeTypes        map[string]MimeTypeConfigType           `json:"mimetypes"`
+	DefaultWidgets   map[string]WidgetConfigType             `json:"defaultwidgets"`
+	Widgets          map[string]WidgetConfigType             `json:"widgets"`
+	WorkspaceWidgets map[string]map[string]WidgetConfigType  `json:"workspacewidgets" configfile:"workspaces"`
+	Presets          map[string]waveobj.MetaMapType          `json:"presets"`
+	TermThemes       map[string]TermThemeType                `json:"termthemes"`
+	Connections      map[string]ConnKeywords                 `json:"connections"`
+	Bookmarks        map[string]WebBookmark                  `json:"bookmarks"`
+	ConfigErrors     []ConfigError                           `json:"configerrors" configfile:"-"`
 }
 type ConnKeywords struct {
 	ConnWshEnabled          *bool  `json:"conn:wshenabled,omitempty"`
@@ -382,6 +383,62 @@ func readConfigPart(partName string, simpleMerge bool) (waveobj.MetaMapType, []C
 	return mergeMetaMap(rtn, homeConfigs, simpleMerge), allErrs
 }
 
+// getWorkspaceConfigDirs returns list of workspace IDs that have config directories
+func getWorkspaceConfigDirs() []string {
+	configDirAbsPath := wavebase.GetWaveConfigDir()
+	workspacesDirPath := filepath.Join(configDirAbsPath, "workspaces")
+	
+	dirEnts, err := os.ReadDir(workspacesDirPath)
+	if err != nil {
+		return nil
+	}
+	
+	var workspaceIds []string
+	for _, ent := range dirEnts {
+		if ent.IsDir() {
+			workspaceIds = append(workspaceIds, ent.Name())
+		}
+	}
+	return workspaceIds
+}
+
+// readWorkspaceWidgetConfigs reads widget configuration for a specific workspace
+func readWorkspaceWidgetConfigs(workspaceId string) (map[string]WidgetConfigType, []ConfigError) {
+	configPath := filepath.Join("workspaces", workspaceId, "widgets.json")
+	configData, cerrs := ReadWaveHomeConfigFile(configPath)
+	if len(cerrs) > 0 {
+		// Return empty config if file doesn't exist, but preserve other errors
+		for _, err := range cerrs {
+			if !strings.Contains(err.Err, "no such file or directory") && !strings.Contains(err.Err, "cannot find the file") {
+				return nil, cerrs
+			}
+		}
+		return nil, nil
+	}
+	
+	if configData == nil {
+		return nil, nil
+	}
+	
+	// Convert waveobj.MetaMapType to map[string]WidgetConfigType
+	widgets := make(map[string]WidgetConfigType)
+	var allErrs []ConfigError
+	for key, value := range configData {
+		var widget WidgetConfigType
+		err := utilfn.ReUnmarshal(&widget, value)
+		if err != nil {
+			allErrs = append(allErrs, ConfigError{
+				File: configPath,
+				Err:  fmt.Sprintf("invalid widget config for %s: %v", key, err),
+			})
+			continue
+		}
+		widgets[key] = widget
+	}
+	
+	return widgets, allErrs
+}
+
 // this function should only be called by the wconfig code.
 // in golang code, the best way to get the current config is via the watcher -- wconfig.GetWatcher().GetFullConfig()
 func ReadFullConfig() FullConfigType {
@@ -401,16 +458,31 @@ func ReadFullConfig() FullConfigType {
 		simpleMerge := field.Tag.Get("merge") == ""
 		var configPart waveobj.MetaMapType
 		var errs []ConfigError
-		if jsonTag == "-" || jsonTag == "" {
+		
+		// Special handling for workspace widgets
+		if jsonTag == "workspacewidgets" {
+			workspaceWidgets := make(map[string]map[string]WidgetConfigType)
+			workspaceIds := getWorkspaceConfigDirs()
+			for _, workspaceId := range workspaceIds {
+				wsWidgets, wsErrs := readWorkspaceWidgetConfigs(workspaceId)
+				errs = append(errs, wsErrs...)
+				if len(wsWidgets) > 0 {
+					workspaceWidgets[workspaceId] = wsWidgets
+				}
+			}
+			fullConfig.WorkspaceWidgets = workspaceWidgets
+		} else if jsonTag == "-" || jsonTag == "" {
 			continue
 		} else {
-			configPart, errs = readConfigPart(jsonTag, simpleMerge)
+			var configErrs []ConfigError
+			configPart, configErrs = readConfigPart(jsonTag, simpleMerge)
+			errs = append(errs, configErrs...)
+			if configPart != nil {
+				fieldPtr := configRVal.Field(fieldIdx).Addr().Interface()
+				utilfn.ReUnmarshal(fieldPtr, configPart)
+			}
 		}
 		fullConfig.ConfigErrors = append(fullConfig.ConfigErrors, errs...)
-		if configPart != nil {
-			fieldPtr := configRVal.Field(fieldIdx).Addr().Interface()
-			utilfn.ReUnmarshal(fieldPtr, configPart)
-		}
 	}
 	return fullConfig
 }
@@ -431,7 +503,17 @@ func GetConfigSubdirs() []string {
 		}
 		jsonTag := utilfn.GetJsonTag(field)
 		if jsonTag != "-" && jsonTag != "" && jsonTag != "settings" {
-			retVal = append(retVal, filepath.Join(configDirAbsPath, jsonTag))
+			dirPath := filepath.Join(configDirAbsPath, jsonTag)
+			retVal = append(retVal, dirPath)
+			
+			// For workspaces directory, also add all workspace subdirectories
+			if jsonTag == "workspacewidgets" && configFile == "workspaces" {
+				workspaceIds := getWorkspaceConfigDirs()
+				for _, workspaceId := range workspaceIds {
+					workspaceDir := filepath.Join(configDirAbsPath, "workspaces", workspaceId)
+					retVal = append(retVal, workspaceDir)
+				}
+			}
 		}
 	}
 	log.Printf("subdirs: %v\n", retVal)
@@ -608,6 +690,124 @@ func SetConnectionsConfigValue(connName string, toMerge waveobj.MetaMapType) err
 	}
 	m[connName] = connData
 	return WriteWaveHomeConfigFile(ConnectionsFile, m)
+}
+
+// SetWorkspaceWidgetConfig sets widget configuration for a specific workspace
+func SetWorkspaceWidgetConfig(workspaceId string, widgetKey string, config WidgetConfigType) error {
+	configDirAbsPath := wavebase.GetWaveConfigDir()
+	workspaceConfigDir := filepath.Join(configDirAbsPath, "workspaces", workspaceId)
+	
+	// Create workspace config directory if it doesn't exist
+	if err := os.MkdirAll(workspaceConfigDir, 0755); err != nil {
+		return fmt.Errorf("failed to create workspace config directory: %v", err)
+	}
+	
+	configPath := filepath.Join("workspaces", workspaceId, "widgets.json")
+	m, cerrs := ReadWaveHomeConfigFile(configPath)
+	if len(cerrs) > 0 {
+		// Only return error if it's not a "file not found" error
+		for _, err := range cerrs {
+			if !strings.Contains(err.Err, "no such file or directory") && !strings.Contains(err.Err, "cannot find the file") {
+				return fmt.Errorf("error reading workspace config file: %v", err)
+			}
+		}
+	}
+	if m == nil {
+		m = make(waveobj.MetaMapType)
+	}
+	
+	// Convert WidgetConfigType to waveobj.MetaMapType
+	var configMap waveobj.MetaMapType
+	err := utilfn.ReUnmarshal(&configMap, config)
+	if err != nil {
+		return fmt.Errorf("failed to convert widget config: %v", err)
+	}
+	
+	m[widgetKey] = configMap
+	return WriteWaveHomeConfigFile(configPath, m)
+}
+
+// EnsureWorkspaceWidgetConfig ensures that a workspace has a widgets.json file
+// If the file doesn't exist, it creates a default one
+func EnsureWorkspaceWidgetConfig(workspaceId string) error {
+	configDirAbsPath := wavebase.GetWaveConfigDir()
+	workspaceConfigDir := filepath.Join(configDirAbsPath, "workspaces", workspaceId)
+	
+	// Create workspace config directory if it doesn't exist
+	if err := os.MkdirAll(workspaceConfigDir, 0755); err != nil {
+		return fmt.Errorf("failed to create workspace config directory: %v", err)
+	}
+	
+	configPath := filepath.Join("workspaces", workspaceId, "widgets.json")
+	fullConfigPath := filepath.Join(configDirAbsPath, configPath)
+	
+	// Check if file already exists
+	if _, err := os.Stat(fullConfigPath); err == nil {
+		return nil // File already exists, nothing to do
+	}
+	
+	// Create default workspace widget configuration
+	defaultConfig := waveobj.MetaMapType{
+		"local_web": waveobj.MetaMapType{
+			"display:order": 1,
+			"icon":         "brands@chrome",
+			"label":        "Local Dev",
+			"color":        "#4285f4",
+			"blockdef": waveobj.MetaMapType{
+				"meta": waveobj.MetaMapType{
+					"view": "web",
+					"url":  "http://localhost:3000",
+				},
+			},
+		},
+		"project_terminal": waveobj.MetaMapType{
+			"display:order": 2,
+			"icon":         "terminal",
+			"label":        "Project Shell",
+			"blockdef": waveobj.MetaMapType{
+				"meta": waveobj.MetaMapType{
+					"view":       "term",
+					"controller": "shell",
+				},
+			},
+		},
+	}
+	
+	err := WriteWaveHomeConfigFile(configPath, defaultConfig)
+	if err != nil {
+		return err
+	}
+	
+	// Add the workspace directory to the file watcher
+	watcher := GetWatcher()
+	if watcher != nil {
+		watcher.AddWorkspaceWatcher(workspaceId)
+	}
+	
+	return nil
+}
+
+// DeleteWorkspaceWidgetConfig removes a widget configuration from a workspace
+func DeleteWorkspaceWidgetConfig(workspaceId string, widgetKey string) error {
+	configPath := filepath.Join("workspaces", workspaceId, "widgets.json")
+	m, cerrs := ReadWaveHomeConfigFile(configPath)
+	if len(cerrs) > 0 {
+		return fmt.Errorf("error reading workspace config file: %v", cerrs[0])
+	}
+	if m == nil {
+		return nil // Nothing to delete
+	}
+	
+	delete(m, widgetKey)
+	
+	// If no widgets left, we could optionally delete the file
+	if len(m) == 0 {
+		configDirAbsPath := wavebase.GetWaveConfigDir()
+		fullConfigPath := filepath.Join(configDirAbsPath, configPath)
+		return os.Remove(fullConfigPath)
+	}
+	
+	return WriteWaveHomeConfigFile(configPath, m)
 }
 
 type WidgetConfigType struct {

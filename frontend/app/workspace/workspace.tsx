@@ -38,6 +38,9 @@ function sortByDisplayOrder(wmap: { [key: string]: WidgetConfigType }): WidgetCo
 
 const Widgets = memo(() => {
     const fullConfig = useAtomValue(atoms.fullConfigAtom);
+    const workspaceWidgets = useAtomValue(atoms.workspaceWidgetsAtom);
+    const workspace = useAtomValue(atoms.workspace);
+    
     const helpWidget: WidgetConfigType = {
         icon: "circle-question",
         label: "help",
@@ -57,18 +60,42 @@ const Widgets = memo(() => {
         },
     };
     const showHelp = fullConfig?.settings?.["widget:showhelp"] ?? true;
-    const widgets = sortByDisplayOrder(fullConfig?.widgets);
+    const widgets = sortByDisplayOrder(workspaceWidgets);
 
     const handleWidgetsBarContextMenu = (e: React.MouseEvent) => {
         e.preventDefault();
         const menu: ContextMenuItem[] = [
             {
-                label: "Edit widgets.json",
+                label: "Edit Global widgets.json",
                 click: () => {
                     fireAndForget(async () => {
                         const path = `${getApi().getConfigDir()}/widgets.json`;
                         const blockDef: BlockDef = {
                             meta: { view: "preview", file: path },
+                        };
+                        await createBlock(blockDef, false, true);
+                    });
+                },
+            },
+            {
+                label: "Edit Workspace widgets.json",
+                click: () => {
+                    fireAndForget(async () => {
+                        if (!workspace) return;
+                        
+                        // First ensure the workspace widget config exists
+                        await RpcApi.EnsureWorkspaceWidgetConfigCommand(TabRpcClient, {
+                            workspaceid: workspace.oid
+                        });
+                        
+                        const configDir = getApi().getConfigDir();
+                        const filePath = `${configDir}/workspaces/${workspace.oid}/widgets.json`;
+                        
+                        const blockDef: BlockDef = {
+                            meta: { 
+                                view: "preview", 
+                                file: filePath
+                            },
                         };
                         await createBlock(blockDef, false, true);
                     });

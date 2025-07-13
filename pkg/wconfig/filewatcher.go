@@ -7,6 +7,7 @@ import (
 	"log"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"sync"
 
 	"github.com/fsnotify/fsnotify"
@@ -143,8 +144,44 @@ func isValidSubSettingsFileName(fileName string) bool {
 	return validFileRe.MatchString(baseName)
 }
 
-func (w *Watcher) handleSettingsFileEvent(_ fsnotify.Event, _ string) {
+func (w *Watcher) handleSettingsFileEvent(event fsnotify.Event, fileName string) {
+	// Check if this is a new workspace directory creation
+	if event.Op&fsnotify.Create != 0 && strings.Contains(fileName, "/workspaces/") && filepath.Ext(fileName) == ".json" {
+		// Extract workspace ID from path
+		pathParts := strings.Split(fileName, "/")
+		for i, part := range pathParts {
+			if part == "workspaces" && i+1 < len(pathParts) {
+				workspaceId := pathParts[i+1]
+				w.addWorkspaceWatcher(workspaceId)
+				break
+			}
+		}
+	}
+	
 	fullConfig := ReadFullConfig()
 	w.fullConfig = fullConfig
 	w.broadcast(WatcherUpdate{FullConfig: w.fullConfig})
+}
+
+// addWorkspaceWatcher adds a new workspace directory to the file watcher
+func (w *Watcher) addWorkspaceWatcher(workspaceId string) {
+	configDirAbsPath := wavebase.GetWaveConfigDir()
+	workspaceDir := filepath.Join(configDirAbsPath, "workspaces", workspaceId)
+	
+	err := w.watcher.Add(workspaceDir)
+	if err != nil {
+		log.Printf("failed to add workspace %s to watcher: %v", workspaceId, err)
+	} else {
+		log.Printf("added workspace %s to file watcher", workspaceId)
+	}
+}
+
+// AddWorkspaceWatcher adds a new workspace directory to the file watcher (public method)
+func (w *Watcher) AddWorkspaceWatcher(workspaceId string) {
+	if w == nil || w.watcher == nil {
+		return
+	}
+	w.mutex.Lock()
+	defer w.mutex.Unlock()
+	w.addWorkspaceWatcher(workspaceId)
 }

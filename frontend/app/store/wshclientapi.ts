@@ -392,6 +392,21 @@ class RpcApiType {
         return client.wshRpcCall("setconnectionsconfig", data, opts);
     }
 
+    // command "setworkspacewidgetconfig" [call]
+    SetWorkspaceWidgetConfigCommand(client: WshClient, data: WorkspaceWidgetConfigRequest, opts?: RpcOpts): Promise<void> {
+        return client.wshRpcCall("setworkspacewidgetconfig", data, opts);
+    }
+
+    // command "ensureworkspacewidgetconfig" [call]
+    EnsureWorkspaceWidgetConfigCommand(client: WshClient, data: EnsureWorkspaceWidgetConfigRequest, opts?: RpcOpts): Promise<void> {
+        return client.wshRpcCall("ensureworkspacewidgetconfig", data, opts);
+    }
+
+    // command "debugworkspacewidgets" [call]
+    DebugWorkspaceWidgetsCommand(client: WshClient, data: EnsureWorkspaceWidgetConfigRequest, opts?: RpcOpts): Promise<any> {
+        return client.wshRpcCall("debugworkspacewidgets", data, opts);
+    }
+
     // command "setmeta" [call]
     SetMetaCommand(client: WshClient, data: CommandSetMetaData, opts?: RpcOpts): Promise<void> {
         return client.wshRpcCall("setmeta", data, opts);

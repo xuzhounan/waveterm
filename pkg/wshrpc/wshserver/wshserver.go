@@ -540,6 +540,35 @@ func (ws *WshServer) SetConnectionsConfigCommand(ctx context.Context, data wshrp
 	return wconfig.SetConnectionsConfigValue(data.Host, data.MetaMapType)
 }
 
+func (ws *WshServer) SetWorkspaceWidgetConfigCommand(ctx context.Context, data wshrpc.WorkspaceWidgetConfigRequest) error {
+	log.Printf("SET WORKSPACE WIDGET CONFIG: workspace=%s, widget=%s\n", data.WorkspaceId, data.WidgetKey)
+	return wconfig.SetWorkspaceWidgetConfig(data.WorkspaceId, data.WidgetKey, data.Config)
+}
+
+func (ws *WshServer) EnsureWorkspaceWidgetConfigCommand(ctx context.Context, data wshrpc.EnsureWorkspaceWidgetConfigRequest) error {
+	log.Printf("ENSURE WORKSPACE WIDGET CONFIG: workspace=%s\n", data.WorkspaceId)
+	return wconfig.EnsureWorkspaceWidgetConfig(data.WorkspaceId)
+}
+
+func (ws *WshServer) DebugWorkspaceWidgetsCommand(ctx context.Context, data wshrpc.EnsureWorkspaceWidgetConfigRequest) (map[string]interface{}, error) {
+	log.Printf("DEBUG WORKSPACE WIDGETS: workspace=%s\n", data.WorkspaceId)
+	
+	watcher := wconfig.GetWatcher()
+	fullConfig := watcher.GetFullConfig()
+	
+	result := map[string]interface{}{
+		"workspaceId": data.WorkspaceId,
+		"hasFullConfig": fullConfig.WorkspaceWidgets != nil,
+		"workspaceWidgets": fullConfig.WorkspaceWidgets,
+	}
+	
+	if fullConfig.WorkspaceWidgets != nil {
+		result["specificWorkspace"] = fullConfig.WorkspaceWidgets[data.WorkspaceId]
+	}
+	
+	return result, nil
+}
+
 func (ws *WshServer) GetFullConfigCommand(ctx context.Context) (wconfig.FullConfigType, error) {
 	watcher := wconfig.GetWatcher()
 	return watcher.GetFullConfig(), nil

@@ -1,0 +1,46 @@
+{
+  "local_web": {
+    "display:order": 1,
+    "icon": "brands@chrome",
+    "label": "Local Dev",
+    "color": "#4285f4",
+    "blockdef": {
+      "meta": {
+        "view": "web",
+        "url": "http://localhost:3000",
+        "pinnedurl": "http://localhost:3000"
+      }
+    }
+  },
+  "project_terminal": {
+    "display:order": 2,
+    "icon": "terminal",
+    "label": "Project Shell",
+    "color": "#28a745",
+    "blockdef": {
+      "meta": {
+        "view": "term",
+        "controller": "shell",
+        "cmd:env": {
+          "PROJECT_ROOT": "/path/to/project"
+        },
+        "cmd:initscript": "cd $PROJECT_ROOT && npm install"
+      }
+    }
+  },
+  "api_docs": {
+    "display:order": 3,
+    "icon": "book",
+    "label": "API Docs",
+    "color": "#6f42c1",
+    "blockdef": {
+      "meta": {
+        "view": "web",
+        "url": "http://localhost:3001/docs"
+      }
+    }
+  },
+  "defwidget@files": {
+    "display:hidden": true
+  }
+}

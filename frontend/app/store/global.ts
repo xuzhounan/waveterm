@@ -97,6 +97,47 @@ function initGlobalAtoms(initOpts: GlobalInitOptions) {
         return WOS.getObjectValue(WOS.makeORef("workspace", windowData.workspaceid), get);
     });
     const fullConfigAtom = atom(null) as PrimitiveAtom<FullConfigType>;
+    
+    // Computed atom that merges widgets from different sources
+    const workspaceWidgetsAtom: Atom<{[key: string]: WidgetConfigType}> = atom((get) => {
+        const fullConfig = get(fullConfigAtom);
+        const workspace = get(workspaceAtom);
+        
+        if (!fullConfig) {
+            return {};
+        }
+        
+        // Get widgets from different sources
+        const defaultWidgets = fullConfig.defaultwidgets || {};
+        const systemWidgets = fullConfig.widgets || {};
+        
+        // Get workspace-specific widgets
+        let workspaceWidgets = {};
+        if (workspace?.oid && fullConfig.workspacewidgets) {
+            workspaceWidgets = fullConfig.workspacewidgets[workspace.oid] || {};
+        }
+        
+        // Merge widgets with priority: workspace > system > default
+        const mergedWidgets: {[key: string]: WidgetConfigType} = {};
+        
+        // Start with default widgets
+        for (const [key, config] of Object.entries(defaultWidgets)) {
+            mergedWidgets[key] = { ...config as WidgetConfigType };
+        }
+        
+        // Merge system widgets (override defaults)
+        for (const [key, config] of Object.entries(systemWidgets)) {
+            mergedWidgets[key] = { ...mergedWidgets[key], ...config as WidgetConfigType };
+        }
+        
+        // Merge workspace widgets (highest priority)
+        for (const [key, config] of Object.entries(workspaceWidgets)) {
+            mergedWidgets[key] = { ...mergedWidgets[key], ...config as WidgetConfigType };
+        }
+        
+        return mergedWidgets;
+    });
+    
     const settingsAtom = atom((get) => {
         return get(fullConfigAtom)?.settings ?? {};
     }) as Atom<SettingsType>;
@@ -154,6 +195,7 @@ function initGlobalAtoms(initOpts: GlobalInitOptions) {
         waveWindow: windowDataAtom,
         workspace: workspaceAtom,
         fullConfigAtom,
+        workspaceWidgetsAtom,
         settingsAtom,
         tabAtom,
         staticTabId: staticTabIdAtom,
