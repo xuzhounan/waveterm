@@ -546,27 +546,7 @@ func (ws *WshServer) SetWorkspaceWidgetConfigCommand(ctx context.Context, data w
 }
 
 func (ws *WshServer) EnsureWorkspaceWidgetConfigCommand(ctx context.Context, data wshrpc.EnsureWorkspaceWidgetConfigRequest) error {
-	log.Printf("ENSURE WORKSPACE WIDGET CONFIG: workspace=%s\n", data.WorkspaceId)
 	return wconfig.EnsureWorkspaceWidgetConfig(data.WorkspaceId)
-}
-
-func (ws *WshServer) DebugWorkspaceWidgetsCommand(ctx context.Context, data wshrpc.EnsureWorkspaceWidgetConfigRequest) (map[string]interface{}, error) {
-	log.Printf("DEBUG WORKSPACE WIDGETS: workspace=%s\n", data.WorkspaceId)
-	
-	watcher := wconfig.GetWatcher()
-	fullConfig := watcher.GetFullConfig()
-	
-	result := map[string]interface{}{
-		"workspaceId": data.WorkspaceId,
-		"hasFullConfig": fullConfig.WorkspaceWidgets != nil,
-		"workspaceWidgets": fullConfig.WorkspaceWidgets,
-	}
-	
-	if fullConfig.WorkspaceWidgets != nil {
-		result["specificWorkspace"] = fullConfig.WorkspaceWidgets[data.WorkspaceId]
-	}
-	
-	return result, nil
 }
 
 func (ws *WshServer) GetFullConfigCommand(ctx context.Context) (wconfig.FullConfigType, error) {

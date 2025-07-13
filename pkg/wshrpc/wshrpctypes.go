@@ -95,7 +95,6 @@ const (
 	Command_SetConnectionsConfig     = "connectionsconfig"
 	Command_SetWorkspaceWidgetConfig    = "setworkspacewidgetconfig"
 	Command_EnsureWorkspaceWidgetConfig = "ensureworkspacewidgetconfig"
-	Command_DebugWorkspaceWidgets       = "debugworkspacewidgets"
 	Command_GetFullConfig            = "getfullconfig"
 	Command_RemoteStreamFile     = "remotestreamfile"
 	Command_RemoteTarStream      = "remotetarstream"
@@ -199,7 +198,6 @@ type WshRpcInterface interface {
 	SetConnectionsConfigCommand(ctx context.Context, data ConnConfigRequest) error
 	SetWorkspaceWidgetConfigCommand(ctx context.Context, data WorkspaceWidgetConfigRequest) error
 	EnsureWorkspaceWidgetConfigCommand(ctx context.Context, data EnsureWorkspaceWidgetConfigRequest) error
-	DebugWorkspaceWidgetsCommand(ctx context.Context, data EnsureWorkspaceWidgetConfigRequest) (map[string]interface{}, error)
 	GetFullConfigCommand(ctx context.Context) (wconfig.FullConfigType, error)
 	BlockInfoCommand(ctx context.Context, blockId string) (*BlockInfoData, error)
 	WaveInfoCommand(ctx context.Context) (*WaveInfoData, error)
