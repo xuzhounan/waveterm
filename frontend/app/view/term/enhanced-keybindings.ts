@@ -255,16 +255,13 @@ export class EnhancedKeybindingsHandler {
      * @returns 是否需要特殊处理
      */
     private handleInputMethodSwitch(event: KeyboardEvent): boolean {
-        // 检测 caps 键
+        // 检测 caps 键 - 不阻止事件，让 IME 处理器处理
         if (event.key === 'CapsLock' || event.keyCode === 20) {
-            console.log('🎯 CapsLock detected in keybindings, preparing for IME switch');
-            // 不阻止事件，让 IME 处理器处理
             return false;
         }
 
         // 检测其他输入法切换快捷键
         if ((event.metaKey && event.key === ' ') || (event.ctrlKey && event.shiftKey)) {
-            console.log('🎯 Input method switch shortcut detected');
             return false;
         }
 

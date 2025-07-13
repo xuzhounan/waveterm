@@ -61,11 +61,16 @@ export class EnhancedIMEHandler {
     private setupCompositionEvents() {
         if (!this.helperTextarea) return;
 
-        // compositionstart - 开始输入
+        // compositionstart - 开始输入法输入
         this.helperTextarea.addEventListener('compositionstart', (e) => {
             this.isComposing = true;
             this.compositionText = "";
             this.updateCompositionView();
+            
+            // 通知 TermWrap 重置输入过滤器
+            if (this.onInputFilterReset) {
+                this.onInputFilterReset();
+            }
         });
 
         // compositionupdate - 输入过程中
@@ -74,33 +79,21 @@ export class EnhancedIMEHandler {
             this.updateCompositionView();
         });
 
-        // compositionend - 输入结束
+        // compositionend - 输入法结束
         this.helperTextarea.addEventListener('compositionend', (e) => {
-            console.log('🎯 Composition end:', e.data);
             this.isComposing = false;
             this.compositionText = "";
             this.hideCompositionView();
             
-            // 处理最终输入，防止重复
+            // 处理最终输入
             this.handleFinalInput(e.data || "");
         });
 
-        // 监听输入位置变化
+        // 监听 input 事件 - 仅用于显示更新
         this.helperTextarea.addEventListener('input', (e) => {
-            const inputEvent = e as InputEvent;
-            console.log('🎯 Input event:', inputEvent.data, 'isComposing:', this.isComposing);
-            
             if (this.isComposing) {
+                // 在输入法过程中只更新显示，不发送数据
                 this.updateCompositionView();
-            } else {
-                // 非 composition 模式下的输入，检查是否需要防重复处理
-                if (this.shouldBlockInput(inputEvent.data || "")) {
-                    console.log('🎯 Blocking duplicate input event:', inputEvent.data);
-                    e.preventDefault();
-                    e.stopPropagation();
-                    return false;
-                }
-                this.handleDirectInput(inputEvent.data || "");
             }
         });
     }
@@ -243,32 +236,28 @@ export class EnhancedIMEHandler {
     private setupInputMethodTracking() {
         if (!this.helperTextarea) return;
 
-        // 监听键盘事件，特别是 caps 键
+        // 监听键盘事件，特别是输入法切换
         this.helperTextarea.addEventListener('keydown', (e) => {
             const now = Date.now();
             this.lastKeyTime = now;
 
             // 检测 caps 键（输入法切换）
             if (e.key === 'CapsLock' || e.keyCode === 20) {
-                console.log('🎯 Caps Lock detected, clearing IME state');
                 this.clearIMEState();
             }
 
             // 检测可能的输入法切换快捷键
-            if (e.metaKey && e.key === ' ') { // Cmd+Space (另一种输入法切换)
-                console.log('🎯 Input method switch detected, clearing IME state');
+            if (e.metaKey && e.key === ' ') { // Cmd+Space
                 this.clearIMEState();
             }
         });
 
-        // 监听 blur/focus 事件，输入法切换时可能触发
+        // 监听 blur/focus 事件
         this.helperTextarea.addEventListener('blur', () => {
-            console.log('🎯 Textarea blur, clearing IME state');
             this.clearIMEState();
         });
 
         this.helperTextarea.addEventListener('focus', () => {
-            console.log('🎯 Textarea focus, resetting IME state');
             this.resetIMEState();
         });
     }
@@ -302,10 +291,7 @@ export class EnhancedIMEHandler {
      */
     private handleDirectInput(data: string) {
         if (!data) return;
-
-        const now = Date.now();
         this.lastProcessedText = data;
-        console.log('🎯 Processing direct input:', data);
     }
 
     /**
@@ -314,7 +300,7 @@ export class EnhancedIMEHandler {
     private handleFinalInput(data: string) {
         if (!data) return;
 
-        // 清除可能的重复输入防护
+        // 清除防重复计时器
         if (this.preventDuplicateTimeout) {
             clearTimeout(this.preventDuplicateTimeout);
         }
@@ -326,7 +312,6 @@ export class EnhancedIMEHandler {
         }, 200);
 
         this.lastProcessedText = data;
-        console.log('🎯 Final composition input:', data);
     }
 
     /**
@@ -383,11 +368,7 @@ export class EnhancedIMEHandler {
         }
 
         // 清理事件监听器
-        if (this.helperTextarea) {
-            // 注意：这里应该移除具体的事件处理函数，而不是重新绑定
-            // 由于我们使用了匿名函数，这里只是示例性清理
-            console.log('🎯 Disposing enhanced IME handler');
-        }
+        // 注意：由于使用了匿名函数，实际的事件清理由 DOM 垃圾回收处理
     }
 
     public getCompositionState() {

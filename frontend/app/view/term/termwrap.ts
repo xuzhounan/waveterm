@@ -160,10 +160,12 @@ export class TermWrap {
     private enhancedIME: EnhancedIMEHandler | null = null;
     private enhancedKeybindings: EnhancedKeybindingsHandler | null = null;
     
-    // 输入过滤器 - 防止 caps 键切换时的重复输入
+    // 输入过滤器 - 防止多重事件处理器导致的重复输入
     private lastInputData = "";
     private lastInputTime = 0;
     private inputFilterEnabled = true;
+    private inputProcessingLock = false;
+    private pendingInputs = new Map<string, number>();
 
     constructor(
         blockId: string,
@@ -246,7 +248,6 @@ export class TermWrap {
         this.handleResize();
         
         // 初始化增强功能
-        console.log('🔧 Initializing terminal enhancements for blockId:', this.blockId);
         this.initializeEnhancements();
         let pasteEventHandler = () => {
             this.pasteActive = true;
@@ -308,14 +309,43 @@ export class TermWrap {
             return;
         }
 
-        // 应用输入过滤，防止 caps 键切换时的重复输入
-        if (this.inputFilterEnabled && this.shouldFilterInput(data)) {
-            console.log('🎯 Filtered duplicate input:', data, 'blockId:', this.blockId);
+        // 防止 IME composition 中间状态被发送
+        if (this.enhancedIME) {
+            const imeState = this.enhancedIME.getCompositionState();
+            if (imeState.isComposing) {
+                return; // 忽略 composition 过程中的中间输入
+            }
+        }
+
+        // 防止重复输入
+        const now = Date.now();
+        const timeDiff = now - this.lastInputTime;
+        
+        // 完全相同的快速重复输入
+        if (data === this.lastInputData && timeDiff < 50) {
             return;
         }
         
-        console.log('🎯 Processing terminal input:', data, 'blockId:', this.blockId);
+        // 检查 IME 相关的重复（如 "a s d" 和 "asd"）
+        if (this.lastInputData && timeDiff < 100) {
+            const lastWithoutSpaces = this.lastInputData.replace(/\s/g, '');
+            const currentWithoutSpaces = data.replace(/\s/g, '');
+            
+            if (lastWithoutSpaces === currentWithoutSpaces && lastWithoutSpaces.length > 0) {
+                if (this.lastInputData.includes(' ') && !data.includes(' ')) {
+                    // 当前输入是最终结果，继续处理
+                } else {
+                    // 其他情况认为是重复，忽略
+                    return;
+                }
+            }
+        }
 
+        // 更新输入记录
+        this.lastInputData = data;
+        this.lastInputTime = now;
+
+        // 处理输入
         if (this.pasteActive) {
             this.pasteActive = false;
             if (this.multiInputCallback) {
@@ -326,9 +356,7 @@ export class TermWrap {
     }
 
     onKeyHandler(data: { key: string; domEvent: KeyboardEvent }) {
-        if (this.multiInputCallback) {
-            this.multiInputCallback(data.key);
-        }
+        // onKey 事件已由 onData 统一处理，避免重复处理
     }
 
     addFocusListener(focusFn: () => void) {
@@ -464,11 +492,11 @@ export class TermWrap {
      */
     private initializeEnhancements() {
         try {
-            // 初始化增强的 IME 处理，传入输入过滤器重置回调
+            // 初始化增强的 IME 处理
             this.enhancedIME = new EnhancedIMEHandler(
                 this.terminal, 
                 this.connectElem,
-                () => this.resetInputFilter() // 当 IME 状态变化时重置输入过滤器
+                () => this.resetInputFilter()
             );
 
             // 初始化增强的快捷键绑定
@@ -477,31 +505,19 @@ export class TermWrap {
                     this.sendDataHandler(data);
                 }
             });
-
-            console.log("✅ Enhanced terminal features initialized for blockId:", this.blockId);
-            console.log("🎯 IME Handler:", !!this.enhancedIME);
-            console.log("🎯 Keybindings Handler:", !!this.enhancedKeybindings);
         } catch (error) {
             console.warn("⚠️ Failed to initialize enhanced terminal features:", error);
         }
     }
 
     /**
-     * 增强的键盘处理（在原有处理之前调用）
+     * 增强的键盘处理
      */
     public handleEnhancedKeydown(event: KeyboardEvent): boolean {
-        console.log('🎯 handleEnhancedKeydown called for key:', event.key, 'blockId:', this.blockId);
-        
         if (!this.enhancedKeybindings) {
-            console.log('🎯 No enhanced keybindings available');
             return false;
         }
-
-        const result = this.enhancedKeybindings.handleKeydown(event);
-        if (result) {
-            console.log('🎯 Enhanced keybinding handled key:', event.key);
-        }
-        return result;
+        return this.enhancedKeybindings.handleKeydown(event);
     }
 
     /**
@@ -512,38 +528,84 @@ export class TermWrap {
     }
 
     /**
-     * 输入过滤器 - 防止重复输入
+     * 激进的输入过滤器 - 防止多重事件处理器导致的重复输入
      */
-    private shouldFilterInput(data: string): boolean {
+    private shouldFilterInputAggressive(data: string): boolean {
         const now = Date.now();
         const timeDiff = now - this.lastInputTime;
         
-        // 检查是否是重复的单字符输入（在很短时间内）
-        if (data === this.lastInputData && timeDiff < 50 && data.length === 1) {
+        // 1. 检查 pending 输入映射（防止多个事件处理器同时处理同一输入）
+        const pendingTime = this.pendingInputs.get(data);
+        if (pendingTime && (now - pendingTime) < 300) {
+            console.log('🎯 Filtered pending duplicate input:', data, 'pendingAge:', now - pendingTime, 'ms');
             return true;
         }
         
-        // 更激进的过滤：检查是否是输入法切换后的重复字符
-        if (data === this.lastInputData && timeDiff < 500 && /^[a-zA-Z]$/.test(data)) {
-            // 检查 IME 状态
-            const imeState = this.getIMEState();
-            if (!imeState.isComposing) {
-                console.log('🎯 Aggressive filter triggered for:', data, 'timeDiff:', timeDiff);
+        // 2. 检查是否是相同数据在短时间内重复
+        if (data === this.lastInputData) {
+            // 根据输入类型使用不同的时间窗口
+            let timeThreshold = 200; // 默认 200ms
+            
+            // 单字符（特别是字母和数字）使用更严格的时间窗口
+            if (data.length === 1 && /^[a-zA-Z0-9]$/.test(data)) {
+                timeThreshold = 500; // 单字符使用 500ms
+            }
+            
+            if (timeDiff < timeThreshold) {
+                console.log('🎯 Filtered duplicate input:', data, 'timeDiff:', timeDiff, 'ms', 'threshold:', timeThreshold);
                 return true;
             }
         }
         
-        // 特殊处理：如果是连续的相同字符且频率很高
-        if (data === this.lastInputData && data.length === 1) {
-            if (timeDiff < 100) {
-                return true;
-            }
-        }
-        
-        // 更新状态
+        // 3. 更新状态
         this.lastInputData = data;
         this.lastInputTime = now;
+        this.pendingInputs.set(data, now);
         
+        // 4. 清理过期的 pending 输入
+        this.cleanupPendingInputs(now);
+        
+        return false;
+    }
+    
+    /**
+     * 清理过期的 pending 输入
+     */
+    private cleanupPendingInputs(now: number) {
+        for (const [key, time] of this.pendingInputs.entries()) {
+            if (now - time > 1000) { // 1秒后清理
+                this.pendingInputs.delete(key);
+            }
+        }
+    }
+
+    /**
+     * 检测可能的重复输入 - 特别针对输入法切换场景
+     */
+    private isLikelyDuplicateInput(data: string): boolean {
+        if (!data || data.length !== 1) {
+            return false;
+        }
+
+        const now = Date.now();
+        const timeDiff = now - this.lastInputTime;
+        
+        // 对于单字符输入，如果在很短的时间内重复出现，很可能是重复
+        if (data === this.lastInputData && timeDiff < 100) {
+            console.log('🎯 Very fast duplicate detected:', data, 'timeDiff:', timeDiff, 'ms');
+            return true;
+        }
+
+        // 检查是否是输入法切换后的快速重复
+        // 如果 IME 不在 composing 状态，但有相同的字符在短时间内出现
+        if (this.enhancedIME) {
+            const imeState = this.enhancedIME.getCompositionState();
+            if (!imeState.isComposing && data === this.lastInputData && timeDiff < 150) {
+                console.log('🎯 Non-IME duplicate detected:', data, 'timeDiff:', timeDiff, 'ms');
+                return true;
+            }
+        }
+
         return false;
     }
 
@@ -553,7 +615,6 @@ export class TermWrap {
     public resetInputFilter() {
         this.lastInputData = "";
         this.lastInputTime = 0;
-        console.log('🎯 Input filter reset');
     }
 
     /**
