@@ -287,3 +287,72 @@ func (svc *WorkspaceService) CloseTab(ctx context.Context, workspaceId string, t
 	}()
 	return rtn, updates, nil
 }
+
+// WorkspaceFavorites methods
+
+func (svc *WorkspaceService) SaveWorkspaceAsFavorite_Meta() tsgenmeta.MethodMeta {
+	return tsgenmeta.MethodMeta{
+		ArgNames:   []string{"ctx", "workspaceId", "favoriteName", "description", "tags"},
+		ReturnDesc: "favorite",
+	}
+}
+
+func (svc *WorkspaceService) SaveWorkspaceAsFavorite(ctx context.Context, workspaceId string, favoriteName string, description string, tags []string) (*waveobj.WorkspaceFavorite, error) {
+	return wcore.SaveWorkspaceAsFavorite(ctx, workspaceId, favoriteName, description, tags)
+}
+
+func (svc *WorkspaceService) ListWorkspaceFavorites_Meta() tsgenmeta.MethodMeta {
+	return tsgenmeta.MethodMeta{
+		ReturnDesc: "favorites",
+	}
+}
+
+func (svc *WorkspaceService) ListWorkspaceFavorites() ([]*waveobj.WorkspaceFavorite, error) {
+	return wcore.ListWorkspaceFavorites()
+}
+
+func (svc *WorkspaceService) GetWorkspaceFavorite_Meta() tsgenmeta.MethodMeta {
+	return tsgenmeta.MethodMeta{
+		ArgNames:   []string{"favoriteId"},
+		ReturnDesc: "favorite",
+	}
+}
+
+func (svc *WorkspaceService) GetWorkspaceFavorite(favoriteId string) (*waveobj.WorkspaceFavorite, error) {
+	return wcore.GetWorkspaceFavorite(favoriteId)
+}
+
+func (svc *WorkspaceService) CreateWorkspaceFromFavorite_Meta() tsgenmeta.MethodMeta {
+	return tsgenmeta.MethodMeta{
+		ArgNames:   []string{"ctx", "favoriteId"},
+		ReturnDesc: "workspaceId",
+	}
+}
+
+func (svc *WorkspaceService) CreateWorkspaceFromFavorite(ctx context.Context, favoriteId string) (string, error) {
+	workspace, err := wcore.CreateWorkspaceFromFavorite(ctx, favoriteId)
+	if err != nil {
+		return "", fmt.Errorf("error creating workspace from favorite: %w", err)
+	}
+	return workspace.OID, nil
+}
+
+func (svc *WorkspaceService) DeleteWorkspaceFavorite_Meta() tsgenmeta.MethodMeta {
+	return tsgenmeta.MethodMeta{
+		ArgNames: []string{"favoriteId"},
+	}
+}
+
+func (svc *WorkspaceService) DeleteWorkspaceFavorite(favoriteId string) error {
+	return wcore.DeleteWorkspaceFavorite(favoriteId)
+}
+
+func (svc *WorkspaceService) UpdateWorkspaceFavorite_Meta() tsgenmeta.MethodMeta {
+	return tsgenmeta.MethodMeta{
+		ArgNames: []string{"favoriteId", "name", "description", "tags"},
+	}
+}
+
+func (svc *WorkspaceService) UpdateWorkspaceFavorite(favoriteId string, name string, description string, tags []string) error {
+	return wcore.UpdateWorkspaceFavorite(favoriteId, name, description, tags)
+}

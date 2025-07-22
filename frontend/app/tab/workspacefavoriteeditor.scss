@@ -1,0 +1,78 @@
+// Copyright 2025, Command Line
+// SPDX-License-Identifier: Apache-2.0
+
+.workspace-favorite-editor {
+    padding: 16px;
+    background: var(--app-bg-color);
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+    min-width: 400px;
+    max-width: 500px;
+
+    .editor-header {
+        margin-bottom: 16px;
+        
+        h3 {
+            margin: 0;
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--main-text-color);
+        }
+    }
+
+    .editor-form {
+        margin-bottom: 16px;
+
+        .form-group {
+            margin-bottom: 12px;
+            
+            label {
+                display: block;
+                margin-bottom: 4px;
+                font-size: 14px;
+                font-weight: 500;
+                color: var(--secondary-text-color);
+            }
+
+            .input {
+                width: 100%;
+            }
+        }
+    }
+
+    .editor-actions {
+        display: flex;
+        gap: 8px;
+        justify-content: flex-end;
+        
+        .button {
+            padding: 8px 16px;
+            font-size: 14px;
+            
+            &.secondary {
+                background: var(--button-grey-bg);
+                color: var(--main-text-color);
+                border: 1px solid var(--border-color);
+                
+                &:hover {
+                    background: var(--button-grey-bg-hover);
+                }
+            }
+            
+            &.primary {
+                background: var(--accent-color);
+                color: white;
+                border: 1px solid var(--accent-color);
+                
+                &:hover:not(:disabled) {
+                    background: var(--accent-color-hover);
+                }
+                
+                &:disabled {
+                    opacity: 0.5;
+                    cursor: not-allowed;
+                }
+            }
+        }
+    }
+}

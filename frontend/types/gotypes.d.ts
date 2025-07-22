@@ -1386,6 +1386,42 @@ declare global {
         windowid: string;
     };
 
+    // waveobj.WorkspaceFavorite
+    type WorkspaceFavorite = {
+        favoriteid: string;
+        name: string;
+        description?: string;
+        icon: string;
+        color: string;
+        tags?: string[];
+        createdat: string;
+        updatedat: string;
+        usagecount: number;
+        defaulttabs?: DefaultTabConfig[];
+        widgetconfigs?: {[key: string]: WidgetConfig};
+        meta?: MetaMapType;
+    };
+
+    // waveobj.DefaultTabConfig
+    type DefaultTabConfig = {
+        name: string;
+        pinned?: boolean;
+        blockdef: BlockDef;
+        meta?: MetaMapType;
+    };
+
+    // waveobj.WidgetConfig
+    type WidgetConfig = {
+        "display:order"?: number;
+        "display:hidden"?: boolean;
+        icon?: string;
+        color?: string;
+        label?: string;
+        description?: string;
+        magnified?: boolean;
+        blockdef: BlockDef;
+    };
+
     // wshrpc.WshServerCommandMeta
     type WshServerCommandMeta = {
         commandtype: string;

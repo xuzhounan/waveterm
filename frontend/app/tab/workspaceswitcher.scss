@@ -149,4 +149,43 @@
         padding: 3px 0;
         border-top: 1px solid var(--modal-border-color);
     }
+
+    .favorites-header {
+        display: flex;
+        align-items: center;
+        width: 100%;
+        padding: 6px 8px;
+        border-bottom: 1px solid var(--modal-border-color);
+
+        .back-button {
+            background: none;
+            border: none;
+            color: var(--secondary-text-color);
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            margin-right: 12px;
+            transition: all 0.2s ease;
+
+            &:hover {
+                background: var(--button-grey-bg);
+                color: var(--main-text-color);
+            }
+        }
+
+        .title {
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 0;
+            padding: 0;
+        }
+    }
+
+    .favorites-scrollable {
+        max-height: 350px;
+    }
 }
