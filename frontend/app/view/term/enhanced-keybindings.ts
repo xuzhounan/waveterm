@@ -158,6 +158,13 @@ export class EnhancedKeybindingsHandler {
     }
 
     private handleEditingKeybindings(waveEvent: any, event: KeyboardEvent): boolean {
+        // Shift + Enter - 换行 (多行输入支持)
+        if (keyutil.checkKeyPressed(waveEvent, "Shift:Enter")) {
+            this.insertNewline();
+            event.preventDefault();
+            return true;
+        }
+
         // Home - 移动到行首
         if (keyutil.checkKeyPressed(waveEvent, "Home")) {
             this.moveCursorToBeginningOfLine();
@@ -232,6 +239,13 @@ export class EnhancedKeybindingsHandler {
             // 使用 Shift+End 选择到行尾
             this.sendDataToShell('\x1b[1;2F'); // Shift+End
         }, 10);
+    }
+
+    // 换行方法
+    private insertNewline() {
+        // 发送换行符到终端
+        // 这会在当前位置插入一个换行，继续在新行输入
+        this.sendDataToShell('\n');
     }
 
     // 工具方法
