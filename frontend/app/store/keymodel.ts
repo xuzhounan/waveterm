@@ -17,6 +17,7 @@ import {
     replaceBlock,
     WOS,
 } from "@/app/store/global";
+import { WorkspaceService } from "@/app/store/services";
 import {
     deleteLayoutModelForTab,
     getLayoutModelForTab,
@@ -177,6 +178,45 @@ function switchTab(offset: number) {
     const newTabIdx = (tabIdx + offset + tabids.length) % tabids.length;
     const newActiveTabId = tabids[newTabIdx];
     getApi().setActiveTab(newActiveTabId);
+}
+
+async function switchWorkspace(offset: number) {
+    console.log("switchWorkspace", offset);
+    const currentWorkspace = globalStore.get(atoms.workspace);
+    if (!currentWorkspace) {
+        return;
+    }
+    
+    try {
+        const workspaceList = await WorkspaceService.ListWorkspaces();
+        if (!workspaceList || workspaceList.length <= 1) {
+            // 只有一个或没有工作区，无法切换
+            return;
+        }
+        
+        // 找到当前工作区的索引
+        let currentIndex = -1;
+        for (let i = 0; i < workspaceList.length; i++) {
+            if (workspaceList[i].workspaceid === currentWorkspace.oid) {
+                currentIndex = i;
+                break;
+            }
+        }
+        
+        if (currentIndex === -1) {
+            return;
+        }
+        
+        // 计算下一个工作区的索引（循环切换）
+        const newIndex = (currentIndex + offset + workspaceList.length) % workspaceList.length;
+        const nextWorkspace = workspaceList[newIndex];
+        
+        if (nextWorkspace && nextWorkspace.workspaceid !== currentWorkspace.oid) {
+            getApi().switchWorkspace(nextWorkspace.workspaceid);
+        }
+    } catch (error) {
+        console.error("Error switching workspace:", error);
+    }
 }
 
 function handleCmdI() {
@@ -374,6 +414,12 @@ function registerGlobalKeys() {
     });
     globalKeyMap.set("Shift:Cmd:[", () => {
         switchTab(-1);
+        return true;
+    });
+    globalKeyMap.set("Shift:Tab", () => {
+        fireAndForget(async () => {
+            await switchWorkspace(1);
+        });
         return true;
     });
     globalKeyMap.set("Cmd:n", () => {
