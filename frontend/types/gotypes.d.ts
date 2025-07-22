@@ -1406,8 +1406,28 @@ declare global {
     type DefaultTabConfig = {
         name: string;
         pinned?: boolean;
-        blockdef: BlockDef;
         meta?: MetaMapType;
+        layoutstate?: SavedLayoutState;
+        blocks?: SavedBlock[];
+    };
+
+    // waveobj.SavedLayoutState
+    type SavedLayoutState = {
+        rootnode?: any;
+        magnifiednodeid?: string;
+        focusednodeid?: string;
+        leaforder?: LeafOrderEntry[];
+        meta?: MetaMapType;
+    };
+
+    // waveobj.SavedBlock
+    type SavedBlock = {
+        originaloid: string;
+        parentoref?: string;
+        runtimeopts?: RuntimeOpts;
+        stickers?: StickerType[];
+        meta: MetaMapType;
+        subblockids?: string[];
     };
 
     // waveobj.WidgetConfig

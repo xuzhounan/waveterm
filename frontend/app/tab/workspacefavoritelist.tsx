@@ -145,6 +145,40 @@ export const WorkspaceFavoriteList = ({
                                     </div>
                                 )}
                                 
+                                <div className="favorite-layout-info">
+                                    <div className="layout-stats">
+                                        <span className="stat-item">
+                                            <i className="fa fa-window-maximize"></i>
+                                            {favorite.defaulttabs?.length || 0} 个标签页
+                                        </span>
+                                        <span className="stat-item">
+                                            <i className="fa fa-th"></i>
+                                            {favorite.defaulttabs?.reduce((total, tab) => 
+                                                total + (tab.blocks?.length || 0), 0) || 0} 个窗口
+                                        </span>
+                                        {favorite.widgetconfigs && Object.keys(favorite.widgetconfigs).length > 0 && (
+                                            <span className="stat-item">
+                                                <i className="fa fa-puzzle-piece"></i>
+                                                {Object.keys(favorite.widgetconfigs).length} 个小组件
+                                            </span>
+                                        )}
+                                    </div>
+                                    {favorite.defaulttabs && favorite.defaulttabs.length > 0 && (
+                                        <div className="tabs-preview">
+                                            <span className="preview-label">标签页预览：</span>
+                                            {favorite.defaulttabs.slice(0, 3).map((tab, index) => (
+                                                <span key={index} className="tab-preview">
+                                                    {tab.pinned && <i className="fa fa-thumbtack"></i>}
+                                                    {tab.name}
+                                                </span>
+                                            ))}
+                                            {favorite.defaulttabs.length > 3 && (
+                                                <span className="more-tabs">+{favorite.defaulttabs.length - 3}</span>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                                
                                 <div className="favorite-meta">
                                     <div className="meta-item">
                                         <span className="meta-label">创建时间：</span>

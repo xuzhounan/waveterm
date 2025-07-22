@@ -31,10 +31,32 @@ type WorkspaceFavorite struct {
 
 // DefaultTabConfig 表示默认标签页的配置
 type DefaultTabConfig struct {
-	Name     string      `json:"name"`               // 标签页名称
-	Pinned   bool        `json:"pinned,omitempty"`   // 是否固定
-	BlockDef BlockDef    `json:"blockdef"`           // 块定义
-	Meta     MetaMapType `json:"meta,omitempty"`     // 标签页元数据
+	Name             string                 `json:"name"`                       // 标签页名称
+	Pinned           bool                   `json:"pinned,omitempty"`           // 是否固定
+	Meta             MetaMapType            `json:"meta,omitempty"`             // 标签页元数据
+	
+	// 布局和块信息
+	LayoutState      *SavedLayoutState      `json:"layoutstate,omitempty"`     // 保存的布局状态
+	Blocks           []*SavedBlock          `json:"blocks,omitempty"`          // 保存的块配置
+}
+
+// SavedLayoutState 表示保存的布局状态
+type SavedLayoutState struct {
+	RootNode          any                 `json:"rootnode,omitempty"`         // 根节点树结构
+	MagnifiedNodeId   string              `json:"magnifiednodeid,omitempty"`  // 放大的节点ID
+	FocusedNodeId     string              `json:"focusednodeid,omitempty"`    // 聚焦的节点ID
+	LeafOrder         *[]LeafOrderEntry   `json:"leaforder,omitempty"`        // 叶子节点顺序
+	Meta              MetaMapType         `json:"meta,omitempty"`             // 布局元数据
+}
+
+// SavedBlock 表示保存的块配置
+type SavedBlock struct {
+	OriginalOID     string         `json:"originaloid"`            // 原始块ID（用于布局树引用）
+	ParentORef      string         `json:"parentoref,omitempty"`   // 父对象引用
+	RuntimeOpts     *RuntimeOpts   `json:"runtimeopts,omitempty"`  // 运行时选项
+	Stickers        []*StickerType `json:"stickers,omitempty"`     // 标签贴纸
+	Meta            MetaMapType    `json:"meta"`                   // 元数据（核心配置）
+	SubBlockIds     []string       `json:"subblockids,omitempty"`  // 子块ID列表（映射到新ID）
 }
 
 // WidgetConfig 表示小组件配置

@@ -31,7 +31,7 @@ func SaveWorkspaceAsFavorite(ctx context.Context, workspaceId string, favoriteNa
 		return nil, fmt.Errorf("workspace not found: %w", err)
 	}
 
-	// 获取工作区的标签页信息
+	// 获取工作区的标签页信息，包括完整的布局和块配置
 	var defaultTabs []waveobj.DefaultTabConfig
 	allTabIds := append(workspace.PinnedTabIds, workspace.TabIds...)
 	for _, tabId := range allTabIds {
@@ -49,23 +49,47 @@ func SaveWorkspaceAsFavorite(ctx context.Context, workspaceId string, favoriteNa
 			}
 		}
 
-		// 创建默认块定义（简化版本，主要保存视图类型）
-		var blockDef waveobj.BlockDef
-		if len(tab.BlockIds) > 0 {
-			// 获取第一个块的配置作为模板
-			block, err := wstore.DBGet[*waveobj.Block](ctx, tab.BlockIds[0])
-			if err == nil && block != nil {
-				blockDef = waveobj.BlockDef{
-					Meta: block.Meta,
+		// 保存完整的布局状态
+		var savedLayoutState *waveobj.SavedLayoutState
+		if tab.LayoutState != "" {
+			layoutState, err := wstore.DBGet[*waveobj.LayoutState](ctx, tab.LayoutState)
+			if err == nil && layoutState != nil {
+				savedLayoutState = &waveobj.SavedLayoutState{
+					RootNode:         layoutState.RootNode,
+					MagnifiedNodeId:  layoutState.MagnifiedNodeId,
+					FocusedNodeId:    layoutState.FocusedNodeId,
+					LeafOrder:        layoutState.LeafOrder,
+					Meta:             layoutState.Meta,
 				}
 			}
 		}
 
+		// 保存所有块的完整配置
+		var savedBlocks []*waveobj.SavedBlock
+		for _, blockId := range tab.BlockIds {
+			block, err := wstore.DBGet[*waveobj.Block](ctx, blockId)
+			if err != nil || block == nil {
+				log.Printf("warning: could not get block %s: %v", blockId, err)
+				continue
+			}
+
+			savedBlock := &waveobj.SavedBlock{
+				OriginalOID:  blockId,
+				ParentORef:   block.ParentORef,
+				RuntimeOpts:  block.RuntimeOpts,
+				Stickers:     block.Stickers,
+				Meta:         block.Meta,
+				SubBlockIds:  block.SubBlockIds,
+			}
+			savedBlocks = append(savedBlocks, savedBlock)
+		}
+
 		defaultTab := waveobj.DefaultTabConfig{
-			Name:     tab.Name,
-			Pinned:   isPinned,
-			BlockDef: blockDef,
-			Meta:     tab.Meta,
+			Name:        tab.Name,
+			Pinned:      isPinned,
+			Meta:        tab.Meta,
+			LayoutState: savedLayoutState,
+			Blocks:      savedBlocks,
 		}
 		defaultTabs = append(defaultTabs, defaultTab)
 	}
@@ -180,7 +204,7 @@ func CreateWorkspaceFromFavorite(ctx context.Context, favoriteId string) (*waveo
 		return nil, fmt.Errorf("failed to create workspace: %w", err)
 	}
 
-	// 应用收藏配置中的默认标签页
+	// 应用收藏配置中的默认标签页（包括完整的布局恢复）
 	if len(favorite.DefaultTabs) > 0 {
 		// 删除默认创建的标签页
 		if len(workspace.TabIds) > 0 {
@@ -192,28 +216,14 @@ func CreateWorkspaceFromFavorite(ctx context.Context, favoriteId string) (*waveo
 
 		// 创建收藏配置中定义的标签页
 		for _, defaultTab := range favorite.DefaultTabs {
-			tabId, err := CreateTab(ctx, workspace.OID, defaultTab.Name, false, defaultTab.Pinned, false)
+			// 恢复完整的标签页布局和块配置
+			restoredTabId, err := restoreTabFromFavorite(ctx, workspace.OID, defaultTab)
 			if err != nil {
-				log.Printf("warning: failed to create tab %s: %v", defaultTab.Name, err)
+				log.Printf("warning: failed to restore tab %s: %v", defaultTab.Name, err)
 				continue
 			}
-
-			// 应用标签页的元数据配置
-			if len(defaultTab.Meta) > 0 {
-				tabORef := waveobj.ORef{OType: "tab", OID: tabId}
-				wstore.UpdateObjectMeta(ctx, tabORef, defaultTab.Meta, true)
-			}
-
-			// 如果有块定义，创建对应的块
-			if len(defaultTab.BlockDef.Meta) > 0 {
-				// 这里可以根据BlockDef创建具体的块
-				// 目前简化处理，主要应用元数据
-				tab, err := wstore.DBGet[*waveobj.Tab](ctx, tabId)
-				if err == nil && tab != nil {
-					tab.Meta = waveobj.MergeMeta(tab.Meta, defaultTab.BlockDef.Meta, true)
-					wstore.DBUpdate(ctx, tab)
-				}
-			}
+			
+			log.Printf("successfully restored tab %s with layout", restoredTabId)
 		}
 
 		// 刷新工作区信息
@@ -376,4 +386,173 @@ func findSubstring(s, substr string) bool {
 		}
 	}
 	return false
+}
+
+// restoreTabFromFavorite 从收藏配置恢复标签页的完整布局
+func restoreTabFromFavorite(ctx context.Context, workspaceId string, defaultTab waveobj.DefaultTabConfig) (string, error) {
+	// 1. 创建基础标签页和布局状态
+	layoutStateId := uuid.NewString()
+	tabId := uuid.NewString()
+	
+	tab := &waveobj.Tab{
+		OID:         tabId,
+		Version:     0,
+		Name:        defaultTab.Name,
+		LayoutState: layoutStateId,
+		BlockIds:    []string{},
+		Meta:        defaultTab.Meta,
+	}
+	
+	// 2. 恢复布局状态
+	var layoutState *waveobj.LayoutState
+	if defaultTab.LayoutState != nil {
+		layoutState = &waveobj.LayoutState{
+			OID:                   layoutStateId,
+			Version:               0,
+			RootNode:              defaultTab.LayoutState.RootNode,
+			MagnifiedNodeId:       defaultTab.LayoutState.MagnifiedNodeId,
+			FocusedNodeId:         defaultTab.LayoutState.FocusedNodeId,
+			LeafOrder:             defaultTab.LayoutState.LeafOrder,
+			PendingBackendActions: nil,
+			Meta:                  defaultTab.LayoutState.Meta,
+		}
+	} else {
+		// 创建空的布局状态
+		layoutState = &waveobj.LayoutState{
+			OID:     layoutStateId,
+			Version: 0,
+		}
+	}
+	
+	// 3. 恢复块配置，创建旧ID到新ID的映射
+	oldToNewBlockIds := make(map[string]string)
+	var newBlocks []*waveobj.Block
+	
+	for _, savedBlock := range defaultTab.Blocks {
+		newBlockId := uuid.NewString()
+		oldToNewBlockIds[savedBlock.OriginalOID] = newBlockId
+		
+		// 创建新的块
+		newBlock := &waveobj.Block{
+			OID:         newBlockId,
+			Version:     0,
+			ParentORef:  fmt.Sprintf("tab:%s", tabId),
+			RuntimeOpts: savedBlock.RuntimeOpts,
+			Stickers:    savedBlock.Stickers,
+			Meta:        savedBlock.Meta,
+			SubBlockIds: []string{}, // 稍后更新
+		}
+		newBlocks = append(newBlocks, newBlock)
+		tab.BlockIds = append(tab.BlockIds, newBlockId)
+	}
+	
+	// 4. 更新子块ID映射
+	for i, savedBlock := range defaultTab.Blocks {
+		if len(savedBlock.SubBlockIds) > 0 {
+			var newSubBlockIds []string
+			for _, oldSubBlockId := range savedBlock.SubBlockIds {
+				if newSubBlockId, exists := oldToNewBlockIds[oldSubBlockId]; exists {
+					newSubBlockIds = append(newSubBlockIds, newSubBlockId)
+				}
+			}
+			newBlocks[i].SubBlockIds = newSubBlockIds
+		}
+	}
+	
+	// 5. 更新布局树中的块ID引用
+	if layoutState.RootNode != nil {
+		layoutState.RootNode = updateLayoutNodeBlockIds(layoutState.RootNode, oldToNewBlockIds)
+	}
+	
+	// 6. 更新聚焦和放大节点ID
+	if layoutState.FocusedNodeId != "" {
+		if newId, exists := oldToNewBlockIds[layoutState.FocusedNodeId]; exists {
+			layoutState.FocusedNodeId = newId
+		}
+	}
+	if layoutState.MagnifiedNodeId != "" {
+		if newId, exists := oldToNewBlockIds[layoutState.MagnifiedNodeId]; exists {
+			layoutState.MagnifiedNodeId = newId
+		}
+	}
+	
+	// 7. 将标签页添加到工作区
+	workspace, err := wstore.DBGet[*waveobj.Workspace](ctx, workspaceId)
+	if err != nil {
+		return "", fmt.Errorf("workspace not found: %w", err)
+	}
+	
+	if defaultTab.Pinned {
+		workspace.PinnedTabIds = append(workspace.PinnedTabIds, tabId)
+	} else {
+		workspace.TabIds = append(workspace.TabIds, tabId)
+	}
+	
+	// 8. 保存到数据库
+	err = wstore.DBInsert(ctx, tab)
+	if err != nil {
+		return "", fmt.Errorf("failed to insert tab: %w", err)
+	}
+	
+	err = wstore.DBInsert(ctx, layoutState)
+	if err != nil {
+		return "", fmt.Errorf("failed to insert layout state: %w", err)
+	}
+	
+	for _, block := range newBlocks {
+		err = wstore.DBInsert(ctx, block)
+		if err != nil {
+			log.Printf("warning: failed to insert block %s: %v", block.OID, err)
+		}
+	}
+	
+	err = wstore.DBUpdate(ctx, workspace)
+	if err != nil {
+		return "", fmt.Errorf("failed to update workspace: %w", err)
+	}
+	
+	log.Printf("restored tab %s with %d blocks and layout", tabId, len(newBlocks))
+	return tabId, nil
+}
+
+// updateLayoutNodeBlockIds 递归更新布局节点中的块ID引用
+func updateLayoutNodeBlockIds(node any, idMapping map[string]string) any {
+	if node == nil {
+		return nil
+	}
+	
+	// 布局节点通常是map或slice结构，我们需要递归处理
+	switch v := node.(type) {
+	case map[string]any:
+		result := make(map[string]any)
+		for key, value := range v {
+			if key == "blockid" || key == "blockId" {
+				// 更新块ID引用
+				if strValue, ok := value.(string); ok {
+					if newId, exists := idMapping[strValue]; exists {
+						result[key] = newId
+					} else {
+						result[key] = value
+					}
+				} else {
+					result[key] = value
+				}
+			} else {
+				// 递归处理其他字段
+				result[key] = updateLayoutNodeBlockIds(value, idMapping)
+			}
+		}
+		return result
+		
+	case []any:
+		var result []any
+		for _, item := range v {
+			result = append(result, updateLayoutNodeBlockIds(item, idMapping))
+		}
+		return result
+		
+	default:
+		// 基本类型直接返回
+		return node
+	}
 }
