@@ -2,12 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
 .workspace-favorite-editor {
-    padding: 16px;
-    background: var(--app-bg-color);
-    border-radius: 6px;
-    border: 1px solid var(--border-color);
-    min-width: 400px;
-    max-width: 500px;
+    padding: 20px;
+    background: transparent;
+    border: none;
+    width: 100%;
+    max-width: none;
+    min-height: 350px;
+    display: flex;
+    flex-direction: column;
 
     .editor-header {
         margin-bottom: 16px;
@@ -21,14 +23,15 @@
     }
 
     .editor-form {
-        margin-bottom: 16px;
+        flex: 1;
+        margin-bottom: 0;
 
         .form-group {
-            margin-bottom: 12px;
+            margin-bottom: 16px;
             
             label {
                 display: block;
-                margin-bottom: 4px;
+                margin-bottom: 6px;
                 font-size: 14px;
                 font-weight: 500;
                 color: var(--secondary-text-color);
@@ -36,18 +39,25 @@
 
             .input {
                 width: 100%;
+                box-sizing: border-box;
+                padding: 8px 12px;
+                min-height: 36px;
             }
         }
     }
 
     .editor-actions {
         display: flex;
-        gap: 8px;
+        gap: 12px;
         justify-content: flex-end;
+        margin-top: auto;
+        padding-top: 8px;
+        border-top: 1px solid var(--border-color);
         
         .button {
-            padding: 8px 16px;
+            padding: 10px 20px;
             font-size: 14px;
+            min-width: 80px;
             
             &.secondary {
                 background: var(--button-grey-bg);

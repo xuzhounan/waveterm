@@ -176,7 +176,7 @@ const WorkspaceSwitcher = forwardRef<HTMLDivElement>((_, ref) => {
             >
                 <span className="workspace-icon">{workspaceIcon}</span>
             </PopoverButton>
-            <PopoverContent className="workspace-switcher-content">
+            <PopoverContent className={`workspace-switcher-content ${showFavoriteEditor ? 'favorite-editor-mode' : showFavorites ? 'favorites-list-mode' : ''}`}>
                 {showFavoriteEditor ? (
                     <WorkspaceFavoriteEditor
                         workspaceId={activeWorkspace.oid}

@@ -35,6 +35,22 @@
     align-items: center;
     border-radius: 8px;
     box-shadow: 0px 8px 24px 0px var(--modal-shadow-color);
+    
+    // 当显示收藏编辑器时调整尺寸
+    &.favorite-editor-mode {
+        width: auto;
+        min-width: 500px;
+        max-width: 600px;
+        align-items: stretch;
+    }
+    
+    // 当显示收藏列表时调整尺寸
+    &.favorites-list-mode {
+        width: auto;
+        min-width: 400px;
+        max-width: 500px;
+        align-items: stretch;
+    }
 
     .icon-left,
     .icon-right {
@@ -186,6 +202,7 @@
     }
 
     .favorites-scrollable {
-        max-height: 350px;
+        max-height: 400px;
+        min-height: 200px;
     }
 }
