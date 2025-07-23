@@ -18,7 +18,7 @@ import { OverlayScrollbarsComponent } from "overlayscrollbars-react";
 import { CSSProperties, forwardRef, useCallback, useEffect } from "react";
 import WorkspaceSVG from "../asset/workspace.svg";
 import { IconButton } from "../element/iconbutton";
-import { atoms, getApi } from "../store/global";
+import { atoms, getApi, pushNotification } from "../store/global";
 import { WorkspaceService } from "../store/services";
 import { getObjectValue, makeORef } from "../store/wos";
 import { waveEventSubscribe } from "../store/wps";
@@ -118,12 +118,34 @@ const WorkspaceSwitcher = forwardRef<HTMLDivElement>((_, ref) => {
             await WorkspaceService.SaveWorkspaceAsFavorite(activeWorkspace.oid, favoriteName, description, tags);
             setShowFavoriteEditor(false);
             await loadFavorites();
-            // TODO: Show success notification
+            
+            // 显示成功通知
+            pushNotification({
+                icon: "star",
+                title: "收藏成功",
+                message: `工作区 "${favoriteName}" 已保存到收藏夹`,
+                timestamp: new Date().toLocaleString(),
+                type: "info",
+                expiration: Date.now() + 5000
+            });
+            
+            // 关闭弹窗并返回主界面
+            setShowFavorites(false);
+            document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
         } catch (error) {
             console.error("Failed to save workspace as favorite:", error);
-            // TODO: Show error notification
+            
+            // 显示错误通知
+            pushNotification({
+                icon: "circle-exclamation",
+                title: "收藏失败",
+                message: `保存收藏失败: ${error.message || error}`,
+                timestamp: new Date().toLocaleString(),
+                type: "error",
+                expiration: Date.now() + 8000
+            });
         }
-    }, [activeWorkspace.oid, setShowFavoriteEditor, loadFavorites]);
+    }, [activeWorkspace.oid, setShowFavoriteEditor, loadFavorites, setShowFavorites]);
 
     const handleSelectFavorite = useCallback(async (favoriteId: string) => {
         try {
@@ -141,10 +163,28 @@ const WorkspaceSwitcher = forwardRef<HTMLDivElement>((_, ref) => {
         try {
             await WorkspaceService.DeleteWorkspaceFavorite(favoriteId);
             await loadFavorites();
-            // TODO: Show success notification
+            
+            // 显示删除成功通知
+            pushNotification({
+                icon: "trash",
+                title: "删除成功",
+                message: "收藏已从收藏夹中移除",
+                timestamp: new Date().toLocaleString(),
+                type: "info",
+                expiration: Date.now() + 3000
+            });
         } catch (error) {
             console.error("Failed to delete workspace favorite:", error);
-            // TODO: Show error notification
+            
+            // 显示删除失败通知
+            pushNotification({
+                icon: "circle-exclamation",
+                title: "删除失败",
+                message: `删除收藏失败: ${error.message || error}`,
+                timestamp: new Date().toLocaleString(),
+                type: "error",
+                expiration: Date.now() + 5000
+            });
         }
     }, [loadFavorites]);
 

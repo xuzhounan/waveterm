@@ -19,10 +19,26 @@ import (
 
 const WorkspaceFavoritesConfigFile = "workspace-favorites.json"
 
-// SaveWorkspaceAsFavorite 将当前工作区保存为收藏配置
+// SaveWorkspaceAsFavorite 将当前工作区保存为收藏配置，如果同名收藏已存在则更新
 func SaveWorkspaceAsFavorite(ctx context.Context, workspaceId string, favoriteName string, description string, tags []string) (*waveobj.WorkspaceFavorite, error) {
 	if favoriteName == "" {
 		return nil, fmt.Errorf("favorite name cannot be empty")
+	}
+
+	// 检查是否已存在同名收藏，如果存在则更新
+	existingFavorites, err := ListWorkspaceFavorites()
+	if err != nil {
+		log.Printf("warning: failed to check existing favorites: %v", err)
+	}
+	
+	var existingFavorite *waveobj.WorkspaceFavorite
+	if existingFavorites != nil {
+		for _, favorite := range existingFavorites {
+			if favorite.Name == favoriteName {
+				existingFavorite = favorite
+				break
+			}
+		}
 	}
 
 	// 获取工作区信息
@@ -112,21 +128,44 @@ func SaveWorkspaceAsFavorite(ctx context.Context, workspaceId string, favoriteNa
 		}
 	}
 
-	// 创建收藏配置
+	// 创建或更新收藏配置
 	now := time.Now()
-	favorite := &waveobj.WorkspaceFavorite{
-		FavoriteId:    uuid.NewString(),
-		Name:          favoriteName,
-		Description:   description,
-		Icon:          workspace.Icon,
-		Color:         workspace.Color,
-		Tags:          tags,
-		CreatedAt:     now,
-		UpdatedAt:     now,
-		UsageCount:    0,
-		DefaultTabs:   defaultTabs,
-		WidgetConfigs: widgetConfigs,
-		Meta:          workspace.Meta,
+	var favorite *waveobj.WorkspaceFavorite
+	
+	if existingFavorite != nil {
+		// 更新现有收藏，保留使用次数和创建时间
+		favorite = &waveobj.WorkspaceFavorite{
+			FavoriteId:    existingFavorite.FavoriteId,
+			Name:          favoriteName,
+			Description:   description,
+			Icon:          workspace.Icon,
+			Color:         workspace.Color,
+			Tags:          tags,
+			CreatedAt:     existingFavorite.CreatedAt,
+			UpdatedAt:     now,
+			UsageCount:    existingFavorite.UsageCount,
+			DefaultTabs:   defaultTabs,
+			WidgetConfigs: widgetConfigs,
+			Meta:          workspace.Meta,
+		}
+		log.Printf("updating existing workspace favorite: %s", favoriteName)
+	} else {
+		// 创建新收藏
+		favorite = &waveobj.WorkspaceFavorite{
+			FavoriteId:    uuid.NewString(),
+			Name:          favoriteName,
+			Description:   description,
+			Icon:          workspace.Icon,
+			Color:         workspace.Color,
+			Tags:          tags,
+			CreatedAt:     now,
+			UpdatedAt:     now,
+			UsageCount:    0,
+			DefaultTabs:   defaultTabs,
+			WidgetConfigs: widgetConfigs,
+			Meta:          workspace.Meta,
+		}
+		log.Printf("creating new workspace favorite: %s", favoriteName)
 	}
 
 	// 保存到配置文件
@@ -135,7 +174,11 @@ func SaveWorkspaceAsFavorite(ctx context.Context, workspaceId string, favoriteNa
 		return nil, fmt.Errorf("failed to save favorite: %w", err)
 	}
 
-	log.Printf("saved workspace %s as favorite: %s", workspaceId, favoriteName)
+	if existingFavorite != nil {
+		log.Printf("updated workspace %s as favorite: %s", workspaceId, favoriteName)
+	} else {
+		log.Printf("saved workspace %s as favorite: %s", workspaceId, favoriteName)
+	}
 	return favorite, nil
 }
 
