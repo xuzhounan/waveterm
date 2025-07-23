@@ -49,6 +49,13 @@ const WorkspaceSwitcher = forwardRef<HTMLDivElement>((_, ref) => {
     const [showFavoriteEditor, setShowFavoriteEditor] = useAtom(showFavoriteEditorAtom);
     const [favorites, setFavorites] = useAtom(favoritesAtom);
     const [favoritesLoading, setFavoritesLoading] = useAtom(favoritesLoadingAtom);
+    
+    // 检测当前工作区是否已被收藏
+    const currentFavorite = favorites.find(fav => 
+        fav.name === activeWorkspace.name && 
+        activeWorkspace.name && 
+        activeWorkspace.name.trim() !== ""
+    );
 
     const updateWorkspaceList = useCallback(async () => {
         const workspaceList = await WorkspaceService.ListWorkspaces();
@@ -78,7 +85,15 @@ const WorkspaceSwitcher = forwardRef<HTMLDivElement>((_, ref) => {
 
     useEffect(() => {
         fireAndForget(updateWorkspaceList);
+        fireAndForget(loadFavorites);
     }, []);
+
+    // 当工作区切换时也更新收藏状态
+    useEffect(() => {
+        if (activeWorkspace.oid) {
+            fireAndForget(loadFavorites);
+        }
+    }, [activeWorkspace.oid]);
 
     const onDeleteWorkspace = useCallback((workspaceId: string) => {
         getApi().deleteWorkspace(workspaceId);
@@ -221,6 +236,7 @@ const WorkspaceSwitcher = forwardRef<HTMLDivElement>((_, ref) => {
                     <WorkspaceFavoriteEditor
                         workspaceId={activeWorkspace.oid}
                         workspaceName={activeWorkspace.name}
+                        currentFavorite={currentFavorite}
                         onSave={handleSaveAsFavorite}
                         onCancel={() => setShowFavoriteEditor(false)}
                     />
@@ -270,9 +286,16 @@ const WorkspaceSwitcher = forwardRef<HTMLDivElement>((_, ref) => {
                                     </ExpandableMenuItem>
                                     <ExpandableMenuItem onClick={() => setShowFavoriteEditor(true)}>
                                         <ExpandableMenuItemLeftElement>
-                                            <i className="fa-sharp fa-solid fa-heart"></i>
+                                            <i className={`fa-sharp fa-solid ${currentFavorite ? 'fa-heart-slash' : 'fa-heart'}`}></i>
                                         </ExpandableMenuItemLeftElement>
-                                        <div className="content">收藏当前工作区</div>
+                                        <div className="content">
+                                            {currentFavorite ? '更新收藏' : '收藏当前工作区'}
+                                        </div>
+                                        {currentFavorite && (
+                                            <ExpandableMenuItemRightElement>
+                                                <i className="fa-sharp fa-solid fa-star" style={{ color: '#ffd700', fontSize: '12px' }}></i>
+                                            </ExpandableMenuItemRightElement>
+                                        )}
                                     </ExpandableMenuItem>
                                 </>
                             ) : (

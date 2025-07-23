@@ -9,6 +9,7 @@ import "./workspacefavoriteeditor.scss";
 interface WorkspaceFavoriteEditorProps {
     workspaceId: string;
     workspaceName: string;
+    currentFavorite?: any; // 当前已存在的收藏信息
     onSave?: (favoriteName: string, description: string, tags: string[]) => void;
     onCancel?: () => void;
 }
@@ -16,12 +17,13 @@ interface WorkspaceFavoriteEditorProps {
 export const WorkspaceFavoriteEditor = ({ 
     workspaceId, 
     workspaceName, 
+    currentFavorite,
     onSave, 
     onCancel 
 }: WorkspaceFavoriteEditorProps) => {
-    const [favoriteName, setFavoriteName] = useState(workspaceName || "");
-    const [description, setDescription] = useState("");
-    const [tagsText, setTagsText] = useState("");
+    const [favoriteName, setFavoriteName] = useState(currentFavorite?.name || workspaceName || "");
+    const [description, setDescription] = useState(currentFavorite?.description || "");
+    const [tagsText, setTagsText] = useState(currentFavorite?.tags ? currentFavorite.tags.join(', ') : "");
     const nameInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
@@ -57,7 +59,7 @@ export const WorkspaceFavoriteEditor = ({
     return (
         <div className="workspace-favorite-editor">
             <div className="editor-header">
-                <h3>保存工作区为收藏</h3>
+                <h3>{currentFavorite ? '更新工作区收藏' : '保存工作区为收藏'}</h3>
             </div>
             
             <div className="editor-form">
@@ -106,7 +108,7 @@ export const WorkspaceFavoriteEditor = ({
                     onClick={handleSave}
                     disabled={!favoriteName.trim()}
                 >
-                    保存收藏
+                    {currentFavorite ? '更新收藏' : '保存收藏'}
                 </Button>
             </div>
         </div>
