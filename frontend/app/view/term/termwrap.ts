@@ -167,6 +167,10 @@ export class TermWrap {
     private inputProcessingLock = false;
     private pendingInputs = new Map<string, number>();
 
+    // 历史消息相关字段
+    private commandHistory: string[] = [];
+    private readonly maxHistorySize: number = 20;
+
     constructor(
         blockId: string,
         connectElem: HTMLDivElement,
@@ -344,6 +348,22 @@ export class TermWrap {
         // 更新输入记录
         this.lastInputData = data;
         this.lastInputTime = now;
+
+        // 记录用户输入到历史记录（仅当用户按下回车时）
+        if (data === "\r" || data === "\n" || data === "\r\n") {
+            // 获取当前行的内容作为命令
+            try {
+                const buffer = this.terminal.buffer.active;
+                const currentLine = buffer.getLine(buffer.cursorY);
+                if (currentLine) {
+                    const lineText = currentLine.translateToString(true);
+                    this.addCommandToHistory(lineText);
+                }
+            } catch (error) {
+                // 忽略获取命令行内容时的错误
+                console.debug("无法获取命令行内容:", error);
+            }
+        }
 
         // 处理输入
         if (this.pasteActive) {
@@ -625,6 +645,48 @@ export class TermWrap {
         if (enabled) {
             this.resetInputFilter();
         }
+    }
+
+    /**
+     * 滚动到底部
+     */
+    public scrollToBottom() {
+        if (this.terminal) {
+            this.terminal.scrollToBottom();
+        }
+    }
+
+    /**
+     * 添加命令到历史记录
+     */
+    public addCommandToHistory(command: string) {
+        // 去除空白和换行符
+        const cleanCommand = command.trim();
+        if (cleanCommand && cleanCommand !== "\n" && cleanCommand !== "\r\n") {
+            // 避免重复添加相同的命令
+            const lastCommand = this.commandHistory[this.commandHistory.length - 1];
+            if (lastCommand !== cleanCommand) {
+                this.commandHistory.push(cleanCommand);
+                // 保持历史记录在最大限制内
+                if (this.commandHistory.length > this.maxHistorySize) {
+                    this.commandHistory.shift();
+                }
+            }
+        }
+    }
+
+    /**
+     * 获取命令历史记录
+     */
+    public getCommandHistory(): string[] {
+        return [...this.commandHistory].reverse(); // 返回最新的在前面
+    }
+
+    /**
+     * 清空命令历史记录
+     */
+    public clearCommandHistory() {
+        this.commandHistory = [];
     }
 
     /**

@@ -37,7 +37,9 @@ import { TermStickers } from "./termsticker";
 import { TermThemeUpdater } from "./termtheme";
 import { computeTheme, DefaultTermTheme } from "./termutil";
 import { TermWrap } from "./termwrap";
+import { HistoryPanel } from "./history-panel";
 import "./xterm.css";
+import "./history-panel.scss";
 
 const dlog = debug("wave:term");
 
@@ -898,6 +900,37 @@ const TerminalView = ({ blockId, model }: ViewComponentProps<TermViewModel>) => 
     }
     const termModeRef = React.useRef(termMode);
 
+    // 历史面板状态
+    const [isHistoryPanelVisible, setHistoryPanelVisible] = React.useState(false);
+    const [commandHistory, setCommandHistory] = React.useState<string[]>([]);
+
+    // 按钮处理函数
+    const handleScrollToBottom = React.useCallback(() => {
+        if (model.termRef.current) {
+            model.termRef.current.scrollToBottom();
+        }
+    }, [model.termRef]);
+
+    const handleToggleHistory = React.useCallback(() => {
+        if (model.termRef.current) {
+            const history = model.termRef.current.getCommandHistory();
+            setCommandHistory(history);
+        }
+        setHistoryPanelVisible(!isHistoryPanelVisible);
+    }, [model.termRef, isHistoryPanelVisible]);
+
+    const handleSelectCommand = React.useCallback((command: string) => {
+        navigator.clipboard.writeText(command);
+        setHistoryPanelVisible(false);
+    }, []);
+
+    const handleClearHistory = React.useCallback(() => {
+        if (model.termRef.current) {
+            model.termRef.current.clearCommandHistory();
+            setCommandHistory([]);
+        }
+    }, [model.termRef]);
+
     const termFontSize = jotai.useAtomValue(model.fontSizeAtom);
     const fullConfig = globalStore.get(atoms.fullConfigAtom);
     const connFontFamily = fullConfig.connections?.[blockData?.meta?.connection]?.["term:fontfamily"];
@@ -1097,7 +1130,34 @@ const TerminalView = ({ blockId, model }: ViewComponentProps<TermViewModel>) => 
                     onPointerOver={onScrollbarHideObserver}
                 />
             </div>
+            {/* Terminal control buttons */}
+            {termMode === "term" && (
+                <div className="terminal-controls">
+                    <button
+                        className="terminal-control-button"
+                        onClick={handleScrollToBottom}
+                        title="滚动到底部"
+                    >
+                        <i className="fa fa-angle-double-down" />
+                    </button>
+                    <button
+                        className="terminal-control-button"
+                        onClick={handleToggleHistory}
+                        title="查看历史命令"
+                    >
+                        <i className="fa fa-history" />
+                    </button>
+                </div>
+            )}
             <Search {...searchProps} />
+            {/* History Panel */}
+            <HistoryPanel
+                history={commandHistory}
+                isVisible={isHistoryPanelVisible}
+                onClose={() => setHistoryPanelVisible(false)}
+                onSelectCommand={handleSelectCommand}
+                onClearHistory={handleClearHistory}
+            />
         </div>
     );
 };

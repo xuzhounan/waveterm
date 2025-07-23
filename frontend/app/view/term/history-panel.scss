@@ -1,0 +1,237 @@
+// Copyright 2025, Command Line Inc.
+// SPDX-License-Identifier: Apache-2.0
+
+.history-panel-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1000;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: fadeIn 0.2s ease-out;
+}
+
+.history-panel {
+    background: var(--panel-bg-color, #1e1e1e);
+    border: 1px solid var(--border-color, #3c3c3c);
+    border-radius: 8px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    width: 90%;
+    max-width: 600px;
+    max-height: 70vh;
+    display: flex;
+    flex-direction: column;
+    animation: slideIn 0.2s ease-out;
+}
+
+.history-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border-color, #3c3c3c);
+    background: var(--header-bg-color, #2d2d2d);
+    border-radius: 8px 8px 0 0;
+
+    h3 {
+        margin: 0;
+        font-size: 16px;
+        font-weight: 600;
+        color: var(--text-color, #ffffff);
+    }
+}
+
+.history-panel-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.history-panel-button {
+    background: transparent;
+    border: 1px solid var(--border-color, #3c3c3c);
+    border-radius: 4px;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: var(--text-color, #ffffff);
+    transition: all 0.2s ease;
+
+    &:hover {
+        background: var(--button-hover-bg-color, #404040);
+        border-color: var(--button-hover-border-color, #555555);
+    }
+
+    &.history-panel-clear:hover {
+        background: var(--error-color, #e74c3c);
+        border-color: var(--error-color, #e74c3c);
+        color: white;
+    }
+}
+
+.history-panel-content {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 200px;
+}
+
+.history-panel-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 200px;
+    color: var(--text-secondary-color, #888888);
+    text-align: center;
+
+    p {
+        margin: 8px 0;
+    }
+
+    .history-panel-tip {
+        font-size: 14px;
+        opacity: 0.7;
+    }
+}
+
+.history-panel-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.history-panel-item {
+    display: flex;
+    align-items: center;
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--border-color, #3c3c3c);
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    gap: 12px;
+
+    &:hover {
+        background: var(--item-hover-bg-color, #2a2a2a);
+
+        .history-panel-copy-icon {
+            opacity: 1;
+        }
+    }
+
+    &:last-child {
+        border-bottom: none;
+    }
+}
+
+.history-panel-index {
+    min-width: 30px;
+    font-family: monospace;
+    font-size: 12px;
+    color: var(--text-secondary-color, #888888);
+    text-align: right;
+}
+
+.history-panel-command {
+    flex: 1;
+    font-family: monospace;
+    font-size: 14px;
+    color: var(--text-color, #ffffff);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.history-panel-copy-icon {
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    color: var(--text-secondary-color, #888888);
+    font-size: 12px;
+}
+
+.history-panel-footer {
+    padding: 12px 20px;
+    border-top: 1px solid var(--border-color, #3c3c3c);
+    background: var(--footer-bg-color, #252525);
+    border-radius: 0 0 8px 8px;
+    text-align: center;
+
+    small {
+        color: var(--text-secondary-color, #888888);
+        font-size: 12px;
+    }
+}
+
+// 滚动条样式
+.history-panel-content {
+    &::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    &::-webkit-scrollbar-track {
+        background: var(--scrollbar-track-color, #2a2a2a);
+    }
+
+    &::-webkit-scrollbar-thumb {
+        background: var(--scrollbar-thumb-color, #555555);
+        border-radius: 4px;
+
+        &:hover {
+            background: var(--scrollbar-thumb-hover-color, #666666);
+        }
+    }
+}
+
+// 动画
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: scale(0.95) translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+// 响应式设计
+@media (max-width: 768px) {
+    .history-panel {
+        width: 95%;
+        max-height: 80vh;
+    }
+
+    .history-panel-header {
+        padding: 12px 16px;
+
+        h3 {
+            font-size: 14px;
+        }
+    }
+
+    .history-panel-item {
+        padding: 10px 16px;
+        gap: 8px;
+    }
+
+    .history-panel-command {
+        font-size: 13px;
+    }
+
+    .history-panel-footer {
+        padding: 10px 16px;
+    }
+}
