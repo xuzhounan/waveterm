@@ -1,4 +1,13 @@
 {
+  "mcpServers": {
+    "chrome-mcp-stdio": {
+      "command": "node",
+      "args": ["/Users/xzn/.nvm/versions/node/v22.9.0/lib/node_modules/mcp-chrome-bridge/dist/mcp/mcp-server-stdio.js"]
+    },
+    "xcode": {
+      "command": "mcp-xcode-server"  
+    }
+  },
   "hooks": {
     "PreToolUse": [
       {
