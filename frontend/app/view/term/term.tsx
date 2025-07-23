@@ -205,6 +205,26 @@ class TermViewModel implements ViewModel {
                     },
                 });
             }
+            
+            // 添加终端控制按钮（仅在基础终端模式下显示）
+            if (this.isBasicTerm(get)) {
+                rtn.push({
+                    elemtype: "iconbutton",
+                    icon: "history",
+                    title: "查看历史命令",
+                    click: () => {
+                        this.showHistoryPanel();
+                    },
+                });
+                rtn.push({
+                    elemtype: "iconbutton", 
+                    icon: "angle-double-down",
+                    title: "滚动到底部",
+                    click: () => {
+                        this.scrollToBottom();
+                    },
+                });
+            }
             return rtn;
         });
         this.manageConnection = jotai.atom((get) => {
@@ -524,6 +544,25 @@ class TermViewModel implements ViewModel {
             rtopts: { termsize: termsize },
         });
         prtn.catch((e) => console.log("error controller resync (force restart)", e));
+    }
+
+    scrollToBottom() {
+        if (this.termRef.current) {
+            this.termRef.current.scrollToBottom();
+        }
+    }
+
+    showHistoryPanel() {
+        // 触发全局状态变化来显示历史面板
+        const historyPanelAtom = jotai.atom(null);
+        globalStore.set(historyPanelAtom, true);
+        
+        // 由于我们需要与React组件通信，我们需要一个更好的方式
+        // 暂时通过自定义事件来通信
+        const event = new CustomEvent('showTerminalHistory', {
+            detail: { blockId: this.blockId }
+        });
+        window.dispatchEvent(event);
     }
 
     getSettingsMenuItems(): ContextMenuItem[] {
@@ -903,20 +942,26 @@ const TerminalView = ({ blockId, model }: ViewComponentProps<TermViewModel>) => 
     // 历史面板状态
     const [isHistoryPanelVisible, setHistoryPanelVisible] = React.useState(false);
     const [commandHistory, setCommandHistory] = React.useState<string[]>([]);
-    const [isScrolling, setIsScrolling] = React.useState(false);
 
-    // 按钮处理函数
-    const handleScrollToBottom = React.useCallback(async () => {
-        if (model.termRef.current && !isScrolling) {
-            setIsScrolling(true);
-            model.termRef.current.scrollToBottom();
-            // 等待动画完成后重置状态
-            setTimeout(() => {
-                setIsScrolling(false);
-            }, 500);
-        }
-    }, [model.termRef, isScrolling]);
+    // 监听来自工具栏的历史面板显示事件
+    React.useEffect(() => {
+        const handleShowHistory = (event: CustomEvent) => {
+            if (event.detail.blockId === blockId) {
+                if (model.termRef.current) {
+                    const history = model.termRef.current.getCommandHistory();
+                    setCommandHistory(history);
+                }
+                setHistoryPanelVisible(true);
+            }
+        };
 
+        window.addEventListener('showTerminalHistory', handleShowHistory as EventListener);
+        return () => {
+            window.removeEventListener('showTerminalHistory', handleShowHistory as EventListener);
+        };
+    }, [blockId, model.termRef]);
+
+    // 按钮处理函数（保留用于历史面板内部操作）
     const handleToggleHistory = React.useCallback(() => {
         if (model.termRef.current) {
             const history = model.termRef.current.getCommandHistory();
@@ -1136,26 +1181,6 @@ const TerminalView = ({ blockId, model }: ViewComponentProps<TermViewModel>) => 
                     onPointerOver={onScrollbarHideObserver}
                 />
             </div>
-            {/* Terminal control buttons */}
-            {termMode === "term" && (
-                <div className="terminal-controls">
-                    <button
-                        className={clsx("terminal-control-button", { "scrolling": isScrolling })}
-                        onClick={handleScrollToBottom}
-                        title={isScrolling ? "正在滚动..." : "滚动到底部"}
-                        disabled={isScrolling}
-                    >
-                        <i className={clsx("fa", isScrolling ? "fa-spinner fa-spin" : "fa-angle-double-down")} />
-                    </button>
-                    <button
-                        className="terminal-control-button"
-                        onClick={handleToggleHistory}
-                        title="查看历史命令"
-                    >
-                        <i className="fa fa-history" />
-                    </button>
-                </div>
-            )}
             <Search {...searchProps} />
             {/* History Panel */}
             <HistoryPanel
