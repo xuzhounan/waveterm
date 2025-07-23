@@ -207,20 +207,25 @@ class TermViewModel implements ViewModel {
             }
             
             // 添加终端控制按钮（仅在基础终端模式下显示）
-            if (this.isBasicTerm(get)) {
+            const isBasic = this.isBasicTerm(get);
+            console.log("Terminal buttons check:", { isBasic, termMode: get(this.termMode), blockId: this.blockId });
+            if (isBasic) {
+                console.log("Adding terminal control buttons to toolbar");
                 rtn.push({
                     elemtype: "iconbutton",
-                    icon: "history",
+                    icon: "clock-rotate-left",
                     title: "查看历史命令",
                     click: () => {
+                        console.log("History button clicked");
                         this.showHistoryPanel();
                     },
                 });
                 rtn.push({
                     elemtype: "iconbutton", 
-                    icon: "angle-double-down",
+                    icon: "chevron-down",
                     title: "滚动到底部",
                     click: () => {
+                        console.log("Scroll to bottom button clicked");
                         this.scrollToBottom();
                     },
                 });
