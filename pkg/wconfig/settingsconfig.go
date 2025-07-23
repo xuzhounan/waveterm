@@ -5,6 +5,7 @@ package wconfig
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/fs"
@@ -785,6 +786,45 @@ func EnsureWorkspaceWidgetConfig(workspaceId string) error {
 	}
 	
 	return nil
+}
+
+// GetWorkspaceWidgetConfig returns the widget configuration for a specific workspace
+// This function combines the default widgets with workspace-specific overrides
+func GetWorkspaceWidgetConfig(ctx context.Context, workspaceId string) (map[string]WidgetConfigType, error) {
+	// First ensure workspace widget config exists
+	if err := EnsureWorkspaceWidgetConfig(workspaceId); err != nil {
+		return nil, fmt.Errorf("failed to ensure workspace widget config: %v", err)
+	}
+
+	// Get the default widget configuration
+	fullConfig := GetWatcher().GetFullConfig()
+	defaultWidgets := fullConfig.Widgets
+	
+	// Get workspace-specific widget configuration
+	workspaceWidgets, errs := readWorkspaceWidgetConfigs(workspaceId)
+	if len(errs) > 0 {
+		// Log errors but continue with default widgets
+		for _, err := range errs {
+			log.Printf("Error reading workspace widget config: %v", err.Err)
+		}
+	}
+	
+	// Merge default widgets with workspace-specific widgets
+	result := make(map[string]WidgetConfigType)
+	
+	// Start with default widgets
+	for key, widget := range defaultWidgets {
+		result[key] = widget
+	}
+	
+	// Override with workspace-specific widgets
+	if workspaceWidgets != nil {
+		for key, widget := range workspaceWidgets {
+			result[key] = widget
+		}
+	}
+	
+	return result, nil
 }
 
 // DeleteWorkspaceWidgetConfig removes a widget configuration from a workspace

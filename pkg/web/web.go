@@ -448,6 +448,10 @@ func RunWebServer(listener net.Listener) {
 	gr.HandleFunc("/wave/file", WebFnWrap(WebFnOpts{AllowCaching: false}, handleWaveFile))
 	gr.HandleFunc("/wave/service", WebFnWrap(WebFnOpts{JsonErrors: true}, handleService))
 	gr.HandleFunc("/vdom/{uuid}/{path:.*}", WebFnWrap(WebFnOpts{AllowCaching: true}, handleVDom))
+	
+	// Widget API endpoints
+	gr.PathPrefix("/api/v1/widgets").HandlerFunc(handleWidgetAPI)
+	
 	gr.PathPrefix(docsitePrefix).Handler(http.StripPrefix(docsitePrefix, docsite.GetDocsiteHandler()))
 	gr.PathPrefix(schemaPrefix).Handler(http.StripPrefix(schemaPrefix, schema.GetSchemaHandler()))
 	handler := http.TimeoutHandler(gr, HttpTimeoutDuration, "Timeout")
