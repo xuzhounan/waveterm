@@ -206,30 +206,6 @@ class TermViewModel implements ViewModel {
                 });
             }
             
-            // 添加终端控制按钮（仅在基础终端模式下显示）
-            const isBasic = this.isBasicTerm(get);
-            console.log("Terminal buttons check:", { isBasic, termMode: get(this.termMode), blockId: this.blockId });
-            if (isBasic) {
-                console.log("Adding terminal control buttons to toolbar");
-                rtn.push({
-                    elemtype: "iconbutton",
-                    icon: "clock-rotate-left",
-                    title: "查看历史命令",
-                    click: () => {
-                        console.log("History button clicked");
-                        this.showHistoryPanel();
-                    },
-                });
-                rtn.push({
-                    elemtype: "iconbutton", 
-                    icon: "chevron-down",
-                    title: "滚动到底部",
-                    click: () => {
-                        console.log("Scroll to bottom button clicked");
-                        this.scrollToBottom();
-                    },
-                });
-            }
             return rtn;
         });
         this.manageConnection = jotai.atom((get) => {
@@ -292,11 +268,39 @@ class TermViewModel implements ViewModel {
             const shellProcStatus = get(this.shellProcStatus);
             const connStatus = get(this.connStatus);
             const isCmd = get(this.isCmdController);
+            const rtn: IconButtonDecl[] = [];
+
+            // 添加终端控制按钮（仅在基础终端模式下显示）
+            const isBasic = this.isBasicTerm(get);
+            console.log("Terminal buttons check:", { isBasic, termMode: get(this.termMode), blockId: this.blockId });
+            if (isBasic) {
+                console.log("Adding terminal control buttons to right toolbar");
+                rtn.push({
+                    elemtype: "iconbutton",
+                    icon: "clock-rotate-left",
+                    title: "查看历史命令",
+                    click: () => {
+                        console.log("History button clicked");
+                        this.showHistoryPanel();
+                    },
+                });
+                rtn.push({
+                    elemtype: "iconbutton", 
+                    icon: "chevron-down",
+                    title: "滚动到底部",
+                    click: () => {
+                        console.log("Scroll to bottom button clicked");
+                        this.scrollToBottom();
+                    },
+                });
+            }
+
+            // 原有的重启按钮逻辑
             if (blockData?.meta?.["controller"] != "cmd" && shellProcStatus != "done") {
-                return [];
+                return rtn;
             }
             if (connStatus?.status != "connected") {
-                return [];
+                return rtn;
             }
             let iconName: string = null;
             let title: string = null;
@@ -311,16 +315,15 @@ class TermViewModel implements ViewModel {
                 iconName = "refresh";
                 title = noun + " Exited. Click to Restart";
             }
-            if (iconName == null) {
-                return [];
+            if (iconName != null) {
+                const buttonDecl: IconButtonDecl = {
+                    elemtype: "iconbutton",
+                    icon: iconName,
+                    click: this.forceRestartController.bind(this),
+                    title: title,
+                };
+                rtn.push(buttonDecl);
             }
-            const buttonDecl: IconButtonDecl = {
-                elemtype: "iconbutton",
-                icon: iconName,
-                click: this.forceRestartController.bind(this),
-                title: title,
-            };
-            const rtn = [buttonDecl];
             return rtn;
         });
         this.isCmdController = jotai.atom((get) => {
