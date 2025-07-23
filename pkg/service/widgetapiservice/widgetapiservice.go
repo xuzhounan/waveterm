@@ -216,9 +216,16 @@ func (ws *WidgetAPIService) GetWorkspaceWidgets(ctx context.Context, workspaceId
 		}, nil
 	}
 
+	// 转换 map[string]wconfig.WidgetConfigType 为 map[string]*wconfig.WidgetConfigType
+	widgetConfigPtr := make(map[string]*wconfig.WidgetConfigType)
+	for key, config := range widgetConfig {
+		configCopy := config
+		widgetConfigPtr[key] = &configCopy
+	}
+	
 	return &GetWorkspaceWidgetsAPIResponse{
 		Success: true,
-		Widgets: widgetConfig,
+		Widgets: widgetConfigPtr,
 	}, nil
 }
 
@@ -226,7 +233,9 @@ func (ws *WidgetAPIService) GetWorkspaceWidgets(ctx context.Context, workspaceId
 func (ws *WidgetAPIService) ListWorkspaces(ctx context.Context) (*ListWorkspacesAPIResponse, error) {
 	log.Printf("WidgetAPIService.ListWorkspaces called")
 
-	workspaceInfos, err := workspaceservice.WorkspaceServiceInstance.ListWorkspaces(ctx)
+	// 使用正确的workspace服务实例
+	workspaceService := &workspaceservice.WorkspaceService{}
+	workspaceInfos, err := workspaceService.ListWorkspaces()
 	if err != nil {
 		return &ListWorkspacesAPIResponse{
 			Success: false,
@@ -236,15 +245,18 @@ func (ws *WidgetAPIService) ListWorkspaces(ctx context.Context) (*ListWorkspaces
 
 	workspaces := make([]WorkspaceBasicInfo, 0, len(workspaceInfos))
 	for _, info := range workspaceInfos {
-		if info.WorkspaceData == nil {
+		// 获取完整的workspace信息
+		workspace, err := wcore.GetWorkspace(ctx, info.WorkspaceId)
+		if err != nil {
+			log.Printf("Failed to get workspace %s: %v", info.WorkspaceId, err)
 			continue
 		}
 		
 		workspaces = append(workspaces, WorkspaceBasicInfo{
-			WorkspaceId: info.WorkspaceData.OID,
-			Name:        info.WorkspaceData.Name,
-			TabIds:      info.WorkspaceData.TabIds,
-			ActiveTabId: info.WorkspaceData.ActiveTabId,
+			WorkspaceId: workspace.OID,
+			Name:        workspace.Name,
+			TabIds:      workspace.TabIds,
+			ActiveTabId: workspace.ActiveTabId,
 		})
 	}
 
