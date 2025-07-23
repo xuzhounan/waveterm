@@ -287,18 +287,6 @@ declare global {
         metamaptype: MetaType;
     };
 
-    // wshrpc.WorkspaceWidgetConfigRequest
-    type WorkspaceWidgetConfigRequest = {
-        workspaceid: string;
-        widgetkey: string;
-        config: WidgetConfigType;
-    };
-
-    // wshrpc.EnsureWorkspaceWidgetConfigRequest
-    type EnsureWorkspaceWidgetConfigRequest = {
-        workspaceid: string;
-    };
-
     // wshrpc.ConnExtData
     type ConnExtData = {
         connname: string;
@@ -369,6 +357,15 @@ declare global {
         count: number;
     };
 
+    // waveobj.DefaultTabConfig
+    type DefaultTabConfig = {
+        name: string;
+        pinned?: boolean;
+        meta?: MetaType;
+        layoutstate?: SavedLayoutState;
+        blocks?: SavedBlock[];
+    };
+
     // vdom.DomRect
     type DomRect = {
         top: number;
@@ -377,6 +374,11 @@ declare global {
         bottom: number;
         width: number;
         height: number;
+    };
+
+    // wshrpc.EnsureWorkspaceWidgetConfigRequest
+    type EnsureWorkspaceWidgetConfigRequest = {
+        workspaceid: string;
     };
 
     // wshrpc.FetchSuggestionsData
@@ -681,6 +683,25 @@ declare global {
         winsize?: WinSize;
     };
 
+    // waveobj.SavedBlock
+    type SavedBlock = {
+        originaloid: string;
+        parentoref?: string;
+        runtimeopts?: RuntimeOpts;
+        stickers?: StickerType[];
+        meta: MetaType;
+        subblockids?: string[];
+    };
+
+    // waveobj.SavedLayoutState
+    type SavedLayoutState = {
+        rootnode?: any;
+        magnifiednodeid?: string;
+        focusednodeid?: string;
+        leaforder?: LeafOrderEntry[];
+        meta?: MetaType;
+    };
+
     // webcmd.SetBlockTermSizeWSCommand
     type SetBlockTermSizeWSCommand = {
         wscommand: "setblocktermsize";
@@ -911,6 +932,10 @@ declare global {
         selectionBackground: string;
         background: string;
         cursor: string;
+    };
+
+    // time.Time
+    type Time = {
     };
 
     // wshrpc.TimeSeriesData
@@ -1346,6 +1371,18 @@ declare global {
         inner?: boolean;
     };
 
+    // waveobj.WidgetConfig
+    type WidgetConfig = {
+        "display:order"?: number;
+        "display:hidden"?: boolean;
+        icon?: string;
+        color?: string;
+        label?: string;
+        description?: string;
+        magnified?: boolean;
+        blockdef: BlockDef;
+    };
+
     // wconfig.WidgetConfigType
     type WidgetConfigType = {
         "display:order"?: number;
@@ -1374,6 +1411,22 @@ declare global {
         activetabid: string;
     };
 
+    // waveobj.WorkspaceFavorite
+    type WorkspaceFavorite = {
+        favoriteid: string;
+        name: string;
+        description?: string;
+        icon: string;
+        color: string;
+        tags?: string[];
+        createdat: Time;
+        updatedat: Time;
+        usagecount: number;
+        defaulttabs?: DefaultTabConfig[];
+        widgetconfigs?: {[key: string]: WidgetConfig};
+        meta?: MetaType;
+    };
+
     // wshrpc.WorkspaceInfoData
     type WorkspaceInfoData = {
         windowid: string;
@@ -1386,60 +1439,11 @@ declare global {
         windowid: string;
     };
 
-    // waveobj.WorkspaceFavorite
-    type WorkspaceFavorite = {
-        favoriteid: string;
-        name: string;
-        description?: string;
-        icon: string;
-        color: string;
-        tags?: string[];
-        createdat: string;
-        updatedat: string;
-        usagecount: number;
-        defaulttabs?: DefaultTabConfig[];
-        widgetconfigs?: {[key: string]: WidgetConfig};
-        meta?: MetaMapType;
-    };
-
-    // waveobj.DefaultTabConfig
-    type DefaultTabConfig = {
-        name: string;
-        pinned?: boolean;
-        meta?: MetaMapType;
-        layoutstate?: SavedLayoutState;
-        blocks?: SavedBlock[];
-    };
-
-    // waveobj.SavedLayoutState
-    type SavedLayoutState = {
-        rootnode?: any;
-        magnifiednodeid?: string;
-        focusednodeid?: string;
-        leaforder?: LeafOrderEntry[];
-        meta?: MetaMapType;
-    };
-
-    // waveobj.SavedBlock
-    type SavedBlock = {
-        originaloid: string;
-        parentoref?: string;
-        runtimeopts?: RuntimeOpts;
-        stickers?: StickerType[];
-        meta: MetaMapType;
-        subblockids?: string[];
-    };
-
-    // waveobj.WidgetConfig
-    type WidgetConfig = {
-        "display:order"?: number;
-        "display:hidden"?: boolean;
-        icon?: string;
-        color?: string;
-        label?: string;
-        description?: string;
-        magnified?: boolean;
-        blockdef: BlockDef;
+    // wshrpc.WorkspaceWidgetConfigRequest
+    type WorkspaceWidgetConfigRequest = {
+        workspaceid: string;
+        widgetkey: string;
+        config: WidgetConfigType;
     };
 
     // wshrpc.WshServerCommandMeta

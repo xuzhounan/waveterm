@@ -160,6 +160,12 @@ func DisposeSuggestionsCommand(w *wshutil.WshRpc, data string, opts *wshrpc.RpcO
 	return err
 }
 
+// command "ensureworkspacewidgetconfig", wshserver.EnsureWorkspaceWidgetConfigCommand
+func EnsureWorkspaceWidgetConfigCommand(w *wshutil.WshRpc, data wshrpc.EnsureWorkspaceWidgetConfigRequest, opts *wshrpc.RpcOpts) error {
+	_, err := sendRpcRequestCallHelper[any](w, "ensureworkspacewidgetconfig", data, opts)
+	return err
+}
+
 // command "eventpublish", wshserver.EventPublishCommand
 func EventPublishCommand(w *wshutil.WshRpc, data wps.WaveEvent, opts *wshrpc.RpcOpts) error {
 	_, err := sendRpcRequestCallHelper[any](w, "eventpublish", data, opts)
@@ -486,6 +492,12 @@ func SetVarCommand(w *wshutil.WshRpc, data wshrpc.CommandVarData, opts *wshrpc.R
 // command "setview", wshserver.SetViewCommand
 func SetViewCommand(w *wshutil.WshRpc, data wshrpc.CommandBlockSetViewData, opts *wshrpc.RpcOpts) error {
 	_, err := sendRpcRequestCallHelper[any](w, "setview", data, opts)
+	return err
+}
+
+// command "setworkspacewidgetconfig", wshserver.SetWorkspaceWidgetConfigCommand
+func SetWorkspaceWidgetConfigCommand(w *wshutil.WshRpc, data wshrpc.WorkspaceWidgetConfigRequest, opts *wshrpc.RpcOpts) error {
+	_, err := sendRpcRequestCallHelper[any](w, "setworkspacewidgetconfig", data, opts)
 	return err
 }
 

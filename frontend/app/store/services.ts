@@ -148,9 +148,17 @@ class WorkspaceServiceType {
         return WOS.callBackendService("workspace", "CreateWorkspace", Array.from(arguments))
     }
 
+    // @returns workspaceId
+    CreateWorkspaceFromFavorite(favoriteId: string): Promise<string> {
+        return WOS.callBackendService("workspace", "CreateWorkspaceFromFavorite", Array.from(arguments))
+    }
+
     // @returns object updates
     DeleteWorkspace(workspaceId: string): Promise<string> {
         return WOS.callBackendService("workspace", "DeleteWorkspace", Array.from(arguments))
+    }
+    DeleteWorkspaceFavorite(favoriteId: string): Promise<void> {
+        return WOS.callBackendService("workspace", "DeleteWorkspaceFavorite", Array.from(arguments))
     }
 
     // @returns colors
@@ -167,8 +175,23 @@ class WorkspaceServiceType {
     GetWorkspace(workspaceId: string): Promise<Workspace> {
         return WOS.callBackendService("workspace", "GetWorkspace", Array.from(arguments))
     }
+
+    // @returns favorite
+    GetWorkspaceFavorite(favoriteId: string): Promise<WorkspaceFavorite> {
+        return WOS.callBackendService("workspace", "GetWorkspaceFavorite", Array.from(arguments))
+    }
+
+    // @returns favorites
+    ListWorkspaceFavorites(): Promise<WorkspaceFavorite[]> {
+        return WOS.callBackendService("workspace", "ListWorkspaceFavorites", Array.from(arguments))
+    }
     ListWorkspaces(): Promise<WorkspaceListEntry[]> {
         return WOS.callBackendService("workspace", "ListWorkspaces", Array.from(arguments))
+    }
+
+    // @returns favorite
+    SaveWorkspaceAsFavorite(workspaceId: string, favoriteName: string, description: string, tags: string[]): Promise<WorkspaceFavorite> {
+        return WOS.callBackendService("workspace", "SaveWorkspaceAsFavorite", Array.from(arguments))
     }
 
     // @returns object updates
@@ -185,33 +208,6 @@ class WorkspaceServiceType {
     UpdateWorkspace(workspaceId: string, name: string, icon: string, color: string, applyDefaults: boolean): Promise<void> {
         return WOS.callBackendService("workspace", "UpdateWorkspace", Array.from(arguments))
     }
-
-    // WorkspaceFavorites methods
-
-    // @returns favorite
-    SaveWorkspaceAsFavorite(workspaceId: string, favoriteName: string, description: string, tags: string[]): Promise<WorkspaceFavorite> {
-        return WOS.callBackendService("workspace", "SaveWorkspaceAsFavorite", Array.from(arguments))
-    }
-
-    // @returns favorites
-    ListWorkspaceFavorites(): Promise<WorkspaceFavorite[]> {
-        return WOS.callBackendService("workspace", "ListWorkspaceFavorites", Array.from(arguments))
-    }
-
-    // @returns favorite
-    GetWorkspaceFavorite(favoriteId: string): Promise<WorkspaceFavorite> {
-        return WOS.callBackendService("workspace", "GetWorkspaceFavorite", Array.from(arguments))
-    }
-
-    // @returns workspaceId
-    CreateWorkspaceFromFavorite(favoriteId: string): Promise<string> {
-        return WOS.callBackendService("workspace", "CreateWorkspaceFromFavorite", Array.from(arguments))
-    }
-
-    DeleteWorkspaceFavorite(favoriteId: string): Promise<void> {
-        return WOS.callBackendService("workspace", "DeleteWorkspaceFavorite", Array.from(arguments))
-    }
-
     UpdateWorkspaceFavorite(favoriteId: string, name: string, description: string, tags: string[]): Promise<void> {
         return WOS.callBackendService("workspace", "UpdateWorkspaceFavorite", Array.from(arguments))
     }

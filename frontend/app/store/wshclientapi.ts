@@ -127,6 +127,11 @@ class RpcApiType {
         return client.wshRpcCall("disposesuggestions", data, opts);
     }
 
+    // command "ensureworkspacewidgetconfig" [call]
+    EnsureWorkspaceWidgetConfigCommand(client: WshClient, data: EnsureWorkspaceWidgetConfigRequest, opts?: RpcOpts): Promise<void> {
+        return client.wshRpcCall("ensureworkspacewidgetconfig", data, opts);
+    }
+
     // command "eventpublish" [call]
     EventPublishCommand(client: WshClient, data: WaveEvent, opts?: RpcOpts): Promise<void> {
         return client.wshRpcCall("eventpublish", data, opts);
@@ -392,16 +397,6 @@ class RpcApiType {
         return client.wshRpcCall("setconnectionsconfig", data, opts);
     }
 
-    // command "setworkspacewidgetconfig" [call]
-    SetWorkspaceWidgetConfigCommand(client: WshClient, data: WorkspaceWidgetConfigRequest, opts?: RpcOpts): Promise<void> {
-        return client.wshRpcCall("setworkspacewidgetconfig", data, opts);
-    }
-
-    // command "ensureworkspacewidgetconfig" [call]
-    EnsureWorkspaceWidgetConfigCommand(client: WshClient, data: EnsureWorkspaceWidgetConfigRequest, opts?: RpcOpts): Promise<void> {
-        return client.wshRpcCall("ensureworkspacewidgetconfig", data, opts);
-    }
-
     // command "setmeta" [call]
     SetMetaCommand(client: WshClient, data: CommandSetMetaData, opts?: RpcOpts): Promise<void> {
         return client.wshRpcCall("setmeta", data, opts);
@@ -415,6 +410,11 @@ class RpcApiType {
     // command "setview" [call]
     SetViewCommand(client: WshClient, data: CommandBlockSetViewData, opts?: RpcOpts): Promise<void> {
         return client.wshRpcCall("setview", data, opts);
+    }
+
+    // command "setworkspacewidgetconfig" [call]
+    SetWorkspaceWidgetConfigCommand(client: WshClient, data: WorkspaceWidgetConfigRequest, opts?: RpcOpts): Promise<void> {
+        return client.wshRpcCall("setworkspacewidgetconfig", data, opts);
     }
 
     // command "streamcpudata" [responsestream]
