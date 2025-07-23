@@ -270,10 +270,11 @@ class TermViewModel implements ViewModel {
             const isCmd = get(this.isCmdController);
             const rtn: IconButtonDecl[] = [];
 
-            // 添加终端控制按钮（仅在基础终端模式下显示）
-            const isBasic = this.isBasicTerm(get);
-            console.log("Terminal buttons check:", { isBasic, termMode: get(this.termMode), blockId: this.blockId });
-            if (isBasic) {
+            // 添加终端控制按钮（在终端模式和cmd模式下都显示）
+            const termMode = get(this.termMode);
+            const shouldShowButtons = termMode !== "vdom"; // 只要不是vdom模式就显示
+            console.log("Terminal buttons check:", { shouldShowButtons, termMode, blockId: this.blockId });
+            if (shouldShowButtons) {
                 console.log("Adding terminal control buttons to right toolbar");
                 rtn.push({
                     elemtype: "iconbutton",
