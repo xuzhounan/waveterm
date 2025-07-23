@@ -903,13 +903,19 @@ const TerminalView = ({ blockId, model }: ViewComponentProps<TermViewModel>) => 
     // 历史面板状态
     const [isHistoryPanelVisible, setHistoryPanelVisible] = React.useState(false);
     const [commandHistory, setCommandHistory] = React.useState<string[]>([]);
+    const [isScrolling, setIsScrolling] = React.useState(false);
 
     // 按钮处理函数
-    const handleScrollToBottom = React.useCallback(() => {
-        if (model.termRef.current) {
+    const handleScrollToBottom = React.useCallback(async () => {
+        if (model.termRef.current && !isScrolling) {
+            setIsScrolling(true);
             model.termRef.current.scrollToBottom();
+            // 等待动画完成后重置状态
+            setTimeout(() => {
+                setIsScrolling(false);
+            }, 500);
         }
-    }, [model.termRef]);
+    }, [model.termRef, isScrolling]);
 
     const handleToggleHistory = React.useCallback(() => {
         if (model.termRef.current) {
@@ -1134,11 +1140,12 @@ const TerminalView = ({ blockId, model }: ViewComponentProps<TermViewModel>) => 
             {termMode === "term" && (
                 <div className="terminal-controls">
                     <button
-                        className="terminal-control-button"
+                        className={clsx("terminal-control-button", { "scrolling": isScrolling })}
                         onClick={handleScrollToBottom}
-                        title="滚动到底部"
+                        title={isScrolling ? "正在滚动..." : "滚动到底部"}
+                        disabled={isScrolling}
                     >
-                        <i className="fa fa-angle-double-down" />
+                        <i className={clsx("fa", isScrolling ? "fa-spinner fa-spin" : "fa-angle-double-down")} />
                     </button>
                     <button
                         className="terminal-control-button"

@@ -207,20 +207,52 @@
         transition: all 0.2s ease;
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 
-        &:hover {
+        &:hover:not(:disabled) {
             background: var(--button-hover-bg-color, rgba(64, 64, 64, 0.9));
             border-color: var(--button-hover-border-color, #555555);
             transform: translateY(-2px);
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
         }
 
-        &:active {
+        &:active:not(:disabled) {
             transform: translateY(0);
             box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
         }
 
+        &:disabled {
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+
+        &.scrolling {
+            background: var(--primary-color, #4a9eff);
+            border-color: var(--primary-color, #4a9eff);
+            box-shadow: 0 2px 8px rgba(74, 158, 255, 0.3);
+
+            &:hover {
+                background: var(--primary-color, #4a9eff);
+                border-color: var(--primary-color, #4a9eff);
+                transform: none;
+                box-shadow: 0 2px 8px rgba(74, 158, 255, 0.4);
+            }
+        }
+
         i {
             font-size: 16px;
+
+            &.fa-spinner {
+                animation: spin 1s linear infinite;
+            }
+        }
+    }
+
+    // 旋转动画
+    @keyframes spin {
+        from {
+            transform: rotate(0deg);
+        }
+        to {
+            transform: rotate(360deg);
         }
     }
 }

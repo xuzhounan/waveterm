@@ -648,12 +648,53 @@ export class TermWrap {
     }
 
     /**
-     * 滚动到底部
+     * 滚动到底部（带平滑动画）
      */
     public scrollToBottom() {
-        if (this.terminal) {
-            this.terminal.scrollToBottom();
+        if (!this.terminal) {
+            return;
         }
+
+        const viewport = this.terminal.element?.querySelector('.xterm-viewport') as HTMLElement;
+        if (!viewport) {
+            // 如果找不到viewport元素，使用默认的scrollToBottom
+            this.terminal.scrollToBottom();
+            return;
+        }
+
+        const startScrollTop = viewport.scrollTop;
+        const maxScrollTop = viewport.scrollHeight - viewport.clientHeight;
+        const distance = maxScrollTop - startScrollTop;
+
+        // 如果已经在底部或距离很小，直接跳转
+        if (distance <= 10) {
+            this.terminal.scrollToBottom();
+            return;
+        }
+
+        // 平滑滚动动画
+        const duration = Math.min(500, Math.max(200, distance * 0.3)); // 根据距离调整动画时长，加快动画速度
+        const startTime = performance.now();
+
+        const animateScroll = (currentTime: number) => {
+            const elapsed = currentTime - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+            
+            // 使用easeOutCubic缓动函数，让滚动开始快后来慢
+            const easeOutCubic = 1 - Math.pow(1 - progress, 3);
+            
+            const currentScrollTop = startScrollTop + (distance * easeOutCubic);
+            viewport.scrollTop = currentScrollTop;
+
+            if (progress < 1) {
+                requestAnimationFrame(animateScroll);
+            } else {
+                // 动画结束后确保滚动到最底部
+                this.terminal.scrollToBottom();
+            }
+        };
+
+        requestAnimationFrame(animateScroll);
     }
 
     /**
