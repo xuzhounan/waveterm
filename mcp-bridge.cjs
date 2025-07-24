@@ -32,7 +32,7 @@ class WaveTerminalMCPServer extends Server {
             }
         });
         
-        this.waveTerminalUrl = process.env.WAVE_TERMINAL_URL || "http://localhost:61269";
+        this.waveTerminalUrl = process.env.WAVE_TERMINAL_URL || this.detectWaveUrl();
         this.authKey = process.env.WAVE_TERMINAL_AUTH_KEY;
         
         console.error(`[MCP] Wave Terminal MCP Server starting...`);
@@ -40,6 +40,22 @@ class WaveTerminalMCPServer extends Server {
         console.error(`[MCP] Auth: ${this.authKey ? 'Enabled' : 'Disabled'}`);
         
         this.setupHandlers();
+    }
+
+    detectWaveUrl() {
+        // 常见端口列表
+        const commonPorts = [61269, 57023, 57024];
+        
+        for (const port of commonPorts) {
+            try {
+                // 这里我们返回一个默认端口，实际的端口检测会在API调用时进行
+                return `http://localhost:${port}`;
+            } catch (error) {
+                continue;
+            }
+        }
+        
+        return "http://localhost:61269"; // 默认回退
     }
 
     setupHandlers() {
