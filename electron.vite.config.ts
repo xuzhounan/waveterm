@@ -1,7 +1,6 @@
 // Copyright 2025, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react-swc";
 import { defineConfig } from "electron-vite";
 import flow from "rollup-plugin-flow";
@@ -80,7 +79,6 @@ export default defineConfig({
                 include: "**/*.svg",
             }),
             react({}),
-            tailwindcss(),
             viteStaticCopy({
                 targets: [{ src: "node_modules/monaco-editor/min/vs/*", dest: "monaco" }],
             }),
