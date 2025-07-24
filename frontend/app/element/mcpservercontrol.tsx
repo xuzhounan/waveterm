@@ -1,7 +1,7 @@
 // Copyright 2024, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { Button } from "@/app/element/button";
+// import { Button } from "@/app/element/button"; // 使用原生button元素
 import { atom, useAtomValue } from "jotai";
 import { useEffect, useState } from "react";
 import "./mcpservercontrol.scss";
@@ -156,14 +156,20 @@ export function MCPServerControl({ className }: { className?: string }) {
                 />
                 
                 {!status.isRunning && (
-                    <Button
+                    <button
                         className="start-server-button"
-                        onClick={handleStartServer}
+                        onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            console.log("MCP Server start button clicked");
+                            handleStartServer();
+                        }}
                         disabled={isStarting}
                         title="启动MCP服务器"
+                        type="button"
                     >
                         {isStarting ? "⏳" : "▶️"}
-                    </Button>
+                    </button>
                 )}
             </div>
 
