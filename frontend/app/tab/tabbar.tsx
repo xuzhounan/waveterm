@@ -13,7 +13,6 @@ import { OverlayScrollbars } from "overlayscrollbars";
 import { createRef, memo, useCallback, useEffect, useRef, useState } from "react";
 import { debounce } from "throttle-debounce";
 import { IconButton } from "../element/iconbutton";
-import { ServerStatusLight } from "../element/serverstatuslight";
 import { WorkspaceService } from "../store/services";
 import { Tab } from "./tab";
 import "./tabbar.scss";
@@ -691,7 +690,6 @@ const TabBar = memo(({ workspace }: TabBarProps) => {
             <div className="tab-bar-right">
                 <UpdateStatusBanner ref={updateStatusBannerRef} />
                 <ConfigErrorIcon buttonRef={configErrorButtonRef} />
-                <ServerStatusLight size="small" className="tabbar-server-status" />
             </div>
         </div>
     );
