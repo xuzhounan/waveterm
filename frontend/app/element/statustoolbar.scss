@@ -1,0 +1,67 @@
+// Copyright 2025, Command Line Inc.
+// SPDX-License-Identifier: Apache-2.0
+
+.status-toolbar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 36px; // 与TabBar高度协调
+    background: rgba(var(--main-bg-color-rgb), 0.95);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--border-color);
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 16px;
+    user-select: none;
+    
+    // macOS 特殊处理 - 为系统窗口控制按钮预留空间
+    .darwin:not(.fullscreen) & {
+        padding-left: 80px; // 为红绿黄按钮预留空间
+    }
+    
+    // 全屏模式下的样式
+    .fullscreen & {
+        padding: 0 12px;
+    }
+
+    .status-toolbar-left {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex: 1;
+    }
+
+    .status-toolbar-center {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex: 1;
+    }
+
+    .status-toolbar-right {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex: 1;
+        justify-content: flex-end;
+        
+        .toolbar-server-status {
+            // 工具栏中的呼吸灯样式
+            opacity: 0.9;
+            transition: opacity 0.2s ease;
+            
+            &:hover {
+                opacity: 1;
+            }
+        }
+    }
+}
+
+// 为状态工具栏腾出空间，调整主内容区域
+.status-toolbar + #main,
+.status-toolbar + .mainapp {
+    padding-top: 36px;
+}

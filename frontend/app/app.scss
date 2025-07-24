@@ -53,28 +53,6 @@ a.plain-link {
     font: var(--fixed-font);
 }
 
-// 应用服务器状态灯定位 - 顶部菜单栏右侧
-.app-server-status {
-    position: fixed;
-    top: 8px;    // 与TabBar对齐
-    right: 120px; // 在菜单栏右侧，避开其他按钮
-    z-index: 9999;
-    
-    // macOS 特殊处理 - 避开系统窗口控制按钮
-    .darwin:not(.fullscreen) & {
-        right: 130px; // macOS上需要更多空间避开系统按钮
-        top: 10px;
-    }
-    
-    // 全屏模式下的位置
-    .fullscreen & {
-        top: 8px;
-        right: 100px;
-    }
-    
-    // 确保可交互
-    pointer-events: auto;
-}
 
 
 #main,
