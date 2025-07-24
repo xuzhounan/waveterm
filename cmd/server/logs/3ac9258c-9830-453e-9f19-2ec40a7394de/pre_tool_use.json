@@ -1,0 +1,12 @@
+[
+  {
+    "session_id": "3ac9258c-9830-453e-9f19-2ec40a7394de",
+    "transcript_path": "/Users/xzn/.claude/projects/-Users-xzn-Desktop-code-project-waveterm/3ac9258c-9830-453e-9f19-2ec40a7394de.jsonl",
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "cd ../.. && cp bin/wavesrv.arm64 make/Wave.app/Contents/Resources/app/bin/wavesrv.arm64",
+      "description": "\u66f4\u65b0\u5e94\u7528\u5305\u4e2d\u7684wavesrv"
+    }
+  }
+]

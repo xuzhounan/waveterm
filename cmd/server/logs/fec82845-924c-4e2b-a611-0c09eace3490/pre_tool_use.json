@@ -1,0 +1,90 @@
+[
+  {
+    "session_id": "fec82845-924c-4e2b-a611-0c09eace3490",
+    "transcript_path": "/Users/xzn/.claude/projects/-Users-xzn-Desktop-code-project-waveterm/fec82845-924c-4e2b-a611-0c09eace3490.jsonl",
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "cp bin/wavesrv.arm64 make/Wave.app/Contents/Resources/app/bin/",
+      "description": "\u590d\u5236\u65b0\u7f16\u8bd1\u7684\u540e\u7aef\u5230\u5e94\u7528\u5305"
+    }
+  },
+  {
+    "session_id": "fec82845-924c-4e2b-a611-0c09eace3490",
+    "transcript_path": "/Users/xzn/.claude/projects/-Users-xzn-Desktop-code-project-waveterm/fec82845-924c-4e2b-a611-0c09eace3490.jsonl",
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "find make/Wave.app -name \"wavesrv*\" -type f",
+      "description": "\u67e5\u627e\u5e94\u7528\u5305\u4e2d\u7684wavesrv\u6587\u4ef6\u4f4d\u7f6e"
+    }
+  },
+  {
+    "session_id": "fec82845-924c-4e2b-a611-0c09eace3490",
+    "transcript_path": "/Users/xzn/.claude/projects/-Users-xzn-Desktop-code-project-waveterm/fec82845-924c-4e2b-a611-0c09eace3490.jsonl",
+    "hook_event_name": "PreToolUse",
+    "tool_name": "LS",
+    "tool_input": {
+      "path": "/Users/xzn/Desktop/code-project/waveterm/make"
+    }
+  },
+  {
+    "session_id": "fec82845-924c-4e2b-a611-0c09eace3490",
+    "transcript_path": "/Users/xzn/.claude/projects/-Users-xzn-Desktop-code-project-waveterm/fec82845-924c-4e2b-a611-0c09eace3490.jsonl",
+    "hook_event_name": "PreToolUse",
+    "tool_name": "LS",
+    "tool_input": {
+      "path": "/Users/xzn/Desktop/code-project/waveterm/make/Wave.app/Contents/Resources/app/bin"
+    }
+  },
+  {
+    "session_id": "fec82845-924c-4e2b-a611-0c09eace3490",
+    "transcript_path": "/Users/xzn/.claude/projects/-Users-xzn-Desktop-code-project-waveterm/fec82845-924c-4e2b-a611-0c09eace3490.jsonl",
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "cp bin/wavesrv.arm64 make/Wave.app/Contents/Resources/app/bin/wavesrv.arm64",
+      "description": "\u7528\u4fee\u6539\u7248\u672c\u66ff\u6362\u539f\u6709\u7684wavesrv"
+    }
+  },
+  {
+    "session_id": "fec82845-924c-4e2b-a611-0c09eace3490",
+    "transcript_path": "/Users/xzn/.claude/projects/-Users-xzn-Desktop-code-project-waveterm/fec82845-924c-4e2b-a611-0c09eace3490.jsonl",
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "ls -la bin/",
+      "description": "\u68c0\u67e5bin\u76ee\u5f55\u5185\u5bb9"
+    }
+  },
+  {
+    "session_id": "fec82845-924c-4e2b-a611-0c09eace3490",
+    "transcript_path": "/Users/xzn/.claude/projects/-Users-xzn-Desktop-code-project-waveterm/fec82845-924c-4e2b-a611-0c09eace3490.jsonl",
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "ls -la cmd/server/",
+      "description": "\u68c0\u67e5\u7f16\u8bd1\u76ee\u5f55"
+    }
+  },
+  {
+    "session_id": "fec82845-924c-4e2b-a611-0c09eace3490",
+    "transcript_path": "/Users/xzn/.claude/projects/-Users-xzn-Desktop-code-project-waveterm/fec82845-924c-4e2b-a611-0c09eace3490.jsonl",
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "pwd && ls -la",
+      "description": "\u68c0\u67e5\u5f53\u524d\u76ee\u5f55"
+    }
+  },
+  {
+    "session_id": "fec82845-924c-4e2b-a611-0c09eace3490",
+    "transcript_path": "/Users/xzn/.claude/projects/-Users-xzn-Desktop-code-project-waveterm/fec82845-924c-4e2b-a611-0c09eace3490.jsonl",
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "cd ../.. && ls -la | grep -E \"(bin|wavesrv)\"",
+      "description": "\u56de\u5230\u6839\u76ee\u5f55\u67e5\u627e\u7f16\u8bd1\u6587\u4ef6"
+    }
+  }
+]

@@ -1,0 +1,18 @@
+[
+  {
+    "session_id": "3ac9258c-9830-453e-9f19-2ec40a7394de",
+    "transcript_path": "/Users/xzn/.claude/projects/-Users-xzn-Desktop-code-project-waveterm/3ac9258c-9830-453e-9f19-2ec40a7394de.jsonl",
+    "hook_event_name": "PostToolUse",
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "cd cmd/server && CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 /opt/homebrew/bin/go build -o ../../bin/wavesrv.arm64 .",
+      "description": "\u91cd\u65b0\u7f16\u8bd1\u79fb\u9664\u8ba4\u8bc1\u7684\u7248\u672c"
+    },
+    "tool_response": {
+      "stdout": "",
+      "stderr": "",
+      "interrupted": false,
+      "isImage": false
+    }
+  }
+]
