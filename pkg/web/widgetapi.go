@@ -296,7 +296,16 @@ func handleMCPServerStatus(w http.ResponseWriter, r *http.Request, ctx context.C
 	log.Printf("Checking MCP server status")
 
 	// Check if MCP server is running by trying to connect to common ports
-	ports := []int{51920, 61269, 50531}
+	// 包含更多可能的端口，包括开发版本的动态端口范围
+	ports := []int{
+		61269, // 默认生产端口
+		51920, 50531, 57029, // 常见动态端口
+		50396, 50397, 50398, 50399, // 开发版本常用端口范围
+		52020, 52021, 52022, 52023, // 新的开发端口范围
+		53075, 53076, 53077, 53078, // 最新开发端口范围
+		65224, 65225, 65226, 65227, // 另一个开发端口范围
+		8080, 3000, // 开发服务器端口
+	}
 	var runningPort int
 	isRunning := false
 
