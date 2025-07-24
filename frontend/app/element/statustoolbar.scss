@@ -49,6 +49,16 @@
         flex: 1;
         justify-content: flex-end;
         
+        .toolbar-mcp-server-control {
+            // 工具栏中的MCP服务器控制样式
+            opacity: 0.9;
+            transition: opacity 0.2s ease;
+            
+            &:hover {
+                opacity: 1;
+            }
+        }
+
         .toolbar-mcp-client {
             // 工具栏中的MCP客户端样式
             opacity: 0.9;

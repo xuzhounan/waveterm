@@ -1,0 +1,160 @@
+// Copyright 2024, Command Line Inc.
+// SPDX-License-Identifier: Apache-2.0
+
+.mcp-server-control {
+    position: relative;
+    display: flex;
+    align-items: center;
+    height: 100%;
+    padding: 0 8px;
+    cursor: pointer;
+    
+    .mcp-server-indicator {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            transition: all 0.3s ease;
+            
+            &.green {
+                background-color: #00ff00;
+                box-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+                animation: pulse-green 2s infinite;
+            }
+            
+            &.red {
+                background-color: #ff4444;
+                box-shadow: 0 0 10px rgba(255, 68, 68, 0.5);
+            }
+            
+            &.yellow {
+                background-color: #ffaa00;
+                box-shadow: 0 0 10px rgba(255, 170, 0, 0.5);
+                animation: pulse-yellow 1s infinite;
+            }
+        }
+        
+        .start-server-button {
+            min-width: 24px;
+            height: 20px;
+            padding: 0 4px;
+            font-size: 12px;
+            line-height: 1;
+            border-radius: 4px;
+            background: var(--button-bg-color, #333);
+            color: var(--button-text-color, #fff);
+            border: 1px solid var(--border-color, #555);
+            transition: all 0.2s ease;
+            
+            &:hover:not(:disabled) {
+                background: var(--button-hover-bg-color, #444);
+                transform: scale(1.05);
+            }
+            
+            &:disabled {
+                opacity: 0.6;
+                cursor: not-allowed;
+            }
+        }
+    }
+    
+    .mcp-server-tooltip {
+        position: absolute;
+        bottom: 100%;
+        right: 0;
+        margin-bottom: 8px;
+        z-index: 1000;
+        pointer-events: none;
+        
+        .tooltip-content {
+            background: var(--panel-bg-color, rgba(0, 0, 0, 0.9));
+            color: var(--main-text-color, #fff);
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            line-height: 1.4;
+            white-space: nowrap;
+            border: 1px solid var(--border-color, #333);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            
+            .tooltip-line {
+                margin-bottom: 2px;
+                
+                &:last-child {
+                    margin-bottom: 0;
+                }
+            }
+        }
+        
+        // Tooltip arrow
+        &::after {
+            content: "";
+            position: absolute;
+            top: 100%;
+            right: 12px;
+            border: 5px solid transparent;
+            border-top-color: var(--panel-bg-color, rgba(0, 0, 0, 0.9));
+        }
+    }
+}
+
+@keyframes pulse-green {
+    0%, 100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 0.7;
+        transform: scale(1.1);
+    }
+}
+
+@keyframes pulse-yellow {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+}
+
+// Dark theme adjustments
+.dark-theme .mcp-server-control {
+    .start-server-button {
+        background: #444;
+        border-color: #666;
+        
+        &:hover:not(:disabled) {
+            background: #555;
+        }
+    }
+    
+    .mcp-server-tooltip .tooltip-content {
+        background: rgba(40, 40, 40, 0.95);
+        border-color: #555;
+    }
+}
+
+// Light theme adjustments  
+.light-theme .mcp-server-control {
+    .start-server-button {
+        background: #f0f0f0;
+        color: #333;
+        border-color: #ccc;
+        
+        &:hover:not(:disabled) {
+            background: #e0e0e0;
+        }
+    }
+    
+    .mcp-server-tooltip .tooltip-content {
+        background: rgba(255, 255, 255, 0.95);
+        color: #333;
+        border-color: #ddd;
+    }
+}

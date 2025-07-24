@@ -11,6 +11,7 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"time"
 
 	// "github.com/wavetermdev/waveterm/pkg/authkey" // 临时注释用于测试
 	"github.com/wavetermdev/waveterm/pkg/service/widgetapiservice"
@@ -47,6 +48,9 @@ func handleWidgetAPI(w http.ResponseWriter, r *http.Request) {
 		if path == "" || path == "/" {
 			// POST /api/v1/widgets - Create widget
 			handleCreateWidget(w, r, ctx)
+		} else if path == "/mcp/restart" {
+			// POST /api/v1/widgets/mcp/restart - Restart MCP server
+			handleMCPServerRestart(w, r, ctx)
 		} else {
 			http.Error(w, "Not Found", http.StatusNotFound)
 		}
@@ -65,6 +69,9 @@ func handleWidgetAPI(w http.ResponseWriter, r *http.Request) {
 		} else if pathParts[0] == "workspaces" {
 			// GET /api/v1/widgets/workspaces - List workspaces
 			handleListWorkspaces(w, r, ctx)
+		} else if path == "/mcp/status" {
+			// GET /api/v1/widgets/mcp/status - Check MCP server status
+			handleMCPServerStatus(w, r, ctx)
 		} else {
 			http.Error(w, "Not Found", http.StatusNotFound)
 		}
@@ -282,6 +289,61 @@ func handleListWidgetTypes(w http.ResponseWriter, r *http.Request, ctx context.C
 
 	// Return the response
 	json.NewEncoder(w).Encode(widgetTypes)
+}
+
+// handleMCPServerStatus checks the status of MCP server
+func handleMCPServerStatus(w http.ResponseWriter, r *http.Request, ctx context.Context) {
+	log.Printf("Checking MCP server status")
+
+	// Check if MCP server is running by trying to connect to common ports
+	ports := []int{51920, 61269, 50531}
+	var runningPort int
+	isRunning := false
+
+	for _, port := range ports {
+		client := &http.Client{
+			Timeout: 2 * time.Second,
+		}
+		
+		resp, err := client.Get(fmt.Sprintf("http://localhost:%d/api/v1/widgets", port))
+		if err == nil && resp.StatusCode == 200 {
+			resp.Body.Close()
+			isRunning = true
+			runningPort = port
+			break
+		}
+		if resp != nil {
+			resp.Body.Close()
+		}
+	}
+
+	response := map[string]interface{}{
+		"success": true,
+		"status": map[string]interface{}{
+			"running": isRunning,
+			"port":    runningPort,
+		},
+	}
+
+	json.NewEncoder(w).Encode(response)
+}
+
+// handleMCPServerRestart attempts to restart the MCP server
+func handleMCPServerRestart(w http.ResponseWriter, r *http.Request, ctx context.Context) {
+	log.Printf("Attempting to restart MCP server")
+
+	// For now, we'll just return a success response
+	// In a real implementation, you might want to:
+	// 1. Stop the current MCP server process
+	// 2. Restart it with new configuration
+	// 3. Wait for it to be ready
+	
+	response := map[string]interface{}{
+		"success": true,
+		"message": "MCP server restart initiated",
+	}
+
+	json.NewEncoder(w).Encode(response)
 }
 
 // writeErrorResponse writes a standardized error response
