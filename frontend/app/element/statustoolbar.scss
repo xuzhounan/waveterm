@@ -3,36 +3,44 @@
 
 .status-toolbar {
     position: fixed;
-    top: 36px; // 移到TabBar下方
+    bottom: 0;
+    left: 0;
     right: 0;
-    width: 200px; // 固定宽度，不占满整个顶部
-    height: 32px; // 稍微减小高度
+    height: 36px; // 与顶部TabBar高度一致
     background: rgba(var(--main-bg-color-rgb), 0.95);
     backdrop-filter: blur(10px);
-    border: 1px solid var(--border-color);
-    border-radius: 6px;
-    z-index: 1000; // 降低z-index
+    border-top: 1px solid var(--border-color);
+    z-index: 1000;
     display: flex;
     align-items: center;
-    justify-content: flex-end; // 右对齐
-    padding: 0 12px;
+    justify-content: space-between;
+    padding: 0 16px;
     user-select: none;
-    margin: 4px; // 添加边距
     
     // 全屏模式下的样式
     .fullscreen & {
         padding: 0 8px;
     }
 
-    .status-toolbar-left,
+    .status-toolbar-left {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex: 1;
+    }
+
     .status-toolbar-center {
-        display: none; // 隐藏左侧和中间区域
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex: 1;
     }
 
     .status-toolbar-right {
         display: flex;
         align-items: center;
         gap: 8px;
+        flex: 1;
         justify-content: flex-end;
         
         .toolbar-mcp-client {
@@ -57,4 +65,8 @@
     }
 }
 
-// 状态工具栏现在是浮动的，不需要调整主内容区域
+// 为底部状态工具栏腾出空间，调整主内容区域
+#main,
+.mainapp {
+    padding-bottom: 36px;
+}
