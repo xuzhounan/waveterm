@@ -22,19 +22,32 @@ const mcpServerStatusAtom = atom<MCPServerStatus>({
 
 async function checkMCPServerStatus(): Promise<MCPServerStatus> {
     try {
-        // Use the current Wave Terminal server to check MCP status
-        const response = await fetch('/api/v1/widgets/mcp/status', {
-            method: 'GET',
-        });
+        // Try to detect the current server's API endpoint
+        const ports = [61269, 51920, 50531, 57029]; // Common Wave Terminal ports
         
-        if (response.ok) {
-            const data = await response.json();
-            if (data.success && data.status) {
-                return {
-                    isRunning: data.status.running,
-                    port: data.status.port,
-                    lastCheck: Date.now(),
-                };
+        for (const port of ports) {
+            try {
+                const response = await fetch(`http://localhost:${port}/api/v1/widgets/mcp/status`, {
+                    method: 'GET',
+                    headers: {
+                        'Cache-Control': 'no-cache',
+                    },
+                    signal: AbortSignal.timeout(2000),
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success) {
+                        return {
+                            isRunning: data.status?.running || true,
+                            port: data.status?.port || port,
+                            lastCheck: Date.now(),
+                        };
+                    }
+                }
+            } catch (err) {
+                // Continue to next port
+                continue;
             }
         }
         
@@ -53,18 +66,31 @@ async function checkMCPServerStatus(): Promise<MCPServerStatus> {
 
 async function startMCPServer(): Promise<boolean> {
     try {
-        // Use the restart API endpoint
-        const response = await fetch('/api/v1/widgets/mcp/restart', {
-            method: 'POST',
-        });
+        // Try to find the current server's API endpoint
+        const ports = [61269, 51920, 50531, 57029]; // Common Wave Terminal ports
         
-        if (response.ok) {
-            const data = await response.json();
-            if (data.success) {
-                // Wait a bit for server to start
-                await new Promise(resolve => setTimeout(resolve, 3000));
-                const status = await checkMCPServerStatus();
-                return status.isRunning;
+        for (const port of ports) {
+            try {
+                const response = await fetch(`http://localhost:${port}/api/v1/widgets/mcp/restart`, {
+                    method: 'POST',
+                    headers: {
+                        'Cache-Control': 'no-cache',
+                    },
+                    signal: AbortSignal.timeout(5000),
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success) {
+                        // Wait a bit for server to start
+                        await new Promise(resolve => setTimeout(resolve, 2000));
+                        const status = await checkMCPServerStatus();
+                        return status.isRunning;
+                    }
+                }
+            } catch (err) {
+                // Continue to next port
+                continue;
             }
         }
         
