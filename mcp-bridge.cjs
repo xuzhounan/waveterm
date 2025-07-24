@@ -143,9 +143,10 @@ class WaveTerminalMCPServer extends Server {
                 'Content-Type': 'application/json'
             };
             
-            if (this.authKey) {
-                headers['X-AuthKey'] = this.authKey;
-            }
+            // 正式版Wave Terminal不需要认证密钥
+            // if (this.authKey) {
+            //     headers['X-AuthKey'] = this.authKey;
+            // }
 
             let response;
             let result;
@@ -320,9 +321,10 @@ class WaveTerminalMCPServer extends Server {
         
         try {
             const headers = {};
-            if (this.authKey) {
-                headers['X-AuthKey'] = this.authKey;
-            }
+            // 正式版Wave Terminal不需要认证密钥
+            // if (this.authKey) {
+            //     headers['X-AuthKey'] = this.authKey;
+            // }
 
             let response;
             let result;
