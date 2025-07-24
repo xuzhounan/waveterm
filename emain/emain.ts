@@ -279,6 +279,35 @@ electron.ipcMain.on("get-about-modal-details", (event) => {
     event.returnValue = getWaveVersion() as AboutModalDetails;
 });
 
+electron.ipcMain.on("get-wave-config", (event) => {
+    try {
+        const webServerEndpoint = getWebServerEndpoint();
+        const authKey = AuthKey;
+        const dataDir = getWaveDataDir();
+        const configDir = getWaveConfigDir();
+        
+        // 从 webServerEndpoint 中提取端口号
+        let port = 61269; // 默认端口
+        try {
+            const url = new URL(webServerEndpoint);
+            port = parseInt(url.port) || 61269;
+        } catch (e) {
+            console.log("Failed to parse webServerEndpoint port, using default");
+        }
+        
+        event.returnValue = {
+            port: port,
+            authKey: authKey,
+            dataDir: dataDir,
+            configDir: configDir,
+            baseUrl: webServerEndpoint,
+        };
+    } catch (error) {
+        console.error("Error getting wave config:", error);
+        event.returnValue = null;
+    }
+});
+
 const hasBeforeInputRegisteredMap = new Map<number, boolean>();
 
 electron.ipcMain.on("webview-focus", (event: Electron.IpcMainEvent, focusedId: number) => {

@@ -15,6 +15,7 @@ contextBridge.exposeInMainWorld("api", {
     getAboutModalDetails: () => ipcRenderer.sendSync("get-about-modal-details"),
     getDocsiteUrl: () => ipcRenderer.sendSync("get-docsite-url"),
     getWebviewPreload: () => ipcRenderer.sendSync("get-webview-preload"),
+    getWaveConfig: () => ipcRenderer.sendSync("get-wave-config"),
     openNewWindow: () => ipcRenderer.send("open-new-window"),
     showContextMenu: (workspaceId, menu) => ipcRenderer.send("contextmenu-show", workspaceId, menu),
     onContextMenuClick: (callback) => ipcRenderer.on("contextmenu-click", (_event, id) => callback(id)),

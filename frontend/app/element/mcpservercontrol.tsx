@@ -4,6 +4,7 @@
 // import { Button } from "@/app/element/button"; // 使用原生button元素
 import { atom, useAtomValue } from "jotai";
 import { useEffect, useState } from "react";
+import { waveApiFetch, clearWaveServerConfigCache } from "../util/waveconfig";
 import "./mcpservercontrol.scss";
 
 interface MCPServerStatus {
@@ -22,32 +23,18 @@ const mcpServerStatusAtom = atom<MCPServerStatus>({
 
 async function checkMCPServerStatus(): Promise<MCPServerStatus> {
     try {
-        // Try to detect the current server's API endpoint
-        const ports = [61269, 51920, 50531, 57029]; // Common Wave Terminal ports
-        
-        for (const port of ports) {
-            try {
-                const response = await fetch(`http://localhost:${port}/api/v1/widgets/mcp/status`, {
-                    method: 'GET',
-                    headers: {
-                        'Cache-Control': 'no-cache',
-                    },
-                    signal: AbortSignal.timeout(2000),
-                });
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    if (data.success) {
-                        return {
-                            isRunning: data.status?.running || true,
-                            port: data.status?.port || port,
-                            lastCheck: Date.now(),
-                        };
-                    }
-                }
-            } catch (err) {
-                // Continue to next port
-                continue;
+        const response = await waveApiFetch('api/v1/widgets/mcp/status', {
+            method: 'GET',
+        });
+
+        if (response && response.ok) {
+            const data = await response.json();
+            if (data.success) {
+                return {
+                    isRunning: data.status?.running || true,
+                    port: data.status?.port,
+                    lastCheck: Date.now(),
+                };
             }
         }
         
@@ -58,7 +45,7 @@ async function checkMCPServerStatus(): Promise<MCPServerStatus> {
     } catch (error) {
         return {
             isRunning: false,
-            error: error instanceof Error ? error.message : 'Unknown error',
+            error: error instanceof Error ? error.message : 'Wave server not found',
             lastCheck: Date.now(),
         };
     }
@@ -66,31 +53,17 @@ async function checkMCPServerStatus(): Promise<MCPServerStatus> {
 
 async function startMCPServer(): Promise<boolean> {
     try {
-        // Try to find the current server's API endpoint
-        const ports = [61269, 51920, 50531, 57029]; // Common Wave Terminal ports
-        
-        for (const port of ports) {
-            try {
-                const response = await fetch(`http://localhost:${port}/api/v1/widgets/mcp/restart`, {
-                    method: 'POST',
-                    headers: {
-                        'Cache-Control': 'no-cache',
-                    },
-                    signal: AbortSignal.timeout(5000),
-                });
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    if (data.success) {
-                        // Wait a bit for server to start
-                        await new Promise(resolve => setTimeout(resolve, 2000));
-                        const status = await checkMCPServerStatus();
-                        return status.isRunning;
-                    }
-                }
-            } catch (err) {
-                // Continue to next port
-                continue;
+        const response = await waveApiFetch('api/v1/widgets/mcp/restart', {
+            method: 'POST',
+        });
+
+        if (response && response.ok) {
+            const data = await response.json();
+            if (data.success) {
+                // Wait a bit for server to start
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                const status = await checkMCPServerStatus();
+                return status.isRunning;
             }
         }
         
