@@ -58,6 +58,10 @@ func handleWidgetAPI(w http.ResponseWriter, r *http.Request) {
 			// GET /api/v1/widgets/workspace/{workspace_id} - Get workspace widgets
 			workspaceId := pathParts[1]
 			handleGetWorkspaceWidgets(w, r, ctx, workspaceId)
+		} else if len(pathParts) == 3 && pathParts[0] == "workspace" && pathParts[1] == "name" {
+			// GET /api/v1/widgets/workspace/name/{workspace_name} - Get workspace by name
+			workspaceName := pathParts[2]
+			handleGetWorkspaceByName(w, r, ctx, workspaceName)
 		} else if pathParts[0] == "workspaces" {
 			// GET /api/v1/widgets/workspaces - List workspaces
 			handleListWorkspaces(w, r, ctx)
@@ -135,6 +139,34 @@ func handleListWorkspaces(w http.ResponseWriter, r *http.Request, ctx context.Co
 	if err != nil {
 		log.Printf("Error listing workspaces: %v", err)
 		writeErrorResponse(w, fmt.Sprintf("Internal server error: %s", err.Error()), http.StatusInternalServerError)
+		return
+	}
+
+	// Return the response
+	json.NewEncoder(w).Encode(response)
+}
+
+// handleGetWorkspaceByName returns workspace information by name
+func handleGetWorkspaceByName(w http.ResponseWriter, r *http.Request, ctx context.Context, workspaceName string) {
+	if workspaceName == "" {
+		writeErrorResponse(w, "workspace_name is required", http.StatusBadRequest)
+		return
+	}
+
+	log.Printf("Getting workspace by name: %s", workspaceName)
+
+	// Call the service to get workspace by name
+	response, err := widgetapiservice.WidgetAPIServiceInstance.GetWorkspaceByName(ctx, workspaceName)
+	if err != nil {
+		log.Printf("Error getting workspace by name: %v", err)
+		writeErrorResponse(w, fmt.Sprintf("Internal server error: %s", err.Error()), http.StatusInternalServerError)
+		return
+	}
+
+	// If workspace not found, return 404
+	if !response.Success && strings.Contains(response.Error, "not found") {
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(response)
 		return
 	}
 
@@ -224,6 +256,25 @@ func handleListWidgetTypes(w http.ResponseWriter, r *http.Request, ctx context.C
 				"title":        "Home Directory",
 				"meta": map[string]interface{}{
 					"file": "~",
+				},
+			},
+		},
+		"endpoints": map[string]interface{}{
+			"get_workspace_by_name": map[string]interface{}{
+				"method":      "GET",
+				"path":        "/api/v1/widgets/workspace/name/{workspace_name}",
+				"description": "Get workspace information by name (case-insensitive)",
+				"parameters": map[string]interface{}{
+					"workspace_name": "Name of the workspace to find",
+				},
+				"example_response": map[string]interface{}{
+					"success": true,
+					"workspace": map[string]interface{}{
+						"workspace_id": "workspace-123",
+						"name":         "Default",
+						"tab_ids":      []string{"tab-1", "tab-2"},
+						"active_tab_id": "tab-1",
+					},
 				},
 			},
 		},

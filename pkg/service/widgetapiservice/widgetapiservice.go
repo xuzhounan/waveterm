@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/wavetermdev/waveterm/pkg/service/workspaceservice"
@@ -82,6 +83,13 @@ type WorkspaceBasicInfo struct {
 	Name        string `json:"name"`
 	TabIds      []string `json:"tab_ids"`
 	ActiveTabId string `json:"active_tab_id,omitempty"`
+}
+
+// GetWorkspaceByNameAPIResponse represents the response for getting workspace by name
+type GetWorkspaceByNameAPIResponse struct {
+	Success   bool                 `json:"success"`
+	Workspace *WorkspaceBasicInfo  `json:"workspace,omitempty"`
+	Error     string               `json:"error,omitempty"`
 }
 
 // CreateWidget creates a new widget in the specified workspace
@@ -263,6 +271,58 @@ func (ws *WidgetAPIService) ListWorkspaces(ctx context.Context) (*ListWorkspaces
 	return &ListWorkspacesAPIResponse{
 		Success:    true,
 		Workspaces: workspaces,
+	}, nil
+}
+
+// GetWorkspaceByName returns workspace information by name
+func (ws *WidgetAPIService) GetWorkspaceByName(ctx context.Context, workspaceName string) (*GetWorkspaceByNameAPIResponse, error) {
+	log.Printf("WidgetAPIService.GetWorkspaceByName called with workspace_name=%s", workspaceName)
+
+	if workspaceName == "" {
+		return &GetWorkspaceByNameAPIResponse{
+			Success: false,
+			Error:   "workspace name is required",
+		}, nil
+	}
+
+	// Get all workspaces and find the one with matching name
+	workspaceService := &workspaceservice.WorkspaceService{}
+	workspaceInfos, err := workspaceService.ListWorkspaces()
+	if err != nil {
+		return &GetWorkspaceByNameAPIResponse{
+			Success: false,
+			Error:   fmt.Sprintf("failed to list workspaces: %s", err.Error()),
+		}, nil
+	}
+
+	// Search for workspace with matching name
+	for _, info := range workspaceInfos {
+		workspace, err := wcore.GetWorkspace(ctx, info.WorkspaceId)
+		if err != nil {
+			log.Printf("Failed to get workspace %s: %v", info.WorkspaceId, err)
+			continue
+		}
+		
+		// Case-insensitive name comparison
+		if strings.EqualFold(workspace.Name, workspaceName) {
+			workspaceInfo := &WorkspaceBasicInfo{
+				WorkspaceId: workspace.OID,
+				Name:        workspace.Name,
+				TabIds:      workspace.TabIds,
+				ActiveTabId: workspace.ActiveTabId,
+			}
+			
+			return &GetWorkspaceByNameAPIResponse{
+				Success:   true,
+				Workspace: workspaceInfo,
+			}, nil
+		}
+	}
+
+	// Workspace not found
+	return &GetWorkspaceByNameAPIResponse{
+		Success: false,
+		Error:   fmt.Sprintf("workspace with name '%s' not found", workspaceName),
 	}, nil
 }
 
