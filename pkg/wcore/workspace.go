@@ -412,9 +412,18 @@ func ListWorkspaces(ctx context.Context) (waveobj.WorkspaceList, error) {
 
 	var wl waveobj.WorkspaceList
 	for _, workspace := range workspaces {
-		if workspace.Name == "" || workspace.Icon == "" || workspace.Color == "" {
-			continue
+		// 修复：放宽过滤条件，只要工作区存在就应该在API中可见
+		// 为空的字段提供默认值，而不是跳过整个工作区
+		if workspace.Name == "" {
+			workspace.Name = fmt.Sprintf("Workspace %s", workspace.OID[0:8])
 		}
+		if workspace.Icon == "" {
+			workspace.Icon = WorkspaceIcons[0] // 使用默认图标
+		}
+		if workspace.Color == "" {
+			workspace.Color = WorkspaceColors[0] // 使用默认颜色
+		}
+		
 		windowId, ok := workspaceToWindow[workspace.OID]
 		if !ok {
 			windowId = ""
