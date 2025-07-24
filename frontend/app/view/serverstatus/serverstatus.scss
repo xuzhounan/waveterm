@@ -7,8 +7,10 @@
     
     .serverstatus-content {
         padding: 16px;
-        color: var(--main-text-color);
-        font-family: var(--main-font);
+        color: var(--main-text-color, #ffffff);
+        font-family: var(--main-font, system-ui, -apple-system, sans-serif);
+        background: var(--main-bg-color, #1a1b26);
+        min-height: 200px;
     }
 
     .status-indicator {
@@ -18,8 +20,8 @@
         margin-bottom: 20px;
         padding: 12px 16px;
         border-radius: 8px;
-        background: var(--panel-bg-color);
-        border: 1px solid var(--border-color);
+        background: var(--panel-bg-color, rgba(255, 255, 255, 0.05));
+        border: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
 
         .status-dot {
             width: 12px;
@@ -77,14 +79,14 @@
             }
 
             .info-item {
-                background: var(--panel-bg-color);
+                background: var(--panel-bg-color, rgba(255, 255, 255, 0.05));
                 padding: 12px;
                 border-radius: 6px;
-                border: 1px solid var(--border-color);
+                border: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
 
                 .info-label {
                     font-size: 12px;
-                    color: var(--secondary-text-color);
+                    color: var(--secondary-text-color, rgba(255, 255, 255, 0.7));
                     margin-bottom: 4px;
                     text-transform: uppercase;
                     letter-spacing: 0.5px;
@@ -93,10 +95,10 @@
                 .info-value {
                     font-size: 14px;
                     font-weight: 500;
-                    font-family: var(--fixed-font);
+                    font-family: var(--fixed-font, "SF Mono", Monaco, "Cascadia Code", "Roboto Mono", Consolas, "Courier New", monospace);
 
                     a {
-                        color: var(--accent-color);
+                        color: var(--accent-color, #7c3aed);
                         text-decoration: none;
 
                         &:hover {

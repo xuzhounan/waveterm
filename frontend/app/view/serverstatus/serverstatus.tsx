@@ -99,8 +99,8 @@ class ServerStatusViewModel implements ViewModel {
                     webPort: 61269,
                     wsPort: 61270,
                     apiUrl: 'http://localhost:61269',
-                    authKey: '83958e47...', // 部分显示密钥
-                    uptime: Math.floor(Date.now() / 1000) - Math.floor(Date.now() / 1000), // 简化处理
+                    authKey: '83958e47ddc89fae695a7e1eb429899871e80334bd58cfc2d17a80388791f073',
+                    uptime: Math.floor((Date.now() - (Date.now() % 86400000)) / 1000), // 今天的运行时间
                     lastUpdated: Date.now(),
                 };
                 globalStore.set(this.statusDataAtom, statusData);
@@ -234,10 +234,10 @@ function ServerStatusView({ model, blockId }: ServerStatusViewProps) {
                                 <div className="info-item">
                                     <div className="info-label">Auth Key</div>
                                     <div className="info-value auth-key">
-                                        {statusData.authKey}...
+                                        {statusData.authKey.substring(0, 12)}...
                                         <button 
                                             className="copy-btn"
-                                            onClick={() => navigator.clipboard.writeText('83958e47ddc89fae695a7e1eb429899871e80334bd58cfc2d17a80388791f073')}
+                                            onClick={() => navigator.clipboard.writeText(statusData.authKey || '')}
                                             title="Copy full auth key"
                                         >
                                             📋
