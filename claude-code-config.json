@@ -4,8 +4,8 @@
       "command": "node",
       "args": ["/Users/xzn/Desktop/code-project/waveterm/mcp-bridge.js"],
       "env": {
-        "WAVE_TERMINAL_URL": "http://localhost:50531",
-        "WAVE_TERMINAL_AUTH_KEY": "01dc0ce0-380a-4286-81ab-5d252b11dfb4"
+        "WAVE_TERMINAL_URL": "http://localhost:51920",
+        "WAVE_TERMINAL_AUTH_KEY": "47d3fb13-8c6a-466d-b33c-ca1e6044ab9a"
       }
     }
   }
