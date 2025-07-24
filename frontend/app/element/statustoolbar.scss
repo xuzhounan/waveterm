@@ -3,49 +3,36 @@
 
 .status-toolbar {
     position: fixed;
-    top: 0;
-    left: 0;
+    top: 36px; // 移到TabBar下方
     right: 0;
-    height: 36px; // 与TabBar高度协调
+    width: 200px; // 固定宽度，不占满整个顶部
+    height: 32px; // 稍微减小高度
     background: rgba(var(--main-bg-color-rgb), 0.95);
     backdrop-filter: blur(10px);
-    border-bottom: 1px solid var(--border-color);
-    z-index: 10000;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    z-index: 1000; // 降低z-index
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    padding: 0 16px;
+    justify-content: flex-end; // 右对齐
+    padding: 0 12px;
     user-select: none;
-    
-    // macOS 特殊处理 - 为系统窗口控制按钮预留空间
-    .darwin:not(.fullscreen) & {
-        padding-left: 80px; // 为红绿黄按钮预留空间
-    }
+    margin: 4px; // 添加边距
     
     // 全屏模式下的样式
     .fullscreen & {
-        padding: 0 12px;
+        padding: 0 8px;
     }
 
-    .status-toolbar-left {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        flex: 1;
-    }
-
+    .status-toolbar-left,
     .status-toolbar-center {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex: 1;
+        display: none; // 隐藏左侧和中间区域
     }
 
     .status-toolbar-right {
         display: flex;
         align-items: center;
         gap: 8px;
-        flex: 1;
         justify-content: flex-end;
         
         .toolbar-mcp-client {
@@ -70,8 +57,4 @@
     }
 }
 
-// 为状态工具栏腾出空间，调整主内容区域
-.status-toolbar + #main,
-.status-toolbar + .mainapp {
-    padding-top: 36px;
-}
+// 状态工具栏现在是浮动的，不需要调整主内容区域

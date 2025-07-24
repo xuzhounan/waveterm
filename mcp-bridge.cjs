@@ -134,7 +134,7 @@ class WaveTerminalMCPServer extends Server {
     }
 
     async callTool(request) {
-        const { name, arguments: args } = request;
+        const { name, arguments: args } = request.params || request;
         
         try {
             console.error(`[MCP] Calling tool: ${name} with args:`, args);
