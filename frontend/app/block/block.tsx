@@ -11,6 +11,7 @@ import {
 } from "@/app/block/blocktypes";
 import { LauncherViewModel } from "@/app/view/launcher/launcher";
 import { PreviewModel } from "@/app/view/preview/preview";
+import { ServerStatusViewModel } from "@/app/view/serverstatus/serverstatus";
 import { SysinfoViewModel } from "@/app/view/sysinfo/sysinfo";
 import { VDomModel } from "@/app/view/vdom/vdom-model";
 import { ErrorBoundary } from "@/element/errorboundary";
@@ -44,6 +45,7 @@ BlockRegistry.set("web", WebViewModel);
 BlockRegistry.set("waveai", WaveAiModel);
 BlockRegistry.set("cpuplot", SysinfoViewModel);
 BlockRegistry.set("sysinfo", SysinfoViewModel);
+BlockRegistry.set("serverstatus", ServerStatusViewModel);
 BlockRegistry.set("vdom", VDomModel);
 BlockRegistry.set("tips", QuickTipsViewModel);
 BlockRegistry.set("help", HelpViewModel);

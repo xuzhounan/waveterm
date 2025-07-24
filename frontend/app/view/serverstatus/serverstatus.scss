@@ -1,0 +1,230 @@
+// Copyright 2025, Command Line Inc.
+// SPDX-License-Identifier: Apache-2.0
+
+.serverstatus-view {
+    width: 100%;
+    height: 100%;
+    
+    .serverstatus-content {
+        padding: 16px;
+        color: var(--main-text-color);
+        font-family: var(--main-font);
+    }
+
+    .status-indicator {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 20px;
+        padding: 12px 16px;
+        border-radius: 8px;
+        background: var(--panel-bg-color);
+        border: 1px solid var(--border-color);
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .status-text {
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        &.running {
+            .status-dot {
+                background: #4ade80;
+                box-shadow: 0 0 8px rgba(74, 222, 128, 0.5);
+            }
+            .status-text {
+                color: #4ade80;
+            }
+        }
+
+        &.stopped {
+            .status-dot {
+                background: #ef4444;
+                box-shadow: 0 0 8px rgba(239, 68, 68, 0.5);
+            }
+            .status-text {
+                color: #ef4444;
+            }
+        }
+
+        &.loading {
+            .status-dot {
+                background: #f59e0b;
+                box-shadow: 0 0 8px rgba(245, 158, 11, 0.5);
+            }
+            .status-text {
+                color: #f59e0b;
+            }
+        }
+    }
+
+    .server-info {
+        margin-bottom: 24px;
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+
+            @media (max-width: 600px) {
+                grid-template-columns: 1fr;
+            }
+
+            .info-item {
+                background: var(--panel-bg-color);
+                padding: 12px;
+                border-radius: 6px;
+                border: 1px solid var(--border-color);
+
+                .info-label {
+                    font-size: 12px;
+                    color: var(--secondary-text-color);
+                    margin-bottom: 4px;
+                    text-transform: uppercase;
+                    letter-spacing: 0.5px;
+                }
+
+                .info-value {
+                    font-size: 14px;
+                    font-weight: 500;
+                    font-family: var(--fixed-font);
+
+                    a {
+                        color: var(--accent-color);
+                        text-decoration: none;
+
+                        &:hover {
+                            text-decoration: underline;
+                        }
+                    }
+
+                    &.auth-key {
+                        display: flex;
+                        align-items: center;
+                        gap: 8px;
+
+                        .copy-btn {
+                            background: none;
+                            border: none;
+                            cursor: pointer;
+                            font-size: 12px;
+                            opacity: 0.7;
+                            transition: opacity 0.2s;
+
+                            &:hover {
+                                opacity: 1;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    .error-info {
+        background: var(--error-bg-color, rgba(239, 68, 68, 0.1));
+        border: 1px solid var(--error-border-color, rgba(239, 68, 68, 0.3));
+        border-radius: 8px;
+        padding: 16px;
+        margin-bottom: 20px;
+
+        .error-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--error-color, #ef4444);
+            margin-bottom: 8px;
+        }
+
+        .error-message {
+            font-size: 13px;
+            color: var(--main-text-color);
+            margin-bottom: 12px;
+            font-family: var(--fixed-font);
+        }
+
+        .error-suggestion {
+            font-size: 12px;
+            color: var(--secondary-text-color);
+
+            code {
+                background: var(--code-bg-color, rgba(0, 0, 0, 0.1));
+                padding: 2px 6px;
+                border-radius: 3px;
+                font-family: var(--fixed-font);
+                color: var(--accent-color);
+            }
+        }
+    }
+
+    .api-endpoints {
+        margin-bottom: 20px;
+
+        .endpoints-title {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: var(--main-text-color);
+        }
+
+        .endpoint-list {
+            .endpoint-item {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                padding: 8px 12px;
+                margin-bottom: 6px;
+                background: var(--panel-bg-color);
+                border-radius: 4px;
+                border: 1px solid var(--border-color);
+
+                .endpoint-method {
+                    font-size: 11px;
+                    font-weight: 600;
+                    padding: 2px 6px;
+                    border-radius: 3px;
+                    min-width: 40px;
+                    text-align: center;
+                    color: white;
+                    background: var(--accent-color);
+                }
+
+                .endpoint-path {
+                    font-family: var(--fixed-font);
+                    font-size: 12px;
+                    color: var(--main-text-color);
+                    flex: 1;
+                }
+
+                .endpoint-desc {
+                    font-size: 11px;
+                    color: var(--secondary-text-color);
+                    text-align: right;
+                }
+            }
+        }
+    }
+
+    .last-updated {
+        font-size: 11px;
+        color: var(--secondary-text-color);
+        text-align: center;
+        margin-top: 16px;
+        padding-top: 16px;
+        border-top: 1px solid var(--border-color);
+    }
+
+    @keyframes pulse {
+        0%, 100% {
+            opacity: 1;
+        }
+        50% {
+            opacity: 0.5;
+        }
+    }
+}

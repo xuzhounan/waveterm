@@ -50,5 +50,15 @@
                 "view": "sysinfo"
             }
         }
+    },
+    "defwidget@serverstatus": {
+        "display:order": 0,
+        "icon": "server",
+        "label": "server status",
+        "blockdef": {
+            "meta": {
+                "view": "serverstatus"
+            }
+        }
     }
 }

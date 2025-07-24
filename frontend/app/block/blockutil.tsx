@@ -30,6 +30,9 @@ export function blockViewToIcon(view: string): string {
     if (view == "tips") {
         return "lightbulb";
     }
+    if (view == "serverstatus") {
+        return "server";
+    }
     return "square";
 }
 
@@ -54,6 +57,9 @@ export function blockViewToName(view: string): string {
     }
     if (view == "tips") {
         return "Tips";
+    }
+    if (view == "serverstatus") {
+        return "Server Status";
     }
     return view;
 }
