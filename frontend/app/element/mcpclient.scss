@@ -1,0 +1,266 @@
+// Copyright 2025, Command Line Inc.
+// SPDX-License-Identifier: Apache-2.0
+
+.mcp-client {
+    position: relative;
+    display: flex;
+    align-items: center;
+    user-select: none;
+
+    .mcp-summary {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 8px;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: background-color 0.2s ease;
+
+        &:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .mcp-status {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 12px;
+            color: var(--secondary-text-color);
+
+            .fas.fa-robot {
+                color: #10b981;
+                font-size: 14px;
+            }
+
+            .connection-count {
+                font-weight: 600;
+                color: var(--main-text-color);
+            }
+        }
+
+        .more-indicator {
+            font-size: 10px;
+            color: var(--secondary-text-color);
+            margin-left: 2px;
+        }
+    }
+
+    .mcp-server-indicator {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+
+        &.inline-indicator {
+            .server-status-dot {
+                width: 6px;
+                height: 6px;
+                border-radius: 50%;
+                flex-shrink: 0;
+            }
+
+            .fas {
+                font-size: 8px;
+                opacity: 0.8;
+            }
+        }
+
+        .server-status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            flex-shrink: 0;
+            transition: all 0.2s ease;
+        }
+
+        .fas {
+            font-size: 10px;
+            transition: all 0.2s ease;
+        }
+    }
+
+    .mcp-details {
+        position: absolute;
+        top: 100%;
+        right: 0;
+        margin-top: 8px;
+        width: 320px;
+        background: var(--modal-bg-color);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+        z-index: 10001;
+        overflow: hidden;
+
+        .mcp-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 16px;
+            background: rgba(255, 255, 255, 0.05);
+            border-bottom: 1px solid var(--border-color);
+
+            h3 {
+                margin: 0;
+                font-size: 14px;
+                font-weight: 600;
+                color: var(--main-text-color);
+            }
+
+            .close-btn {
+                background: none;
+                border: none;
+                color: var(--secondary-text-color);
+                cursor: pointer;
+                padding: 4px;
+                border-radius: 4px;
+                transition: all 0.2s ease;
+
+                &:hover {
+                    background: rgba(255, 255, 255, 0.1);
+                    color: var(--main-text-color);
+                }
+
+                .fas {
+                    font-size: 12px;
+                }
+            }
+        }
+
+        .mcp-servers {
+            max-height: 300px;
+            overflow-y: auto;
+
+            .mcp-server-detail {
+                padding: 12px 16px;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+
+                &:last-child {
+                    border-bottom: none;
+                }
+
+                .server-header {
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    margin-bottom: 8px;
+
+                    .server-info {
+                        flex: 1;
+                        display: flex;
+                        flex-direction: column;
+                        gap: 2px;
+
+                        .server-name {
+                            font-size: 13px;
+                            font-weight: 500;
+                            color: var(--main-text-color);
+                        }
+
+                        .server-url {
+                            font-size: 11px;
+                            color: var(--secondary-text-color);
+                            font-family: var(--fixed-font);
+                        }
+                    }
+
+                    .server-status {
+                        font-size: 10px;
+                        font-weight: 500;
+                        text-transform: uppercase;
+                        padding: 2px 6px;
+                        border-radius: 10px;
+                        letter-spacing: 0.5px;
+
+                        &.connected {
+                            background: rgba(16, 185, 129, 0.2);
+                            color: #10b981;
+                        }
+
+                        &.connecting {
+                            background: rgba(245, 158, 11, 0.2);
+                            color: #f59e0b;
+                        }
+
+                        &.error {
+                            background: rgba(239, 68, 68, 0.2);
+                            color: #ef4444;
+                        }
+
+                        &.disconnected {
+                            background: rgba(107, 114, 128, 0.2);
+                            color: #6b7280;
+                        }
+                    }
+                }
+
+                .server-capabilities {
+                    display: flex;
+                    align-items: center;
+                    gap: 6px;
+                    margin-bottom: 4px;
+
+                    .capability-label {
+                        font-size: 11px;
+                        color: var(--secondary-text-color);
+                    }
+
+                    .capability-count {
+                        font-size: 11px;
+                        font-weight: 600;
+                        color: var(--accent-color);
+                        background: rgba(var(--accent-color-rgb), 0.1);
+                        padding: 1px 6px;
+                        border-radius: 8px;
+                    }
+                }
+
+                .server-error {
+                    display: flex;
+                    align-items: center;
+                    gap: 6px;
+                    margin-top: 8px;
+                    padding: 6px 8px;
+                    background: rgba(239, 68, 68, 0.1);
+                    border-radius: 4px;
+                    font-size: 11px;
+                    color: #ef4444;
+
+                    .fas {
+                        font-size: 10px;
+                        flex-shrink: 0;
+                    }
+                }
+            }
+        }
+
+        .mcp-footer {
+            padding: 8px 16px;
+            background: rgba(255, 255, 255, 0.02);
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+
+            .last-updated {
+                font-size: 10px;
+                color: var(--secondary-text-color);
+                font-style: italic;
+            }
+        }
+    }
+}
+
+// 滚动条样式
+.mcp-servers::-webkit-scrollbar {
+    width: 4px;
+}
+
+.mcp-servers::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.mcp-servers::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 2px;
+}
+
+.mcp-servers::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.3);
+}

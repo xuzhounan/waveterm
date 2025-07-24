@@ -3,6 +3,7 @@
 
 import * as React from "react";
 import { ServerStatusLight } from "./serverstatuslight";
+import { MCPClient } from "./mcpclient";
 import "./statustoolbar.scss";
 
 interface StatusToolbarProps {
@@ -21,6 +22,7 @@ const StatusToolbar: React.FC<StatusToolbarProps> = ({ className }) => {
             </div>
             
             <div className="status-toolbar-right">
+                <MCPClient className="toolbar-mcp-client" />
                 <ServerStatusLight size="small" className="toolbar-server-status" />
             </div>
         </div>
