@@ -96,6 +96,24 @@ class UserInputServiceType {
 
 export const UserInputService = new UserInputServiceType();
 
+// widgetapiservice.WidgetAPIService (widgetapi)
+class WidgetAPIServiceType {
+    CreateWidget(arg2: CreateWidgetAPIRequest): Promise<CreateWidgetAPIResponse> {
+        return WOS.callBackendService("widgetapi", "CreateWidget", Array.from(arguments))
+    }
+    GetWorkspaceByName(arg2: string): Promise<GetWorkspaceByNameAPIResponse> {
+        return WOS.callBackendService("widgetapi", "GetWorkspaceByName", Array.from(arguments))
+    }
+    GetWorkspaceWidgets(arg2: string): Promise<GetWorkspaceWidgetsAPIResponse> {
+        return WOS.callBackendService("widgetapi", "GetWorkspaceWidgets", Array.from(arguments))
+    }
+    ListWorkspaces(): Promise<ListWorkspacesAPIResponse> {
+        return WOS.callBackendService("widgetapi", "ListWorkspaces", Array.from(arguments))
+    }
+}
+
+export const WidgetAPIService = new WidgetAPIServiceType();
+
 // windowservice.WindowService (window)
 class WindowServiceType {
     CloseWindow(windowId: string, fromElectron: boolean): Promise<void> {

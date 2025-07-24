@@ -357,6 +357,28 @@ declare global {
         count: number;
     };
 
+    // widgetapiservice.CreateWidgetAPIRequest
+    type CreateWidgetAPIRequest = {
+        workspace_id: string;
+        tab_id?: string;
+        widget_type: string;
+        title?: string;
+        icon?: string;
+        meta?: {[key: string]: any};
+        position?: WidgetPosition;
+        magnified?: boolean;
+        ephemeral?: boolean;
+    };
+
+    // widgetapiservice.CreateWidgetAPIResponse
+    type CreateWidgetAPIResponse = {
+        success: boolean;
+        block_id?: string;
+        message?: string;
+        error?: string;
+        widget?: WidgetInfo;
+    };
+
     // waveobj.DefaultTabConfig
     type DefaultTabConfig = {
         name: string;
@@ -487,6 +509,20 @@ declare global {
         configerrors: ConfigError[];
     };
 
+    // widgetapiservice.GetWorkspaceByNameAPIResponse
+    type GetWorkspaceByNameAPIResponse = {
+        success: boolean;
+        workspace?: WorkspaceBasicInfo;
+        error?: string;
+    };
+
+    // widgetapiservice.GetWorkspaceWidgetsAPIResponse
+    type GetWorkspaceWidgetsAPIResponse = {
+        success: boolean;
+        widgets?: {[key: string]: WidgetConfigType};
+        error?: string;
+    };
+
     // waveobj.LayoutActionData
     type LayoutActionData = {
         actiontype: string;
@@ -513,6 +549,13 @@ declare global {
     type LeafOrderEntry = {
         nodeid: string;
         blockid: string;
+    };
+
+    // widgetapiservice.ListWorkspacesAPIResponse
+    type ListWorkspacesAPIResponse = {
+        success: boolean;
+        workspaces?: WorkspaceBasicInfo[];
+        error?: string;
     };
 
     // waveobj.MetaTSType
@@ -1395,6 +1438,24 @@ declare global {
         blockdef: BlockDef;
     };
 
+    // widgetapiservice.WidgetInfo
+    type WidgetInfo = {
+        block_id: string;
+        tab_id: string;
+        workspace_id: string;
+        widget_type: string;
+        title: string;
+        icon: string;
+        meta: {[key: string]: any};
+        created_at: number;
+    };
+
+    // widgetapiservice.WidgetPosition
+    type WidgetPosition = {
+        target_block_id?: string;
+        action?: string;
+    };
+
     // waveobj.WinSize
     type WinSize = {
         width: number;
@@ -1409,6 +1470,14 @@ declare global {
         tabids: string[];
         pinnedtabids: string[];
         activetabid: string;
+    };
+
+    // widgetapiservice.WorkspaceBasicInfo
+    type WorkspaceBasicInfo = {
+        workspace_id: string;
+        name: string;
+        tab_ids: string[];
+        active_tab_id?: string;
     };
 
     // waveobj.WorkspaceFavorite
