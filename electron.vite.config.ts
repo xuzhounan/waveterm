@@ -63,6 +63,9 @@ export default defineConfig({
         server: {
             open: false,
         },
+        optimizeDeps: {
+            exclude: ["parse5", "entities"],
+        },
         css: {
             preprocessorOptions: {
                 scss: {
