@@ -14,7 +14,7 @@ const StatusToolbar: React.FC<StatusToolbarProps> = ({ className }) => {
     return (
         <div className={`status-toolbar ${className || ""}`}>
             <div className="status-toolbar-left">
-                {/* 左侧可以放置其他状态信息 */}
+                <span className="status-info">Wave Terminal</span>
             </div>
             
             <div className="status-toolbar-center">
