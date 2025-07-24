@@ -304,7 +304,7 @@ const AppInner = () => {
             </DndProvider>
             <FlashError />
             {isDev() ? <NotificationBubbles></NotificationBubbles> : null}
-            <ServerStatusLight className="app-server-status" size="small" />
+            <ServerStatusLight className="app-server-status" size="medium" />
         </div>
     );
 };
