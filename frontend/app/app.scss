@@ -56,20 +56,20 @@ a.plain-link {
 // 应用服务器状态灯定位
 .app-server-status {
     position: fixed;
-    top: 60px; // 进一步远离TabBar区域
-    right: 40px; // 显著增加右边距，避免太贴边
+    bottom: 20px; // 改为底部定位，不干扰内容阅读
+    right: 20px;  // 右下角位置
     z-index: 9999;
     
-    // macOS 特殊处理 - 避开系统窗口控制按钮
-    .darwin:not(.fullscreen) & {
-        right: 50px; // macOS上需要更多空间避开系统按钮
-        top: 55px;
+    // macOS 特殊处理
+    .darwin & {
+        bottom: 25px;
+        right: 25px;
     }
     
     // 全屏模式下的位置
     .fullscreen & {
-        top: 30px;
-        right: 30px;
+        bottom: 15px;
+        right: 15px;
     }
     
     // 确保可交互
