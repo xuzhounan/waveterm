@@ -92,6 +92,7 @@
     },
     "dependencies": {
         "@floating-ui/react": "^0.27.4",
+        "@modelcontextprotocol/sdk": "^1.16.0",
         "@monaco-editor/loader": "^1.4.0",
         "@monaco-editor/react": "^4.6.0",
         "@observablehq/plot": "^0.6.17",

@@ -7,15 +7,29 @@
  * 支持所有Wave Terminal的Widget API功能
  */
 
-const { MCPServer } = require('@modelcontextprotocol/sdk/server');
-const { StdioServerTransport } = require('@modelcontextprotocol/sdk/server/stdio');
+const { Server } = require('@modelcontextprotocol/sdk/server/index.js');
+const { StdioServerTransport } = require('@modelcontextprotocol/sdk/server/stdio.js');
+const { 
+    ListToolsRequestSchema, 
+    CallToolRequestSchema,
+    ListResourcesRequestSchema,
+    ReadResourceRequestSchema,
+    ListPromptsRequestSchema,
+    GetPromptRequestSchema
+} = require('@modelcontextprotocol/sdk/types.js');
 
-class WaveTerminalMCPServer extends MCPServer {
+class WaveTerminalMCPServer extends Server {
     constructor() {
         super({
             name: "wave-terminal",
             version: "1.0.0",
             description: "Wave Terminal MCP integration with breathing light and status monitoring"
+        }, {
+            capabilities: {
+                tools: {},
+                resources: {},
+                prompts: {}
+            }
         });
         
         this.waveTerminalUrl = process.env.WAVE_TERMINAL_URL || "http://localhost:61269";
@@ -30,16 +44,16 @@ class WaveTerminalMCPServer extends MCPServer {
 
     setupHandlers() {
         // 工具处理
-        this.setRequestHandler('tools/list', this.listTools.bind(this));
-        this.setRequestHandler('tools/call', this.callTool.bind(this));
+        this.setRequestHandler(ListToolsRequestSchema, this.listTools.bind(this));
+        this.setRequestHandler(CallToolRequestSchema, this.callTool.bind(this));
         
         // 资源处理
-        this.setRequestHandler('resources/list', this.listResources.bind(this));
-        this.setRequestHandler('resources/read', this.readResource.bind(this));
+        this.setRequestHandler(ListResourcesRequestSchema, this.listResources.bind(this));
+        this.setRequestHandler(ReadResourceRequestSchema, this.readResource.bind(this));
         
         // 提示处理
-        this.setRequestHandler('prompts/list', this.listPrompts.bind(this));
-        this.setRequestHandler('prompts/get', this.getPrompt.bind(this));
+        this.setRequestHandler(ListPromptsRequestSchema, this.listPrompts.bind(this));
+        this.setRequestHandler(GetPromptRequestSchema, this.getPrompt.bind(this));
     }
 
     async listTools() {
