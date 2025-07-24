@@ -222,11 +222,13 @@ func DBGetAllObjsByType[T waveobj.WaveObj](ctx context.Context, otype string) ([
 	return WithTxRtn(ctx, func(tx *TxWrap) ([]T, error) {
 		rtn := make([]T, 0)
 		table := tableNameFromOType(otype)
-		log.Printf("DBGetAllObjsByType table: %s\n", table)
+		log.Printf("[DEBUG] DBGetAllObjsByType table: %s\n", table)
 		query := fmt.Sprintf("SELECT oid, version, data FROM %s", table)
 		var rows []idDataType
 		tx.Select(&rows, query)
-		for _, row := range rows {
+		log.Printf("[DEBUG] DBGetAllObjsByType found %d rows for type: %s\n", len(rows), otype)
+		for i, row := range rows {
+			log.Printf("[DEBUG] Row %d: OID=%s\n", i, row.OId)
 			waveObj, err := waveobj.FromJson(row.Data)
 			if err != nil {
 				return nil, err

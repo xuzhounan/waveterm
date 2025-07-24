@@ -1,0 +1,34 @@
+[
+  {
+    "session_id": "b55fbdc3-4286-4f6e-b59a-ed5f1eba67cf",
+    "transcript_path": "/Users/xzn/.claude/projects/-Users-xzn-Desktop-code-project-waveterm/b55fbdc3-4286-4f6e-b59a-ed5f1eba67cf.jsonl",
+    "hook_event_name": "PostToolUse",
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "source ~/.zshrc >/dev/null 2>&1 && echo \"\u5f3a\u5236\u91cd\u65b0\u6784\u5efa wavesrv...\" && cd cmd/server && CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 go build -v -o ../../bin/wavesrv.arm64 . && echo \"\u91cd\u65b0\u6784\u5efa\u5b8c\u6210\"",
+      "description": "\u5f3a\u5236\u91cd\u65b0\u7f16\u8bd1wavesrv\u540e\u7aef"
+    },
+    "tool_response": {
+      "stdout": "\u5f3a\u5236\u91cd\u65b0\u6784\u5efa wavesrv...\n\u91cd\u65b0\u6784\u5efa\u5b8c\u6210",
+      "stderr": "",
+      "interrupted": false,
+      "isImage": false
+    }
+  },
+  {
+    "session_id": "b55fbdc3-4286-4f6e-b59a-ed5f1eba67cf",
+    "transcript_path": "/Users/xzn/.claude/projects/-Users-xzn-Desktop-code-project-waveterm/b55fbdc3-4286-4f6e-b59a-ed5f1eba67cf.jsonl",
+    "hook_event_name": "PostToolUse",
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "source ~/.zshrc >/dev/null 2>&1 && echo \"\u590d\u5236\u65b0\u7684wavesrv\u5230\u5e94\u7528\u5305...\" && cp bin/wavesrv.arm64 make/Wave.app/Contents/Resources/app/bin/ && echo \"\u505c\u6b62Wave Terminal...\" && pkill -f Wave.app && sleep 3 && echo \"\u542f\u52a8\u4fee\u590d\u540e\u7684Wave Terminal...\" && nohup make/Wave.app/Contents/MacOS/Wave > /dev/null 2>&1 &",
+      "description": "\u66f4\u65b0\u5e76\u91cd\u542fWave Terminal"
+    },
+    "tool_response": {
+      "stdout": "\u590d\u5236\u65b0\u7684wavesrv\u5230\u5e94\u7528\u5305...\ncp: directory make/Wave.app/Contents/Resources/app/bin does not exist",
+      "stderr": "",
+      "interrupted": false,
+      "isImage": false
+    }
+  }
+]
