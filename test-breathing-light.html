@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Server Status Breathing Light Test</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: #1a1d26;
+            color: #ffffff;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        .demo-container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .demo-section {
+            margin-bottom: 40px;
+            padding: 20px;
+            background: #2a2d3a;
+            border-radius: 8px;
+            border: 1px solid #3e4147;
+        }
+
+        .demo-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: #ffffff;
+        }
+
+        .demo-lights {
+            display: flex;
+            gap: 32px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .demo-light-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .demo-label {
+            font-size: 12px;
+            color: #a1a8b0;
+            text-align: center;
+        }
+
+        /* 服务器状态灯样式 */
+        .server-status-light {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .server-status-light.medium .status-orb-container {
+            width: 32px;
+            height: 32px;
+        }
+
+        .server-status-light.medium .status-orb {
+            width: 20px;
+            height: 20px;
+        }
+
+        .server-status-light.medium .center-dot {
+            width: 6px;
+            height: 6px;
+        }
+
+        .server-status-light.medium .status-icon {
+            font-size: 8px;
+        }
+
+        .status-orb-container {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .status-orb {
+            position: relative;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            box-shadow: 
+                inset 0 1px 2px rgba(255, 255, 255, 0.3),
+                0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .status-orb:hover {
+            transform: scale(1.1);
+        }
+
+        .status-orb.running {
+            background-color: #10b981;
+            box-shadow: 0 0 20px #10b98140;
+            animation: breatheRunning 3s ease-in-out infinite;
+        }
+
+        .status-orb.stopped {
+            background-color: #ef4444;
+            box-shadow: 0 0 20px #ef444440;
+            animation: breatheStopped 2s ease-in-out infinite;
+        }
+
+        .status-orb.checking {
+            background-color: #f59e0b;
+            box-shadow: 0 0 20px #f59e0b40;
+            animation: breatheChecking 1.5s ease-in-out infinite;
+        }
+
+        .status-orb.error {
+            background-color: #f97316;
+            box-shadow: 0 0 20px #f9731640;
+            animation: breatheError 1s ease-in-out infinite;
+        }
+
+        .breathing-ring {
+            position: absolute;
+            top: -4px;
+            left: -4px;
+            right: -4px;
+            bottom: -4px;
+            border-radius: 50%;
+            border: 2px solid;
+            opacity: 0;
+            animation: ringPulse 3s ease-in-out infinite;
+        }
+
+        .center-dot {
+            position: absolute;
+            border-radius: 50%;
+            opacity: 0.8;
+            z-index: 2;
+        }
+
+        .status-icon {
+            position: absolute;
+            color: rgba(255, 255, 255, 0.9);
+            z-index: 3;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+        }
+
+        /* 动画定义 */
+        @keyframes breatheRunning {
+            0%, 100% { 
+                opacity: 1;
+                transform: scale(1);
+            }
+            50% { 
+                opacity: 0.8;
+                transform: scale(1.05);
+            }
+        }
+
+        @keyframes breatheStopped {
+            0%, 100% { 
+                opacity: 1;
+                transform: scale(1);
+            }
+            50% { 
+                opacity: 0.6;
+                transform: scale(0.95);
+            }
+        }
+
+        @keyframes breatheChecking {
+            0%, 100% { 
+                opacity: 1;
+                transform: scale(1) rotate(0deg);
+            }
+            50% { 
+                opacity: 0.7;
+                transform: scale(1.1) rotate(180deg);
+            }
+        }
+
+        @keyframes breatheError {
+            0%, 100% { 
+                opacity: 1;
+                transform: scale(1);
+            }
+            25% { 
+                opacity: 0.5;
+                transform: scale(1.1);
+            }
+            75% { 
+                opacity: 0.8;
+                transform: scale(0.9);
+            }
+        }
+
+        @keyframes ringPulse {
+            0% {
+                opacity: 0;
+                transform: scale(0.8);
+            }
+            50% {
+                opacity: 0.6;
+                transform: scale(1.2);
+            }
+            100% {
+                opacity: 0;
+                transform: scale(1.5);
+            }
+        }
+
+        .controls {
+            margin-top: 20px;
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .control-btn {
+            background: #3e4147;
+            border: 1px solid #4a5058;
+            border-radius: 4px;
+            padding: 8px 12px;
+            color: #ffffff;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .control-btn:hover {
+            background: #4a5058;
+            border-color: #5a6168;
+        }
+
+        .info {
+            margin-top: 20px;
+            padding: 16px;
+            background: #1e2127;
+            border-radius: 6px;
+            border-left: 4px solid #10b981;
+        }
+
+        .info h3 {
+            margin: 0 0 8px 0;
+            color: #10b981;
+            font-size: 14px;
+        }
+
+        .info p {
+            margin: 0;
+            font-size: 12px;
+            color: #a1a8b0;
+            line-height: 1.4;
+        }
+    </style>
+</head>
+<body>
+    <div class="demo-container">
+        <h1>Server Status Breathing Light Demo</h1>
+        
+        <div class="demo-section">
+            <div class="demo-title">Different Status States</div>
+            <div class="demo-lights">
+                <div class="demo-light-container">
+                    <div class="server-status-light medium">
+                        <div class="status-orb-container">
+                            <div class="status-orb running">
+                                <div class="breathing-ring" style="border-color: #10b981;"></div>
+                                <div class="center-dot" style="background-color: #10b981;"></div>
+                                <i class="fa fa-server status-icon"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="demo-label">Running</div>
+                </div>
+
+                <div class="demo-light-container">
+                    <div class="server-status-light medium">
+                        <div class="status-orb-container">
+                            <div class="status-orb stopped">
+                                <div class="breathing-ring" style="border-color: #ef4444;"></div>
+                                <div class="center-dot" style="background-color: #ef4444;"></div>
+                                <i class="fa fa-server status-icon"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="demo-label">Stopped</div>
+                </div>
+
+                <div class="demo-light-container">
+                    <div class="server-status-light medium">
+                        <div class="status-orb-container">
+                            <div class="status-orb checking">
+                                <div class="breathing-ring" style="border-color: #f59e0b;"></div>
+                                <div class="center-dot" style="background-color: #f59e0b;"></div>
+                                <i class="fa fa-server status-icon"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="demo-label">Checking</div>
+                </div>
+
+                <div class="demo-light-container">
+                    <div class="server-status-light medium">
+                        <div class="status-orb-container">
+                            <div class="status-orb error">
+                                <div class="breathing-ring" style="border-color: #f97316;"></div>
+                                <div class="center-dot" style="background-color: #f97316;"></div>
+                                <i class="fa fa-server status-icon"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="demo-label">Error</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="demo-section">
+            <div class="demo-title">Live Status Simulation</div>
+            <div class="demo-lights">
+                <div class="demo-light-container">
+                    <div class="server-status-light medium" id="liveStatusLight">
+                        <div class="status-orb-container">
+                            <div class="status-orb running" id="liveStatusOrb">
+                                <div class="breathing-ring" style="border-color: #10b981;" id="liveStatusRing"></div>
+                                <div class="center-dot" style="background-color: #10b981;" id="liveStatusDot"></div>
+                                <i class="fa fa-server status-icon"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="demo-label" id="liveStatusLabel">Running</div>
+                </div>
+            </div>
+            
+            <div class="controls">
+                <button class="control-btn" onclick="setStatus('running')">Set Running</button>
+                <button class="control-btn" onclick="setStatus('stopped')">Set Stopped</button>
+                <button class="control-btn" onclick="setStatus('checking')">Set Checking</button>
+                <button class="control-btn" onclick="setStatus('error')">Set Error</button>
+                <button class="control-btn" onclick="startAutoDemo()">Auto Demo</button>
+            </div>
+        </div>
+
+        <div class="info">
+            <h3>🎯 Features</h3>
+            <p>
+                • 不同状态的呼吸灯效果：运行(绿色)、停止(红色)、检查(黄色)、错误(橙色)<br>
+                • 每种状态都有独特的动画节奏和颜色<br>
+                • 响应式设计，支持hover效果<br>
+                • 将集成到Wave Terminal界面右上角<br>
+                • 每5秒自动检测MCP服务器状态
+            </p>
+        </div>
+    </div>
+
+    <script>
+        const statusColors = {
+            running: { bg: '#10b981', shadow: '#10b98140', ring: '#10b981' },
+            stopped: { bg: '#ef4444', shadow: '#ef444440', ring: '#ef4444' },
+            checking: { bg: '#f59e0b', shadow: '#f59e0b40', ring: '#f59e0b' },
+            error: { bg: '#f97316', shadow: '#f9731640', ring: '#f97316' }
+        };
+
+        const statusLabels = {
+            running: 'Running',
+            stopped: 'Stopped',
+            checking: 'Checking...',
+            error: 'Error'
+        };
+
+        function setStatus(status) {
+            const orb = document.getElementById('liveStatusOrb');
+            const ring = document.getElementById('liveStatusRing');
+            const dot = document.getElementById('liveStatusDot');
+            const label = document.getElementById('liveStatusLabel');
+            
+            // 移除所有状态类
+            orb.className = 'status-orb';
+            
+            // 添加新状态类
+            orb.classList.add(status);
+            
+            // 更新颜色
+            const colors = statusColors[status];
+            orb.style.backgroundColor = colors.bg;
+            orb.style.boxShadow = `0 0 20px ${colors.shadow}`;
+            ring.style.borderColor = colors.ring;
+            dot.style.backgroundColor = colors.bg;
+            
+            // 更新标签
+            label.textContent = statusLabels[status];
+        }
+
+        let autoDemoInterval;
+        function startAutoDemo() {
+            const statuses = ['running', 'checking', 'stopped', 'error'];
+            let currentIndex = 0;
+            
+            // 清除现有的自动演示
+            if (autoDemoInterval) {
+                clearInterval(autoDemoInterval);
+            }
+            
+            autoDemoInterval = setInterval(() => {
+                setStatus(statuses[currentIndex]);
+                currentIndex = (currentIndex + 1) % statuses.length;
+            }, 3000);
+        }
+
+        // 页面加载时显示运行状态
+        window.addEventListener('load', () => {
+            setStatus('running');
+        });
+    </script>
+</body>
+</html>

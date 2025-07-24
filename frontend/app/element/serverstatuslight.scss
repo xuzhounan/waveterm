@@ -1,0 +1,361 @@
+// Copyright 2025, Command Line Inc.
+// SPDX-License-Identifier: Apache-2.0
+
+.server-status-light {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    user-select: none;
+    z-index: 1000;
+
+    // 不同尺寸
+    &.small {
+        .status-orb-container {
+            width: 20px;
+            height: 20px;
+        }
+        .status-orb {
+            width: 12px;
+            height: 12px;
+        }
+        .center-dot {
+            width: 4px;
+            height: 4px;
+        }
+        .status-icon {
+            font-size: 6px;
+        }
+    }
+
+    &.medium {
+        .status-orb-container {
+            width: 32px;
+            height: 32px;
+        }
+        .status-orb {
+            width: 20px;
+            height: 20px;
+        }
+        .center-dot {
+            width: 6px;
+            height: 6px;
+        }
+        .status-icon {
+            font-size: 8px;
+        }
+    }
+
+    &.large {
+        .status-orb-container {
+            width: 48px;
+            height: 48px;
+        }
+        .status-orb {
+            width: 32px;
+            height: 32px;
+        }
+        .center-dot {
+            width: 10px;
+            height: 10px;
+        }
+        .status-icon {
+            font-size: 12px;
+        }
+    }
+
+    .status-orb-container {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .status-orb {
+        position: relative;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.3s ease;
+        
+        // 基础阴影和发光效果
+        box-shadow: 
+            inset 0 1px 2px rgba(255, 255, 255, 0.3),
+            0 2px 8px rgba(0, 0, 0, 0.2);
+
+        &:hover {
+            transform: scale(1.1);
+        }
+
+        // 状态特定的动画
+        &.running {
+            animation: breatheRunning 3s ease-in-out infinite;
+        }
+
+        &.stopped {
+            animation: breatheStopped 2s ease-in-out infinite;
+        }
+
+        &.checking {
+            animation: breatheChecking 1.5s ease-in-out infinite;
+        }
+
+        &.error {
+            animation: breatheError 1s ease-in-out infinite;
+        }
+    }
+
+    .breathing-ring {
+        position: absolute;
+        top: -4px;
+        left: -4px;
+        right: -4px;
+        bottom: -4px;
+        border-radius: 50%;
+        border: 2px solid;
+        opacity: 0;
+        animation: ringPulse 3s ease-in-out infinite;
+    }
+
+    .center-dot {
+        position: absolute;
+        border-radius: 50%;
+        opacity: 0.8;
+        z-index: 2;
+    }
+
+    .status-icon {
+        position: absolute;
+        color: rgba(255, 255, 255, 0.9);
+        z-index: 3;
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+    }
+
+    // 状态提示框
+    .status-tooltip {
+        position: absolute;
+        bottom: calc(100% + 12px);
+        left: 50%;
+        transform: translateX(-50%);
+        background: var(--panel-bg-color, #2a2d3a);
+        border: 1px solid var(--border-color, #3e4147);
+        border-radius: 8px;
+        padding: 0;
+        min-width: 220px;
+        box-shadow: 
+            0 8px 32px rgba(0, 0, 0, 0.3),
+            0 4px 16px rgba(0, 0, 0, 0.2);
+        z-index: 9999;
+        backdrop-filter: blur(8px);
+        animation: tooltipFadeIn 0.2s ease-out;
+
+        .tooltip-content {
+            padding: 12px;
+        }
+
+        .status-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+
+            .status-indicator-small {
+                width: 8px;
+                height: 8px;
+                border-radius: 50%;
+                flex-shrink: 0;
+            }
+
+            .status-text {
+                font-size: 14px;
+                font-weight: 600;
+                color: var(--main-text-color, #ffffff);
+            }
+        }
+
+        .status-message {
+            font-size: 12px;
+            color: var(--secondary-text-color, #a1a8b0);
+            margin-bottom: 8px;
+            line-height: 1.4;
+        }
+
+        .status-footer {
+            margin-bottom: 8px;
+
+            .last-checked {
+                font-size: 11px;
+                color: var(--tertiary-text-color, #6b7280);
+            }
+        }
+
+        .tooltip-actions {
+            display: flex;
+            gap: 6px;
+            border-top: 1px solid var(--border-color, #3e4147);
+            padding-top: 8px;
+        }
+
+        .action-btn {
+            flex: 1;
+            background: var(--button-bg-color, #3e4147);
+            border: 1px solid var(--button-border-color, #4a5058);
+            border-radius: 4px;
+            padding: 6px 8px;
+            font-size: 11px;
+            color: var(--button-text-color, #ffffff);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+
+            &:hover {
+                background: var(--button-hover-bg-color, #4a5058);
+                border-color: var(--button-hover-border-color, #5a6168);
+            }
+
+            &:active {
+                transform: translateY(1px);
+            }
+
+            i {
+                font-size: 10px;
+            }
+        }
+
+        .tooltip-arrow {
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 6px solid transparent;
+            border-right: 6px solid transparent;
+            border-top: 6px solid var(--panel-bg-color, #2a2d3a);
+        }
+    }
+
+    // 右侧显示时的样式调整
+    &.align-right .status-tooltip {
+        left: auto;
+        right: 0;
+        transform: none;
+
+        .tooltip-arrow {
+            left: auto;
+            right: 16px;
+            transform: none;
+        }
+    }
+}
+
+// 动画定义
+@keyframes breatheRunning {
+    0%, 100% { 
+        opacity: 1;
+        transform: scale(1);
+    }
+    50% { 
+        opacity: 0.8;
+        transform: scale(1.05);
+    }
+}
+
+@keyframes breatheStopped {
+    0%, 100% { 
+        opacity: 1;
+        transform: scale(1);
+    }
+    50% { 
+        opacity: 0.6;
+        transform: scale(0.95);
+    }
+}
+
+@keyframes breatheChecking {
+    0%, 100% { 
+        opacity: 1;
+        transform: scale(1) rotate(0deg);
+    }
+    50% { 
+        opacity: 0.7;
+        transform: scale(1.1) rotate(180deg);
+    }
+}
+
+@keyframes breatheError {
+    0%, 100% { 
+        opacity: 1;
+        transform: scale(1);
+    }
+    25% { 
+        opacity: 0.5;
+        transform: scale(1.1);
+    }
+    75% { 
+        opacity: 0.8;
+        transform: scale(0.9);
+    }
+}
+
+@keyframes ringPulse {
+    0% {
+        opacity: 0;
+        transform: scale(0.8);
+    }
+    50% {
+        opacity: 0.6;
+        transform: scale(1.2);
+    }
+    100% {
+        opacity: 0;
+        transform: scale(1.5);
+    }
+}
+
+@keyframes tooltipFadeIn {
+    from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(4px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+}
+
+// 高对比度模式支持
+@media (prefers-contrast: high) {
+    .server-status-light {
+        .status-orb {
+            border: 2px solid currentColor;
+        }
+        
+        .status-tooltip {
+            border-width: 2px;
+        }
+    }
+}
+
+// 减少动画模式支持
+@media (prefers-reduced-motion: reduce) {
+    .server-status-light {
+        .status-orb {
+            animation: none;
+        }
+        
+        .breathing-ring {
+            animation: none;
+            opacity: 0.3;
+        }
+        
+        .status-tooltip {
+            animation: none;
+        }
+    }
+}
