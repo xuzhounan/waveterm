@@ -18,7 +18,6 @@ import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import { AppBackground } from "./app-bg";
 import { CenteredDiv } from "./element/quickelems";
-import { ServerStatusLight } from "./element/serverstatuslight";
 import { NotificationBubbles } from "./notification/notificationbubbles";
 
 import "./app.scss";
@@ -304,7 +303,6 @@ const AppInner = () => {
             </DndProvider>
             <FlashError />
             {isDev() ? <NotificationBubbles></NotificationBubbles> : null}
-            <ServerStatusLight className="global-server-status" size="medium" />
         </div>
     );
 };

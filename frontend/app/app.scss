@@ -53,28 +53,6 @@ a.plain-link {
     font: var(--fixed-font);
 }
 
-// 全局服务器状态灯定位
-.global-server-status {
-    position: fixed;
-    top: 16px;
-    right: 16px;
-    z-index: 10000;
-    
-    // 在全屏模式下调整位置
-    .fullscreen & {
-        top: 24px;
-        right: 24px;
-    }
-    
-    // 在 macOS 上为窗口控制按钮留出空间
-    .darwin & {
-        top: 16px;
-        right: 16px;
-    }
-    
-    // 确保不被其他UI元素遮挡
-    pointer-events: auto;
-}
 
 #main,
 .mainapp {
