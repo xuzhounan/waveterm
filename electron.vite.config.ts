@@ -21,6 +21,14 @@ export default defineConfig({
             outDir: "dist/main",
         },
         plugins: [tsconfigPaths(), flow()],
+        css: {
+            preprocessorOptions: {
+                scss: {
+                    silenceDeprecations: ["mixed-decls", "legacy-js-api"],
+                    api: "modern-compiler",
+                },
+            },
+        },
         resolve: {
             alias: {
                 "@": "frontend",
@@ -47,6 +55,14 @@ export default defineConfig({
             outDir: "dist/preload",
         },
         plugins: [tsconfigPaths(), flow()],
+        css: {
+            preprocessorOptions: {
+                scss: {
+                    silenceDeprecations: ["mixed-decls", "legacy-js-api"],
+                    api: "modern-compiler",
+                },
+            },
+        },
     },
     renderer: {
         root: ".",
@@ -69,7 +85,8 @@ export default defineConfig({
         css: {
             preprocessorOptions: {
                 scss: {
-                    silenceDeprecations: ["mixed-decls"],
+                    silenceDeprecations: ["mixed-decls", "legacy-js-api"],
+                    api: "modern-compiler",
                 },
             },
         },
