@@ -76,8 +76,20 @@ stop_server() {
         rm -f "$PID_FILE"
     fi
     
-    # 清理可能的僵尸进程
-    pkill -f "go run.*server.*main-server.go" 2>/dev/null || true
+    # 增强清理：查找并清理所有相关进程
+    local wave_pids=$(ps aux | grep -E "(main-server|wavesrv)" | grep -v grep | awk '{print $2}' || true)
+    if [ ! -z "$wave_pids" ]; then
+        warning "发现残留的Wave进程，正在清理..."
+        for pid in $wave_pids; do
+            if ps -p "$pid" > /dev/null 2>&1; then
+                kill -9 "$pid" 2>/dev/null || true
+            fi
+        done
+    fi
+    
+    # 清理锁文件
+    rm -f /tmp/waveterm-mcp/wave.lock /tmp/waveterm-mcp/wave.sock 2>/dev/null || true
+    
     sleep 1
 }
 
@@ -317,6 +329,15 @@ main() {
             disable_proxy_for_local
             success "代理已禁用"
             ;;
+        "force-cleanup")
+            if [ -f "./force-cleanup.sh" ]; then
+                log "运行强力清理..."
+                ./force-cleanup.sh
+            else
+                error "force-cleanup.sh 脚本不存在"
+                exit 1
+            fi
+            ;;
         "logs")
             if [ -f "$LOG_FILE" ]; then
                 tail -f "$LOG_FILE"
@@ -332,7 +353,7 @@ main() {
             start_server
             ;;
         *)
-            echo "用法: $0 {start|stop|status|test|test-with-proxy|setup-proxy|disable-proxy|logs|restart}"
+            echo "用法: $0 {start|stop|status|test|test-with-proxy|setup-proxy|disable-proxy|force-cleanup|logs|restart}"
             echo
             echo "命令说明:"
             echo "  start           - 启动服务器"
@@ -342,12 +363,16 @@ main() {
             echo "  test-with-proxy - 测试API端点并在完成后重新启用代理"
             echo "  setup-proxy     - 设置代理为 ${PROXY_HOST}:${PROXY_PORT}"
             echo "  disable-proxy   - 禁用代理设置"
+            echo "  force-cleanup   - 强力清理所有Wave进程和锁文件"
             echo "  logs            - 查看实时日志"
             echo "  restart         - 重启服务器"
             echo
             echo "代理配置:"
             echo "  当前代理设置: ${PROXY_HOST}:${PROXY_PORT}"
             echo "  注意: API测试会自动禁用代理，外部请求需要重新启用代理"
+            echo
+            echo "故障排除:"
+            echo "  如果遇到锁文件问题，使用: $0 force-cleanup"
             exit 1
             ;;
     esac
