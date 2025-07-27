@@ -80,19 +80,61 @@ stop_server() {
         rm -f "$PID_FILE"
     fi
     
-    # 增强清理：查找并清理所有相关进程
-    local wave_pids=$(ps aux | grep -E "(main-server|wavesrv)" | grep -v grep | awk '{print $2}' || true)
-    if [ ! -z "$wave_pids" ]; then
-        warning "发现残留的Wave进程，正在清理..."
-        for pid in $wave_pids; do
+    # 精确清理：只清理MCP服务器相关进程，避免误杀开发环境
+    # 1. 只清理包含MCP数据目录路径的进程
+    # 2. 只清理运行在特定端口的进程
+    # 3. 排除开发环境进程（yarn dev、electron等）
+    log "检查需要清理的MCP服务器进程..."
+    
+    # 查找使用MCP数据目录的Go进程
+    local mcp_go_pids=$(ps aux | grep -E "go run.*main-server" | grep "$DATA_DIR" | grep -v grep | awk '{print $2}' || true)
+    if [ ! -z "$mcp_go_pids" ]; then
+        warning "发现MCP相关的Go进程，正在清理..."
+        for pid in $mcp_go_pids; do
             if ps -p "$pid" > /dev/null 2>&1; then
+                log "清理MCP Go进程: $pid"
                 kill -9 "$pid" 2>/dev/null || true
             fi
         done
     fi
     
-    # 清理锁文件
-    rm -f /tmp/waveterm-mcp/wave.lock /tmp/waveterm-mcp/wave.sock 2>/dev/null || true
+    # 查找监听MCP固定端口的进程
+    local port_pids=$(lsof -ti:${FIXED_WEB_PORT},${FIXED_WS_PORT} 2>/dev/null || true)
+    if [ ! -z "$port_pids" ]; then
+        warning "发现占用MCP端口的进程，正在清理..."
+        for pid in $port_pids; do
+            if ps -p "$pid" > /dev/null 2>&1; then
+                # 确保不是开发环境的electron进程
+                local process_info=$(ps -p "$pid" -o comm= 2>/dev/null || echo "")
+                if [[ "$process_info" != *"electron"* ]] && [[ "$process_info" != *"node"* ]]; then
+                    log "清理占用MCP端口的进程: $pid ($process_info)"
+                    kill -9 "$pid" 2>/dev/null || true
+                fi
+            fi
+        done
+    fi
+    
+    # 查找使用MCP数据目录的wavesrv进程
+    local mcp_wavesrv_pids=$(ps aux | grep "wavesrv" | grep "$DATA_DIR" | grep -v grep | awk '{print $2}' || true)
+    if [ ! -z "$mcp_wavesrv_pids" ]; then
+        warning "发现MCP相关的wavesrv进程，正在清理..."
+        for pid in $mcp_wavesrv_pids; do
+            if ps -p "$pid" > /dev/null 2>&1; then
+                log "清理MCP wavesrv进程: $pid"
+                kill -9 "$pid" 2>/dev/null || true
+            fi
+        done
+    fi
+    
+    # 只清理MCP数据目录的锁文件，不影响开发环境
+    rm -f "$DATA_DIR/wave.lock" "$DATA_DIR/wave.sock" 2>/dev/null || true
+    
+    # 保护开发环境：检查并报告开发环境状态
+    local dev_pids=$(ps aux | grep -E "(yarn.*dev|electron)" | grep -v grep | awk '{print $2}' || true)
+    if [ ! -z "$dev_pids" ]; then
+        success "检测到开发环境正在运行，已保护不受影响"
+        log "开发环境进程: $dev_pids"
+    fi
     
     sleep 1
 }
