@@ -84,12 +84,12 @@ class ServerStatusViewModel implements ViewModel {
         try {
             globalStore.set(this.loadingAtom, true);
             
-            // 使用固定端口配置，适合生产环境部署
-            const FIXED_WEB_PORT = 61269;
-            const FIXED_WS_PORT = 61270;
+            // 使用MCP服务器固定端口配置
+            const FIXED_MCP_WEB_PORT = 60289;
+            const FIXED_MCP_WS_PORT = 60290;
             
-            console.log(`检查Wave Terminal服务器状态: http://localhost:${FIXED_WEB_PORT}`);
-            const response = await fetch(`http://localhost:${FIXED_WEB_PORT}/api/v1/widgets`, {
+            console.log(`检查MCP服务器状态: http://localhost:${FIXED_MCP_WEB_PORT}`);
+            const response = await fetch(`http://localhost:${FIXED_MCP_WEB_PORT}/api/v1/widgets/mcp/status`, {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
@@ -99,14 +99,14 @@ class ServerStatusViewModel implements ViewModel {
             
             if (response.ok) {
                 const responseData = await response.json();
-                console.log(`Wave Terminal服务器连接成功: ${FIXED_WEB_PORT}`);
+                console.log(`MCP服务器连接成功: ${FIXED_MCP_WEB_PORT}`, responseData);
+                
+                const isRunning = responseData.success && responseData.status?.running;
                 const statusData: ServerStatusData = {
-                    isRunning: true,
-                    webPort: FIXED_WEB_PORT,
-                    wsPort: FIXED_WS_PORT,
-                    apiUrl: `http://localhost:${FIXED_WEB_PORT}`,
-                    authKey: '83958e47ddc89fae695a7e1eb429899871e80334bd58cfc2d17a80388791f073',
-                    uptime: Math.floor((Date.now() - (Date.now() % 86400000)) / 1000), // 今天的运行时间
+                    isRunning: isRunning,
+                    webPort: responseData.status?.port || FIXED_MCP_WEB_PORT,
+                    wsPort: FIXED_MCP_WS_PORT,
+                    apiUrl: `http://localhost:${FIXED_MCP_WEB_PORT}`,
                     lastUpdated: Date.now(),
                 };
                 globalStore.set(this.statusDataAtom, statusData);
@@ -266,20 +266,20 @@ function ServerStatusView({ model, blockId }: ServerStatusViewProps) {
                     </div>
                 )}
 
-                {/* API端点信息 */}
+                {/* MCP API端点信息 */}
                 {statusData.isRunning && (
                     <div className="api-endpoints">
-                        <div className="endpoints-title">Available API Endpoints</div>
+                        <div className="endpoints-title">Available MCP API Endpoints</div>
                         <div className="endpoint-list">
+                            <div className="endpoint-item">
+                                <div className="endpoint-method">GET</div>
+                                <div className="endpoint-path">/api/v1/widgets/mcp/status</div>
+                                <div className="endpoint-desc">Check MCP server status</div>
+                            </div>
                             <div className="endpoint-item">
                                 <div className="endpoint-method">GET</div>
                                 <div className="endpoint-path">/api/v1/widgets/workspaces</div>
                                 <div className="endpoint-desc">List all workspaces</div>
-                            </div>
-                            <div className="endpoint-item">
-                                <div className="endpoint-method">GET</div>
-                                <div className="endpoint-path">/api/v1/widgets/workspace/name/{'{name}'}</div>
-                                <div className="endpoint-desc">Get workspace by name</div>
                             </div>
                             <div className="endpoint-item">
                                 <div className="endpoint-method">POST</div>
