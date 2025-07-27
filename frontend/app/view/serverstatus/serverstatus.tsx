@@ -88,8 +88,8 @@ class ServerStatusViewModel implements ViewModel {
             const FIXED_MCP_WEB_PORT = 60289;
             const FIXED_MCP_WS_PORT = 60290;
             
-            console.log(`检查MCP服务器状态: http://localhost:${FIXED_MCP_WEB_PORT}`);
-            const response = await fetch(`http://localhost:${FIXED_MCP_WEB_PORT}/api/v1/widgets/mcp/status`, {
+            console.log(`检查MCP服务器状态: http://127.0.0.1:${FIXED_MCP_WEB_PORT}`);
+            const response = await fetch(`http://127.0.0.1:${FIXED_MCP_WEB_PORT}/api/v1/widgets/mcp/status`, {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',

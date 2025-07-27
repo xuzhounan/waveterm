@@ -43,9 +43,11 @@ class ServerStatusLightModel {
         try {
             // 使用固定端口配置，确保生产环境稳定性 - 修正为60289
             const FIXED_WEB_PORT = 60289;
-            console.log(`检查服务器状态灯: http://localhost:${FIXED_WEB_PORT}`);
+            // 优先使用127.0.0.1避免代理问题
+            const baseUrl = `http://127.0.0.1:${FIXED_WEB_PORT}`;
+            console.log(`检查服务器状态灯: ${baseUrl}`);
             
-            const response = await fetch(`http://localhost:${FIXED_WEB_PORT}/api/v1/widgets`, {
+            const response = await fetch(`${baseUrl}/api/v1/widgets`, {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
@@ -231,7 +233,7 @@ export const ServerStatusLight: React.FC<ServerStatusLightProps> = ({
                                     className="action-btn"
                                     onClick={(e) => {
                                         e.stopPropagation();
-                                        window.open('http://localhost:60289/api/v1/widgets', '_blank');
+                                        window.open('http://127.0.0.1:60289/api/v1/widgets', '_blank');
                                     }}
                                 >
                                     <i className="fa fa-external-link" /> Open API

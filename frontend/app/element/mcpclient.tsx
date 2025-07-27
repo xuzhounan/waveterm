@@ -57,8 +57,8 @@ class MCPClientModel {
 
     async checkMCPStatus() {
         try {
-            // 检查本地MCP服务器状态 - 使用正确的端口60289
-            const response = await fetch("http://localhost:60289/api/v1/widgets/mcp/status", {
+            // 检查本地MCP服务器状态 - 使用127.0.0.1避免代理问题
+            const response = await fetch("http://127.0.0.1:60289/api/v1/widgets/mcp/status", {
                 method: "GET",
                 signal: AbortSignal.timeout(3000),
             });
@@ -96,7 +96,7 @@ class MCPClientModel {
                 "wave-terminal": {
                     name: "Wave Terminal",
                     status: "connected",
-                    url: "http://localhost:60289",
+                    url: "http://127.0.0.1:60289",
                     lastSeen: Date.now(),
                     tools: ["create_widget", "list_workspaces", "get_workspace"],
                     resources: ["workspaces", "widgets", "terminals"],

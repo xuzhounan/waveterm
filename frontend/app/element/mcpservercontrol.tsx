@@ -24,6 +24,7 @@ const mcpServerStatusAtom = atom<MCPServerStatus>({
 const FIXED_MCP_PORT = 60289;
 
 // 尝试多个地址以解决代理/DNS问题
+// 优先使用127.0.0.1避免代理问题，localhost作为备选
 const ENDPOINTS = [
     `http://127.0.0.1:${FIXED_MCP_PORT}`,
     `http://localhost:${FIXED_MCP_PORT}`
@@ -40,8 +41,9 @@ async function checkMCPServerStatus(): Promise<MCPServerStatus> {
                 method: 'GET',
                 headers: {
                     'Cache-Control': 'no-cache',
+                    'Accept': 'application/json',
                 },
-                signal: AbortSignal.timeout(3000),
+                signal: AbortSignal.timeout(5000), // 增加超时时间
             });
             
             if (response.ok) {
@@ -53,10 +55,15 @@ async function checkMCPServerStatus(): Promise<MCPServerStatus> {
                         port: FIXED_MCP_PORT,
                         lastCheck: Date.now(),
                     };
+                } else {
+                    console.warn(`MCP服务器响应失败: ${endpoint}`, data);
                 }
+            } else {
+                console.warn(`MCP服务器HTTP错误: ${endpoint} - ${response.status} ${response.statusText}`);
             }
         } catch (error) {
-            console.warn(`MCP服务器连接失败 ${endpoint}:`, error);
+            const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+            console.warn(`MCP服务器连接失败 ${endpoint}:`, errorMsg);
             lastError = error instanceof Error ? error : new Error('Unknown error');
             continue; // 尝试下一个端点
         }
@@ -78,8 +85,10 @@ async function startMCPServer(): Promise<boolean> {
                 method: 'POST',
                 headers: {
                     'Cache-Control': 'no-cache',
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
                 },
-                signal: AbortSignal.timeout(8000),
+                signal: AbortSignal.timeout(10000), // 增加启动超时时间
             });
             
             if (response.ok) {
@@ -90,10 +99,15 @@ async function startMCPServer(): Promise<boolean> {
                     await new Promise(resolve => setTimeout(resolve, 3000));
                     const status = await checkMCPServerStatus();
                     return status.isRunning;
+                } else {
+                    console.warn(`MCP服务器启动响应失败: ${endpoint}`, data);
                 }
+            } else {
+                console.warn(`MCP服务器启动HTTP错误: ${endpoint} - ${response.status} ${response.statusText}`);
             }
         } catch (error) {
-            console.warn(`MCP服务器启动失败 ${endpoint}:`, error);
+            const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+            console.warn(`MCP服务器启动失败 ${endpoint}:`, errorMsg);
             continue; // 尝试下一个端点
         }
     }

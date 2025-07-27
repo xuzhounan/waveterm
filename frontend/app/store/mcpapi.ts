@@ -62,7 +62,7 @@ export interface MCPResourceResponse {
 class MCPAPIClient {
     private baseUrl: string;
 
-    constructor(baseUrl: string = "http://localhost:60289") {
+    constructor(baseUrl: string = "http://127.0.0.1:60289") {
         this.baseUrl = baseUrl;
     }
 
