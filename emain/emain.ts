@@ -662,7 +662,14 @@ async function appMain() {
     const ready = await getWaveSrvReady();
     console.log("wavesrv ready signal received", ready, Date.now() - startTs, "ms");
     await electronApp.whenReady();
-    configureAuthKeyRequestInjection(electron.session.defaultSession);
+    
+    // Configure proxy bypass for localhost connections to avoid proxy interference
+    const session = electron.session.defaultSession;
+    session.setProxy({
+        proxyBypassRules: "localhost,127.0.0.1,*.local"
+    });
+    
+    configureAuthKeyRequestInjection(session);
 
     await sleep(10); // wait a bit for wavesrv to be ready
     try {
