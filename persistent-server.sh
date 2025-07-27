@@ -104,14 +104,10 @@ setup_environment() {
     # 创建数据目录
     mkdir -p "$DATA_DIR"
     
-    # 设置环境变量
-    export WAVETERM_DATA_HOME="$DATA_DIR"
-    export WAVETERM_CONFIG_HOME="$DATA_DIR"
-    export WAVETERM_AUTH_KEY="$AUTH_KEY"
-    
     success "环境设置完成"
     echo "  数据目录: $DATA_DIR"
     echo "  认证密钥: $AUTH_KEY"
+    echo "  注意: 环境变量将仅在服务器子进程中生效，不会污染当前shell"
 }
 
 # 启动服务器
@@ -126,13 +122,19 @@ start_server() {
     exec 3<>"$fifo_path"
     rm "$fifo_path"  # 删除文件系统中的文件，但fd仍然开放
     
-    # 启动服务器，使用固定端口和fifo作为stdin
-    WAVETERM_DATA_HOME="$DATA_DIR" \
-    WAVETERM_CONFIG_HOME="$DATA_DIR" \
-    WAVETERM_AUTH_KEY="$AUTH_KEY" \
-    WAVETERM_WEB_PORT="$FIXED_WEB_PORT" \
-    WAVETERM_WS_PORT="$FIXED_WS_PORT" \
-    go run cmd/server/main-server.go <&3 > "$LOG_FILE" 2>&1 &
+    # 使用子shell启动服务器，完全隔离环境变量
+    # 这样不会影响当前shell环境，避免与其他Wave进程冲突
+    (
+        # 在子shell中设置环境变量
+        export WAVETERM_DATA_HOME="$DATA_DIR"
+        export WAVETERM_CONFIG_HOME="$DATA_DIR"
+        export WAVETERM_AUTH_KEY="$AUTH_KEY"
+        export WAVETERM_WEB_PORT="$FIXED_WEB_PORT"
+        export WAVETERM_WS_PORT="$FIXED_WS_PORT"
+        
+        # 启动服务器
+        exec go run cmd/server/main-server.go <&3
+    ) > "$LOG_FILE" 2>&1 &
     
     local server_pid=$!
     echo "$server_pid" > "$PID_FILE"
