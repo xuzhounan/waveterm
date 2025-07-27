@@ -7,7 +7,8 @@ set -e
 
 # 配置
 AUTH_KEY="83958e47ddc89fae695a7e1eb429899871e80334bd58cfc2d17a80388791f073"
-DATA_DIR="/tmp/waveterm-mcp"
+# 使用系统数据库，统一开发环境和生产环境
+DATA_DIR="$HOME/Library/Application Support/waveterm"
 LOG_FILE="waveterm-server.log"
 PID_FILE="waveterm-server.pid"
 PORT_FILE="waveterm-server.port"
