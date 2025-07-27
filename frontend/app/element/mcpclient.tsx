@@ -57,8 +57,8 @@ class MCPClientModel {
 
     async checkMCPStatus() {
         try {
-            // 检查本地MCP服务器状态
-            const response = await fetch("http://localhost:61269/api/v1/mcp/status", {
+            // 检查本地MCP服务器状态 - 使用正确的端口60289
+            const response = await fetch("http://localhost:60289/api/v1/widgets/mcp/status", {
                 method: "GET",
                 signal: AbortSignal.timeout(3000),
             });
@@ -90,13 +90,13 @@ class MCPClientModel {
     }
 
     updateMCPDataFallback() {
-        // 使用基于Widget API服务器状态的fallback数据
+        // 使用基于Widget API服务器状态的fallback数据 - 使用正确的端口60289
         const fallbackData: MCPClientData = {
             servers: {
                 "wave-terminal": {
                     name: "Wave Terminal",
                     status: "connected",
-                    url: "http://localhost:61269",
+                    url: "http://localhost:60289",
                     lastSeen: Date.now(),
                     tools: ["create_widget", "list_workspaces", "get_workspace"],
                     resources: ["workspaces", "widgets", "terminals"],

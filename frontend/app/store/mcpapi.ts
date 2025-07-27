@@ -62,14 +62,14 @@ export interface MCPResourceResponse {
 class MCPAPIClient {
     private baseUrl: string;
 
-    constructor(baseUrl: string = "http://localhost:61269") {
+    constructor(baseUrl: string = "http://localhost:60289") {
         this.baseUrl = baseUrl;
     }
 
     // 获取MCP服务器状态
     async getServerStatus(): Promise<{ servers: Record<string, MCPServer> }> {
         try {
-            const response = await fetch(`${this.baseUrl}/api/v1/mcp/status`, {
+            const response = await fetch(`${this.baseUrl}/api/v1/widgets/mcp/status`, {
                 method: "GET",
                 signal: AbortSignal.timeout(5000),
             });
