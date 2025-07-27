@@ -12,6 +12,10 @@ LOG_FILE="waveterm-server.log"
 PID_FILE="waveterm-server.pid"
 PORT_FILE="waveterm-server.port"
 
+# 固定端口配置
+FIXED_WEB_PORT="60289"
+FIXED_WS_PORT="60290"
+
 # 代理配置
 PROXY_HOST="127.0.0.1"
 PROXY_PORT="10900"
@@ -122,10 +126,12 @@ start_server() {
     exec 3<>"$fifo_path"
     rm "$fifo_path"  # 删除文件系统中的文件，但fd仍然开放
     
-    # 启动服务器，使用fifo作为stdin
+    # 启动服务器，使用固定端口和fifo作为stdin
     WAVETERM_DATA_HOME="$DATA_DIR" \
     WAVETERM_CONFIG_HOME="$DATA_DIR" \
     WAVETERM_AUTH_KEY="$AUTH_KEY" \
+    WAVETERM_WEB_PORT="$FIXED_WEB_PORT" \
+    WAVETERM_WS_PORT="$FIXED_WS_PORT" \
     go run cmd/server/main-server.go <&3 > "$LOG_FILE" 2>&1 &
     
     local server_pid=$!
@@ -133,18 +139,14 @@ start_server() {
     
     log "等待服务器启动..."
     
-    # 等待服务器启动并获取端口信息
+    # 等待服务器启动（使用固定端口）
     local max_wait=30
     local wait_count=0
-    local web_port=""
-    local ws_port=""
     
     while [ $wait_count -lt $max_wait ]; do
         if [ -f "$LOG_FILE" ]; then
-            web_port=$(grep "Server \[web\] listening" "$LOG_FILE" 2>/dev/null | grep -o "127.0.0.1:[0-9]*" | cut -d: -f2 | tail -1)
-            ws_port=$(grep "Server \[websocket\] listening" "$LOG_FILE" 2>/dev/null | grep -o "127.0.0.1:[0-9]*" | cut -d: -f2 | tail -1)
-            
-            if [ ! -z "$web_port" ] && [ ! -z "$ws_port" ]; then
+            # 检查日志中是否有服务器启动成功的标志
+            if grep -q "Server \[web\] listening" "$LOG_FILE" 2>/dev/null; then
                 break
             fi
         fi
@@ -166,7 +168,7 @@ start_server() {
     
     echo  # 换行
     
-    if [ -z "$web_port" ]; then
+    if [ $wait_count -ge $max_wait ]; then
         error "服务器启动超时或失败"
         if [ -f "$LOG_FILE" ]; then
             echo "日志信息:"
@@ -175,15 +177,15 @@ start_server() {
         return 1
     fi
     
-    # 保存端口信息
-    echo "web_port=$web_port" > "$PORT_FILE"
-    echo "ws_port=$ws_port" >> "$PORT_FILE"
+    # 保存固定端口信息
+    echo "web_port=$FIXED_WEB_PORT" > "$PORT_FILE"
+    echo "ws_port=$FIXED_WS_PORT" >> "$PORT_FILE"
     
     success "Wave Terminal服务器启动成功!"
     echo "  进程ID: $server_pid"
-    echo "  Web端口: $web_port"
-    echo "  WebSocket端口: $ws_port"
-    echo "  API基础URL: http://localhost:$web_port"
+    echo "  Web端口: $FIXED_WEB_PORT"
+    echo "  WebSocket端口: $FIXED_WS_PORT"
+    echo "  API基础URL: http://localhost:$FIXED_WEB_PORT"
     echo "  日志文件: $LOG_FILE"
     
     return 0

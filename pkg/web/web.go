@@ -415,7 +415,24 @@ func WebFnWrap(opts WebFnOpts, fn WebFnType) WebFnType {
 }
 
 func MakeTCPListener(serviceName string) (net.Listener, error) {
-	serverAddr := "127.0.0.1:"
+	var serverAddr string
+	
+	// Check for service-specific environment variables
+	if serviceName == "web" {
+		if port := os.Getenv("WAVETERM_WEB_PORT"); port != "" {
+			serverAddr = "127.0.0.1:" + port
+		}
+	} else if serviceName == "websocket" {
+		if port := os.Getenv("WAVETERM_WS_PORT"); port != "" {
+			serverAddr = "127.0.0.1:" + port
+		}
+	}
+	
+	// Default to auto-assign if no port specified
+	if serverAddr == "" {
+		serverAddr = "127.0.0.1:"
+	}
+	
 	rtn, err := net.Listen("tcp", serverAddr)
 	if err != nil {
 		return nil, fmt.Errorf("error creating listener at %v: %v", serverAddr, err)

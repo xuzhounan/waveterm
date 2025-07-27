@@ -295,26 +295,23 @@ func handleListWidgetTypes(w http.ResponseWriter, r *http.Request, ctx context.C
 func handleMCPServerStatus(w http.ResponseWriter, r *http.Request, ctx context.Context) {
 	log.Printf("Checking MCP server status")
 
-	// Check if MCP server is running by trying to connect to common ports
-	ports := []int{51920, 61269, 50531}
+	// Check if MCP server is running on fixed port
+	const FIXED_MCP_PORT = 60289
 	var runningPort int
 	isRunning := false
 
-	for _, port := range ports {
-		client := &http.Client{
-			Timeout: 2 * time.Second,
-		}
-		
-		resp, err := client.Get(fmt.Sprintf("http://localhost:%d/api/v1/widgets", port))
-		if err == nil && resp.StatusCode == 200 {
-			resp.Body.Close()
-			isRunning = true
-			runningPort = port
-			break
-		}
-		if resp != nil {
-			resp.Body.Close()
-		}
+	client := &http.Client{
+		Timeout: 2 * time.Second,
+	}
+	
+	resp, err := client.Get(fmt.Sprintf("http://localhost:%d/api/v1/widgets", FIXED_MCP_PORT))
+	if err == nil && resp.StatusCode == 200 {
+		resp.Body.Close()
+		isRunning = true
+		runningPort = FIXED_MCP_PORT
+	}
+	if resp != nil {
+		resp.Body.Close()
 	}
 
 	response := map[string]interface{}{
