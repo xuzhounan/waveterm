@@ -96,6 +96,9 @@ type GetWorkspaceByNameAPIResponse struct {
 func (ws *WidgetAPIService) CreateWidget(ctx context.Context, req CreateWidgetAPIRequest) (*CreateWidgetAPIResponse, error) {
 	log.Printf("WidgetAPIService.CreateWidget called with workspace_id=%s, widget_type=%s", req.WorkspaceId, req.WidgetType)
 
+	// Add updates context to collect database changes
+	ctx = waveobj.ContextWithUpdates(ctx)
+
 	// Validate workspace exists
 	workspace, err := wcore.GetWorkspace(ctx, req.WorkspaceId)
 	if err != nil {
@@ -167,7 +170,11 @@ func (ws *WidgetAPIService) CreateWidget(ctx context.Context, req CreateWidgetAP
 		}, nil
 	}
 
-	// Send update event
+	// Send database update events to notify frontend
+	updates := waveobj.ContextGetUpdatesRtn(ctx)
+	wps.Broker.SendUpdateEvents(updates)
+
+	// Send custom block:create event
 	wps.Broker.Publish(wps.WaveEvent{
 		Event: "block:create",
 		Scopes: []string{
