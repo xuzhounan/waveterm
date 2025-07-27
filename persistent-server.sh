@@ -12,6 +12,10 @@ LOG_FILE="waveterm-server.log"
 PID_FILE="waveterm-server.pid"
 PORT_FILE="waveterm-server.port"
 
+# 代理配置
+PROXY_HOST="127.0.0.1"
+PROXY_PORT="10900"
+
 # 颜色输出
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -33,6 +37,25 @@ warning() {
 
 error() {
     echo -e "${RED}❌ $1${NC}"
+}
+
+# 设置代理配置用于curl命令
+setup_proxy_for_curl() {
+    # 修正代理设置 - 确保端口号正确
+    export http_proxy="http://${PROXY_HOST}:${PROXY_PORT}"
+    export https_proxy="http://${PROXY_HOST}:${PROXY_PORT}"
+    
+    log "设置代理配置用于外部请求: ${PROXY_HOST}:${PROXY_PORT}"
+}
+
+# 禁用代理用于本地API调用
+disable_proxy_for_local() {
+    unset http_proxy
+    unset https_proxy
+    unset HTTP_PROXY
+    unset HTTPS_PROXY
+    
+    log "禁用代理用于本地API调用"
 }
 
 # 停止现有服务器
@@ -165,9 +188,8 @@ test_api() {
     
     log "测试API端点..."
     
-    # 禁用代理以避免连接问题
-    unset http_proxy
-    unset https_proxy
+    # 禁用代理用于本地API调用
+    disable_proxy_for_local
     
     # 测试基础API
     local api_url="http://localhost:$web_port/api/v1/widgets"
@@ -200,6 +222,12 @@ test_api() {
     echo
     
     success "API测试完成"
+    
+    # 测试完成后，如果需要外部网络访问，可以重新启用代理
+    if [ "$1" = "--enable-proxy-after" ]; then
+        setup_proxy_for_curl
+        success "代理已重新启用用于外部请求"
+    fi
 }
 
 # 显示服务器状态
@@ -250,10 +278,17 @@ main() {
                 echo "  Header: X-AuthKey: $AUTH_KEY"
                 echo
                 echo "📝 管理命令:"
-                echo "  ./persistent-server.sh status   - 查看状态"
-                echo "  ./persistent-server.sh test     - 测试API"
-                echo "  ./persistent-server.sh logs     - 查看日志"
-                echo "  ./persistent-server.sh stop     - 停止服务器"
+                echo "  ./persistent-server.sh status          - 查看状态"
+                echo "  ./persistent-server.sh test            - 测试API（自动禁用代理）"
+                echo "  ./persistent-server.sh test-with-proxy - 测试API并重新启用代理"
+                echo "  ./persistent-server.sh setup-proxy     - 设置代理"
+                echo "  ./persistent-server.sh disable-proxy   - 禁用代理"
+                echo "  ./persistent-server.sh logs            - 查看日志"
+                echo "  ./persistent-server.sh stop            - 停止服务器"
+                echo
+                echo "🌐 代理配置:"
+                echo "  代理服务器: ${PROXY_HOST}:${PROXY_PORT}"
+                echo "  当前状态: $([ -n "$http_proxy" ] && echo "已启用 ($http_proxy)" || echo "已禁用")"
                 echo
             else
                 error "服务器启动失败"
@@ -271,6 +306,17 @@ main() {
         "test")
             test_api
             ;;
+        "test-with-proxy")
+            test_api --enable-proxy-after
+            ;;
+        "setup-proxy")
+            setup_proxy_for_curl
+            success "代理已设置为 ${PROXY_HOST}:${PROXY_PORT}"
+            ;;
+        "disable-proxy")
+            disable_proxy_for_local
+            success "代理已禁用"
+            ;;
         "logs")
             if [ -f "$LOG_FILE" ]; then
                 tail -f "$LOG_FILE"
@@ -286,15 +332,22 @@ main() {
             start_server
             ;;
         *)
-            echo "用法: $0 {start|stop|status|test|logs|restart}"
+            echo "用法: $0 {start|stop|status|test|test-with-proxy|setup-proxy|disable-proxy|logs|restart}"
             echo
             echo "命令说明:"
-            echo "  start   - 启动服务器"
-            echo "  stop    - 停止服务器"
-            echo "  status  - 查看服务器状态"
-            echo "  test    - 测试API端点"
-            echo "  logs    - 查看实时日志"
-            echo "  restart - 重启服务器"
+            echo "  start           - 启动服务器"
+            echo "  stop            - 停止服务器"
+            echo "  status          - 查看服务器状态"
+            echo "  test            - 测试API端点（自动禁用代理）"
+            echo "  test-with-proxy - 测试API端点并在完成后重新启用代理"
+            echo "  setup-proxy     - 设置代理为 ${PROXY_HOST}:${PROXY_PORT}"
+            echo "  disable-proxy   - 禁用代理设置"
+            echo "  logs            - 查看实时日志"
+            echo "  restart         - 重启服务器"
+            echo
+            echo "代理配置:"
+            echo "  当前代理设置: ${PROXY_HOST}:${PROXY_PORT}"
+            echo "  注意: API测试会自动禁用代理，外部请求需要重新启用代理"
             exit 1
             ;;
     esac

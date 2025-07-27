@@ -66,6 +66,43 @@
 - **📝 完整日志**: 所有操作和API调用都有详细记录
 - **🛡️ 错误恢复**: 自动处理异常情况和进程清理
 
+## 🌐 代理配置支持
+
+### 代理环境下的使用
+
+Wave Terminal MCP服务器现在完全支持代理环境：
+
+**自动代理管理**:
+```bash
+./persistent-server.sh setup-proxy     # 设置代理为 127.0.0.1:10900
+./persistent-server.sh disable-proxy   # 禁用代理
+./persistent-server.sh test            # 测试API（自动禁用代理）
+./persistent-server.sh test-with-proxy # 测试API并重新启用代理
+```
+
+**代理配置修正**:
+如果遇到代理端口错误（如109000），使用修正脚本：
+```bash
+./fix-proxy.sh
+```
+
+**手动配置**:
+```bash
+# 设置正确的代理
+export http_proxy="http://127.0.0.1:10900"
+export https_proxy="http://127.0.0.1:10900"
+
+# 测试本地API时禁用代理
+unset http_proxy
+unset https_proxy
+```
+
+### 代理工作原理
+
+1. **本地API调用**: 自动禁用代理，确保localhost连接正常
+2. **外部请求**: 使用配置的代理服务器
+3. **智能切换**: 根据操作类型自动切换代理状态
+
 ## 🔑 认证密钥配置
 
 ### 密钥生成
@@ -512,13 +549,21 @@ curl: (5) Unsupported proxy syntax in 'http://127.0.0.1:109000'
 
 **解决方案**:
 ```bash
-# 临时禁用代理
+# 方案1: 修正代理设置（推荐）
+./fix-proxy.sh
+
+# 方案2: 使用脚本的代理管理功能
+./persistent-server.sh setup-proxy     # 设置正确的代理
+./persistent-server.sh disable-proxy   # 临时禁用代理
+./persistent-server.sh test            # 测试API（自动禁用代理）
+./persistent-server.sh test-with-proxy # 测试API并重新启用代理
+
+# 方案3: 手动禁用代理
 unset http_proxy
 unset https_proxy
-
-# 或者在脚本中永久禁用
-echo 'unset http_proxy && unset https_proxy' >> ~/.bashrc
 ```
+
+**注意**: 代理端口应该是10900，不是109000。使用`fix-proxy.sh`脚本可以自动修正。
 
 #### 症状: 服务器启动后自动关闭
 查看日志可能显示:
