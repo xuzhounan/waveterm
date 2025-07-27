@@ -174,6 +174,8 @@ start_server() {
         export WAVETERM_AUTH_KEY="$AUTH_KEY"
         export WAVETERM_WEB_PORT="$FIXED_WEB_PORT"
         export WAVETERM_WS_PORT="$FIXED_WS_PORT"
+        # 使用独立的锁文件，避免与开发环境冲突
+        export WAVETERM_LOCK_FILE="$DATA_DIR/wave-mcp.lock"
         
         # 启动服务器
         exec go run cmd/server/main-server.go <&3

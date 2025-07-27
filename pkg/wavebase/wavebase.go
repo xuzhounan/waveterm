@@ -32,6 +32,7 @@ const (
 	WaveDevVarName            = "WAVETERM_DEV"
 	WaveDevViteVarName        = "WAVETERM_DEV_VITE"
 	WaveWshForceUpdateVarName = "WAVETERM_WSHFORCEUPDATE"
+	WaveLockFileEnvVar        = "WAVETERM_LOCK_FILE"
 
 	WaveJwtTokenVarName  = "WAVETERM_JWT"
 	WaveSwapTokenVarName = "WAVETERM_SWAPTOKEN"
@@ -308,4 +309,25 @@ func ValidateWshSupportedArch(os string, arch string) error {
 		return nil
 	}
 	return fmt.Errorf("unsupported wsh platform: %s-%s", os, arch)
+}
+
+// GetWaveLockFileName returns the lock file name, checking for custom override
+func GetWaveLockFileName() string {
+	if customLockFile := os.Getenv(WaveLockFileEnvVar); customLockFile != "" {
+		return filepath.Base(customLockFile)
+	}
+	return WaveLockFile
+}
+
+// GetWaveLockFilePath returns the full path to the lock file
+func GetWaveLockFilePath() string {
+	if customLockFile := os.Getenv(WaveLockFileEnvVar); customLockFile != "" {
+		if filepath.IsAbs(customLockFile) {
+			return customLockFile
+		}
+		// If relative path, join with data directory
+		return filepath.Join(GetWaveDataDir(), customLockFile)
+	}
+	// Default behavior
+	return filepath.Join(GetWaveDataDir(), WaveLockFile)
 }

@@ -8,14 +8,12 @@ package wavebase
 import (
 	"fmt"
 	"log"
-	"path/filepath"
 
 	"github.com/alexflint/go-filemutex"
 )
 
 func AcquireWaveLock() (FDLock, error) {
-	dataHomeDir := GetWaveDataDir()
-	lockFileName := filepath.Join(dataHomeDir, WaveLockFile)
+	lockFileName := GetWaveLockFilePath()
 	log.Printf("[base] acquiring lock on %s\n", lockFileName)
 	m, err := filemutex.New(lockFileName)
 	if err != nil {

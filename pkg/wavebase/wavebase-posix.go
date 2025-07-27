@@ -8,14 +8,12 @@ package wavebase
 import (
 	"log"
 	"os"
-	"path/filepath"
 
 	"golang.org/x/sys/unix"
 )
 
 func AcquireWaveLock() (FDLock, error) {
-	dataHomeDir := GetWaveDataDir()
-	lockFileName := filepath.Join(dataHomeDir, WaveLockFile)
+	lockFileName := GetWaveLockFilePath()
 	log.Printf("[base] acquiring lock on %s\n", lockFileName)
 	fd, err := os.OpenFile(lockFileName, os.O_RDWR|os.O_CREATE, 0600)
 	if err != nil {
