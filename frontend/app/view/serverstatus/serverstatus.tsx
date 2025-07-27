@@ -84,21 +84,27 @@ class ServerStatusViewModel implements ViewModel {
         try {
             globalStore.set(this.loadingAtom, true);
             
-            // 调用我们的Widget API获取服务器状态
-            const response = await fetch('http://localhost:61269/api/v1/widgets', {
+            // 使用固定端口配置，适合生产环境部署
+            const FIXED_WEB_PORT = 61269;
+            const FIXED_WS_PORT = 61270;
+            
+            console.log(`检查Wave Terminal服务器状态: http://localhost:${FIXED_WEB_PORT}`);
+            const response = await fetch(`http://localhost:${FIXED_WEB_PORT}/api/v1/widgets`, {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
-                }
+                },
+                signal: AbortSignal.timeout(3000),
             });
             
             if (response.ok) {
-                const data = await response.json();
+                const responseData = await response.json();
+                console.log(`Wave Terminal服务器连接成功: ${FIXED_WEB_PORT}`);
                 const statusData: ServerStatusData = {
                     isRunning: true,
-                    webPort: 61269,
-                    wsPort: 61270,
-                    apiUrl: 'http://localhost:61269',
+                    webPort: FIXED_WEB_PORT,
+                    wsPort: FIXED_WS_PORT,
+                    apiUrl: `http://localhost:${FIXED_WEB_PORT}`,
                     authKey: '83958e47ddc89fae695a7e1eb429899871e80334bd58cfc2d17a80388791f073',
                     uptime: Math.floor((Date.now() - (Date.now() % 86400000)) / 1000), // 今天的运行时间
                     lastUpdated: Date.now(),

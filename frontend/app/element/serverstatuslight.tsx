@@ -41,7 +41,11 @@ class ServerStatusLightModel {
 
     async checkServerStatus() {
         try {
-            const response = await fetch('http://localhost:61269/api/v1/widgets', {
+            // 使用固定端口配置，确保生产环境稳定性
+            const FIXED_WEB_PORT = 61269;
+            console.log(`检查服务器状态灯: http://localhost:${FIXED_WEB_PORT}`);
+            
+            const response = await fetch(`http://localhost:${FIXED_WEB_PORT}/api/v1/widgets`, {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
