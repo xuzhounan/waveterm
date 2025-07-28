@@ -68,6 +68,29 @@ declare global {
         meta?: MetaType;
     };
 
+    // widgetapiservice.BlockFileInfo
+    type BlockFileInfo = {
+        file_name: string;
+        size: number;
+        mod_ts: number;
+        circular: boolean;
+        max_size?: number;
+    };
+
+    // widgetapiservice.BlockInfo
+    type BlockInfo = {
+        block_id: string;
+        tab_id: string;
+        workspace_id: string;
+        block_type: string;
+        view: string;
+        controller: string;
+        meta: {[key: string]: any};
+        created_ts: number;
+        files?: BlockFileInfo[];
+        status?: ControllerStatus;
+    };
+
     // wshrpc.BlockInfoData
     type BlockInfoData = {
         blockid: string;
@@ -351,6 +374,16 @@ declare global {
         wshversion?: string;
     };
 
+    // widgetapiservice.ControllerStatus
+    type ControllerStatus = {
+        controller_type: string;
+        status: string;
+        exit_code: number;
+        pid?: number;
+        start_ts?: number;
+        end_ts?: number;
+    };
+
     // wshrpc.CpuDataRequest
     type CpuDataRequest = {
         id: string;
@@ -526,6 +559,24 @@ declare global {
         configerrors: ConfigError[];
     };
 
+    // widgetapiservice.GetBlockContentAPIResponse
+    type GetBlockContentAPIResponse = {
+        success: boolean;
+        content?: string;
+        size: number;
+        file_size: number;
+        block_info?: BlockInfo;
+        error?: string;
+    };
+
+    // widgetapiservice.GetBlockStatusAPIResponse
+    type GetBlockStatusAPIResponse = {
+        success: boolean;
+        block_info?: BlockInfo;
+        controller?: ControllerStatus;
+        error?: string;
+    };
+
     // widgetapiservice.GetWorkspaceByNameAPIResponse
     type GetWorkspaceByNameAPIResponse = {
         success: boolean;
@@ -573,6 +624,20 @@ declare global {
     type LeafOrderEntry = {
         nodeid: string;
         blockid: string;
+    };
+
+    // widgetapiservice.ListBlocksAPIRequest
+    type ListBlocksAPIRequest = {
+        workspace_id?: string;
+        tab_id?: string;
+        block_type?: string;
+    };
+
+    // widgetapiservice.ListBlocksAPIResponse
+    type ListBlocksAPIResponse = {
+        success: boolean;
+        blocks?: BlockInfo[];
+        error?: string;
     };
 
     // widgetapiservice.ListTabsAPIResponse
@@ -774,6 +839,22 @@ declare global {
         focusednodeid?: string;
         leaforder?: LeafOrderEntry[];
         meta?: MetaType;
+    };
+
+    // widgetapiservice.SendBlockInputAPIRequest
+    type SendBlockInputAPIRequest = {
+        block_id: string;
+        input_data?: string;
+        sig_name?: string;
+        term_size?: TermSize;
+        input_type?: string;
+    };
+
+    // widgetapiservice.SendBlockInputAPIResponse
+    type SendBlockInputAPIResponse = {
+        success: boolean;
+        message?: string;
+        error?: string;
     };
 
     // widgetapiservice.SetActiveTabAPIRequest

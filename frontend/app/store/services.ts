@@ -104,6 +104,12 @@ class WidgetAPIServiceType {
     CreateWidget(arg2: CreateWidgetAPIRequest): Promise<CreateWidgetAPIResponse> {
         return WOS.callBackendService("widgetapi", "CreateWidget", Array.from(arguments))
     }
+    GetBlockContent(arg2: string, arg3: string, arg4: number, arg5: number): Promise<GetBlockContentAPIResponse> {
+        return WOS.callBackendService("widgetapi", "GetBlockContent", Array.from(arguments))
+    }
+    GetBlockStatus(arg2: string): Promise<GetBlockStatusAPIResponse> {
+        return WOS.callBackendService("widgetapi", "GetBlockStatus", Array.from(arguments))
+    }
     GetWorkspaceByName(arg2: string): Promise<GetWorkspaceByNameAPIResponse> {
         return WOS.callBackendService("widgetapi", "GetWorkspaceByName", Array.from(arguments))
     }
@@ -113,11 +119,17 @@ class WidgetAPIServiceType {
     GetWorkspaceWidgets(arg2: string): Promise<GetWorkspaceWidgetsAPIResponse> {
         return WOS.callBackendService("widgetapi", "GetWorkspaceWidgets", Array.from(arguments))
     }
+    ListBlocks(arg2: ListBlocksAPIRequest): Promise<ListBlocksAPIResponse> {
+        return WOS.callBackendService("widgetapi", "ListBlocks", Array.from(arguments))
+    }
     ListTabs(arg2: string): Promise<ListTabsAPIResponse> {
         return WOS.callBackendService("widgetapi", "ListTabs", Array.from(arguments))
     }
     ListWorkspaces(): Promise<ListWorkspacesAPIResponse> {
         return WOS.callBackendService("widgetapi", "ListWorkspaces", Array.from(arguments))
+    }
+    SendBlockInput(arg2: SendBlockInputAPIRequest): Promise<SendBlockInputAPIResponse> {
+        return WOS.callBackendService("widgetapi", "SendBlockInput", Array.from(arguments))
     }
     SetActiveTab(arg2: SetActiveTabAPIRequest): Promise<SetActiveTabAPIResponse> {
         return WOS.callBackendService("widgetapi", "SetActiveTab", Array.from(arguments))

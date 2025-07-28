@@ -216,6 +216,102 @@ class WaveTerminalMCPServer extends Server {
                         type: "object",
                         properties: {}
                     }
+                },
+                {
+                    name: "get_block_content",
+                    description: "获取block的内容（如terminal输出）",
+                    inputSchema: {
+                        type: "object",
+                        properties: {
+                            block_id: { 
+                                type: "string", 
+                                description: "Block ID" 
+                            },
+                            file_name: { 
+                                type: "string", 
+                                description: "文件名（默认：term）" 
+                            },
+                            offset: { 
+                                type: "integer", 
+                                description: "起始位置（字节）" 
+                            },
+                            size: { 
+                                type: "integer", 
+                                description: "读取大小（字节，0表示全部）" 
+                            }
+                        },
+                        required: ["block_id"]
+                    }
+                },
+                {
+                    name: "get_block_status",
+                    description: "获取block的状态和元数据信息",
+                    inputSchema: {
+                        type: "object",
+                        properties: {
+                            block_id: { 
+                                type: "string", 
+                                description: "Block ID" 
+                            }
+                        },
+                        required: ["block_id"]
+                    }
+                },
+                {
+                    name: "list_blocks",
+                    description: "列出工作区或标签页中的所有blocks",
+                    inputSchema: {
+                        type: "object",
+                        properties: {
+                            workspace_id: { 
+                                type: "string", 
+                                description: "工作区ID（可选）" 
+                            },
+                            tab_id: { 
+                                type: "string", 
+                                description: "标签页ID（可选）" 
+                            },
+                            block_type: { 
+                                type: "string", 
+                                description: "Block类型过滤（如terminal、web等）" 
+                            }
+                        }
+                    }
+                },
+                {
+                    name: "send_terminal_input",
+                    description: "向terminal发送输入（文本、信号或终端大小调整）",
+                    inputSchema: {
+                        type: "object",
+                        properties: {
+                            block_id: { 
+                                type: "string", 
+                                description: "Terminal Block ID" 
+                            },
+                            input_data: { 
+                                type: "string", 
+                                description: "要发送的文本内容（如命令）" 
+                            },
+                            input_type: {
+                                type: "string",
+                                description: "输入类型：text（文本）、signal（信号）、resize（终端大小调整）",
+                                enum: ["text", "signal", "resize"]
+                            },
+                            sig_name: {
+                                type: "string",
+                                description: "信号名称（如SIGINT、SIGTERM等），仅在input_type为signal时使用"
+                            },
+                            term_size: {
+                                type: "object",
+                                description: "终端大小，仅在input_type为resize时使用",
+                                properties: {
+                                    rows: { type: "integer", description: "行数" },
+                                    cols: { type: "integer", description: "列数" }
+                                }
+                            }
+                        },
+                        required: ["block_id"]
+                    }
                 }
             ]
         };
@@ -508,6 +604,151 @@ class WaveTerminalMCPServer extends Server {
                         };
                     } else {
                         throw new Error(`工作区数据修复失败: ${response.status} - ${JSON.stringify(result)}`);
+                    }
+
+                case "get_block_content":
+                    const contentUrl = new URL(`${this.waveTerminalUrl}/api/v1/widgets/block/content/${args.block_id}`);
+                    if (args.file_name) contentUrl.searchParams.set('file_name', args.file_name);
+                    if (args.offset) contentUrl.searchParams.set('offset', args.offset.toString());
+                    if (args.size) contentUrl.searchParams.set('size', args.size.toString());
+                    
+                    response = await fetch(contentUrl.toString(), { headers });
+                    result = await response.json();
+                    
+                    if (response.ok && result.success) {
+                        return {
+                            content: [{
+                                type: "text",
+                                text: `📄 Block内容获取成功！\n\n` +
+                                      `Block ID: ${result.block_info?.block_id}\n` +
+                                      `Block类型: ${result.block_info?.block_type}\n` +
+                                      `文件大小: ${result.file_size} 字节\n` +
+                                      `读取大小: ${result.size} 字节\n\n` +
+                                      `内容:\n` +
+                                      `\`\`\`\n${result.content}\n\`\`\``
+                            }]
+                        };
+                    } else {
+                        throw new Error(`获取Block内容失败: ${response.status} - ${JSON.stringify(result)}`);
+                    }
+
+                case "get_block_status":
+                    response = await fetch(`${this.waveTerminalUrl}/api/v1/widgets/block/status/${args.block_id}`, {
+                        headers
+                    });
+                    result = await response.json();
+                    
+                    if (response.ok && result.success) {
+                        const blockInfo = result.block_info;
+                        const controller = result.controller;
+                        
+                        let statusText = `📊 Block状态信息\n\n` +
+                                       `Block ID: ${blockInfo.block_id}\n` +
+                                       `类型: ${blockInfo.block_type}\n` +
+                                       `View: ${blockInfo.view}\n` +
+                                       `Controller: ${blockInfo.controller}\n` +
+                                       `创建时间: ${new Date(blockInfo.created_ts).toLocaleString()}\n`;
+                        
+                        if (controller) {
+                            statusText += `\n🔄 Controller状态:\n` +
+                                        `状态: ${controller.status}\n` +
+                                        `退出码: ${controller.exit_code}\n`;
+                            if (controller.start_ts) {
+                                statusText += `启动时间: ${new Date(controller.start_ts).toLocaleString()}\n`;
+                            }
+                        }
+                        
+                        if (blockInfo.files && blockInfo.files.length > 0) {
+                            statusText += `\n📁 关联文件:\n`;
+                            blockInfo.files.forEach(file => {
+                                statusText += `- ${file.file_name}: ${file.size} 字节\n`;
+                            });
+                        }
+                        
+                        return {
+                            content: [{
+                                type: "text",
+                                text: statusText
+                            }]
+                        };
+                    } else {
+                        throw new Error(`获取Block状态失败: ${response.status} - ${JSON.stringify(result)}`);
+                    }
+
+                case "list_blocks":
+                    const blocksUrl = new URL(`${this.waveTerminalUrl}/api/v1/widgets/blocks`);
+                    if (args.workspace_id) blocksUrl.searchParams.set('workspace_id', args.workspace_id);
+                    if (args.tab_id) blocksUrl.searchParams.set('tab_id', args.tab_id);
+                    if (args.block_type) blocksUrl.searchParams.set('block_type', args.block_type);
+                    
+                    response = await fetch(blocksUrl.toString(), { headers });
+                    result = await response.json();
+                    
+                    if (response.ok && result.success) {
+                        const blocks = result.blocks || [];
+                        let listText = `📋 Block列表 (${blocks.length}个)\n\n`;
+                        
+                        if (blocks.length === 0) {
+                            listText += `暂无blocks`;
+                        } else {
+                            blocks.forEach((block, index) => {
+                                listText += `${index + 1}. ${block.block_type} Block\n` +
+                                          `   ID: ${block.block_id}\n` +
+                                          `   Tab ID: ${block.tab_id}\n` +
+                                          `   View: ${block.view}\n` +
+                                          `   Controller: ${block.controller}\n` +
+                                          `   创建时间: ${new Date(block.created_ts).toLocaleString()}\n\n`;
+                            });
+                        }
+                        
+                        return {
+                            content: [{
+                                type: "text",
+                                text: listText
+                            }]
+                        };
+                    } else {
+                        throw new Error(`获取Block列表失败: ${response.status} - ${JSON.stringify(result)}`);
+                    }
+
+                case "send_terminal_input":
+                    response = await fetch(`${this.waveTerminalUrl}/api/v1/widgets/block/${args.block_id}/input`, {
+                        method: "POST",
+                        headers,
+                        body: JSON.stringify(args)
+                    });
+                    result = await response.json();
+                    
+                    if (response.ok && result.success) {
+                        const inputType = args.input_type || 'text';
+                        let inputDescription = '';
+                        
+                        switch (inputType) {
+                            case 'text':
+                                inputDescription = `文本输入: "${args.input_data}"`;
+                                break;
+                            case 'signal':
+                                inputDescription = `信号: ${args.sig_name}`;
+                                break;
+                            case 'resize':
+                                inputDescription = `终端大小调整: ${args.term_size.cols}x${args.term_size.rows}`;
+                                break;
+                            default:
+                                inputDescription = '输入';
+                        }
+                        
+                        return {
+                            content: [{
+                                type: "text",
+                                text: `✅ Terminal输入发送成功！\n\n` +
+                                      `Block ID: ${args.block_id}\n` +
+                                      `输入类型: ${inputDescription}\n\n` +
+                                      `${result.message}\n\n` +
+                                      `💡 输入已发送到terminal，可以使用 get_block_content 查看输出。`
+                            }]
+                        };
+                    } else {
+                        throw new Error(`Terminal输入发送失败: ${response.status} - ${JSON.stringify(result)}`);
                     }
 
                 default:

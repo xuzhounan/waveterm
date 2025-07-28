@@ -59,6 +59,10 @@ func handleWidgetAPI(w http.ResponseWriter, r *http.Request) {
 		} else if len(pathParts) == 2 && pathParts[0] == "tabs" && pathParts[1] == "activate" {
 			// POST /api/v1/widgets/tabs/activate - Set active tab
 			handleSetActiveTab(w, r, ctx)
+		} else if len(pathParts) == 3 && pathParts[0] == "block" && pathParts[2] == "input" {
+			// POST /api/v1/widgets/block/{block_id}/input - Send input to block
+			blockId := pathParts[1]
+			handleSendBlockInput(w, r, ctx, blockId)
 		} else {
 			http.Error(w, "Not Found", http.StatusNotFound)
 		}
@@ -91,6 +95,17 @@ func handleWidgetAPI(w http.ResponseWriter, r *http.Request) {
 			// GET /api/v1/widgets/workspace/{workspace_id}/tabs - List tabs in workspace
 			workspaceId := pathParts[1]
 			handleListTabs(w, r, ctx, workspaceId)
+		} else if len(pathParts) == 3 && pathParts[0] == "block" && pathParts[1] == "content" {
+			// GET /api/v1/widgets/block/content/{block_id} - Get block content
+			blockId := pathParts[2]
+			handleGetBlockContent(w, r, ctx, blockId)
+		} else if len(pathParts) == 3 && pathParts[0] == "block" && pathParts[1] == "status" {
+			// GET /api/v1/widgets/block/status/{block_id} - Get block status
+			blockId := pathParts[2]
+			handleGetBlockStatus(w, r, ctx, blockId)
+		} else if pathParts[0] == "blocks" {
+			// GET /api/v1/widgets/blocks?workspace_id=x&tab_id=y&block_type=z - List blocks
+			handleListBlocks(w, r, ctx)
 		} else {
 			http.Error(w, "Not Found", http.StatusNotFound)
 		}
@@ -604,6 +619,141 @@ func handleSetActiveTab(w http.ResponseWriter, r *http.Request, ctx context.Cont
 	}
 
 	// Return the response
+	json.NewEncoder(w).Encode(response)
+}
+
+// handleGetBlockContent handles getting content from a block (e.g., terminal output)
+func handleGetBlockContent(w http.ResponseWriter, r *http.Request, ctx context.Context, blockId string) {
+	if blockId == "" {
+		writeErrorResponse(w, "block_id is required", http.StatusBadRequest)
+		return
+	}
+
+	// Parse query parameters
+	fileName := r.URL.Query().Get("file_name")
+	if fileName == "" {
+		fileName = "term" // default to terminal output
+	}
+
+	offset := int64(0)
+	size := int64(0)
+	
+	if offsetStr := r.URL.Query().Get("offset"); offsetStr != "" {
+		if parsedOffset, err := strconv.ParseInt(offsetStr, 10, 64); err == nil {
+			offset = parsedOffset
+		}
+	}
+	
+	if sizeStr := r.URL.Query().Get("size"); sizeStr != "" {
+		if parsedSize, err := strconv.ParseInt(sizeStr, 10, 64); err == nil {
+			size = parsedSize
+		}
+	}
+
+	log.Printf("Getting block content: block_id=%s, file=%s, offset=%d, size=%d", blockId, fileName, offset, size)
+
+	// Call the service to get block content
+	response, err := widgetapiservice.WidgetAPIServiceInstance.GetBlockContent(ctx, blockId, fileName, offset, size)
+	if err != nil {
+		log.Printf("Error getting block content: %v", err)
+		writeErrorResponse(w, fmt.Sprintf("Internal server error: %s", err.Error()), http.StatusInternalServerError)
+		return
+	}
+
+	// Return the response
+	json.NewEncoder(w).Encode(response)
+}
+
+// handleGetBlockStatus handles getting status information for a block
+func handleGetBlockStatus(w http.ResponseWriter, r *http.Request, ctx context.Context, blockId string) {
+	if blockId == "" {
+		writeErrorResponse(w, "block_id is required", http.StatusBadRequest)
+		return
+	}
+
+	log.Printf("Getting block status: block_id=%s", blockId)
+
+	// Call the service to get block status
+	response, err := widgetapiservice.WidgetAPIServiceInstance.GetBlockStatus(ctx, blockId)
+	if err != nil {
+		log.Printf("Error getting block status: %v", err)
+		writeErrorResponse(w, fmt.Sprintf("Internal server error: %s", err.Error()), http.StatusInternalServerError)
+		return
+	}
+
+	// Return the response
+	json.NewEncoder(w).Encode(response)
+}
+
+// handleListBlocks handles listing blocks with optional filtering
+func handleListBlocks(w http.ResponseWriter, r *http.Request, ctx context.Context) {
+	// Parse query parameters
+	workspaceId := r.URL.Query().Get("workspace_id")
+	tabId := r.URL.Query().Get("tab_id")
+	blockType := r.URL.Query().Get("block_type")
+
+	log.Printf("Listing blocks: workspace_id=%s, tab_id=%s, block_type=%s", workspaceId, tabId, blockType)
+
+	// Build request
+	req := widgetapiservice.ListBlocksAPIRequest{
+		WorkspaceId: workspaceId,
+		TabId:       tabId,
+		BlockType:   blockType,
+	}
+
+	// Call the service to list blocks
+	response, err := widgetapiservice.WidgetAPIServiceInstance.ListBlocks(ctx, req)
+	if err != nil {
+		log.Printf("Error listing blocks: %v", err)
+		writeErrorResponse(w, fmt.Sprintf("Internal server error: %s", err.Error()), http.StatusInternalServerError)
+		return
+	}
+
+	// Return the response
+	json.NewEncoder(w).Encode(response)
+}
+
+// handleSendBlockInput handles sending input to a block (e.g., terminal input)
+func handleSendBlockInput(w http.ResponseWriter, r *http.Request, ctx context.Context, blockId string) {
+	if blockId == "" {
+		writeErrorResponse(w, "block_id is required", http.StatusBadRequest)
+		return
+	}
+
+	var req widgetapiservice.SendBlockInputAPIRequest
+
+	decoder := json.NewDecoder(r.Body)
+	if err := decoder.Decode(&req); err != nil {
+		log.Printf("Error decoding send block input request: %v", err)
+		writeErrorResponse(w, "Invalid JSON request body", http.StatusBadRequest)
+		return
+	}
+
+	// Set the block ID from URL path
+	req.BlockId = blockId
+
+	// Validate that we have some kind of input
+	if req.InputData == "" && req.SigName == "" && req.TermSize == nil {
+		writeErrorResponse(w, "at least one of input_data, sig_name, or term_size is required", http.StatusBadRequest)
+		return
+	}
+
+	log.Printf("Sending input to block: block_id=%s, input_type=%s", blockId, req.InputType)
+
+	// Call the service to send input to block
+	response, err := widgetapiservice.WidgetAPIServiceInstance.SendBlockInput(ctx, req)
+	if err != nil {
+		log.Printf("Error sending block input: %v", err)
+		writeErrorResponse(w, fmt.Sprintf("Internal server error: %s", err.Error()), http.StatusInternalServerError)
+		return
+	}
+
+	// Return success status
+	if response.Success {
+		w.WriteHeader(http.StatusOK)
+	} else {
+		w.WriteHeader(http.StatusBadRequest)
+	}
 	json.NewEncoder(w).Encode(response)
 }
 

@@ -11,7 +11,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/wavetermdev/waveterm/pkg/filestore"
+	"github.com/wavetermdev/waveterm/pkg/blockcontroller"
 	"github.com/wavetermdev/waveterm/pkg/service/workspaceservice"
+	"github.com/wavetermdev/waveterm/pkg/wavebase"
 	"github.com/wavetermdev/waveterm/pkg/waveobj"
 	"github.com/wavetermdev/waveterm/pkg/wconfig"
 	"github.com/wavetermdev/waveterm/pkg/wcore"
@@ -819,5 +822,513 @@ func (ws *WidgetAPIService) SetActiveTab(ctx context.Context, req SetActiveTabAP
 	return &SetActiveTabAPIResponse{
 		Success: true,
 		Message: fmt.Sprintf("Tab '%s' set as active", tab.Name),
+	}, nil
+}
+
+// ================================
+// Block Content API Structures
+// ================================
+
+// GetBlockContentAPIRequest represents the request for getting block content
+type GetBlockContentAPIRequest struct {
+	BlockId  string `json:"block_id"`
+	FileName string `json:"file_name,omitempty"` // Default: "term"
+	Offset   int64  `json:"offset,omitempty"`    // Starting position
+	Size     int64  `json:"size,omitempty"`      // Max bytes to read, 0 means all
+}
+
+// GetBlockContentAPIResponse represents the response for block content
+type GetBlockContentAPIResponse struct {
+	Success   bool        `json:"success"`
+	Content   string      `json:"content,omitempty"`
+	Size      int64       `json:"size"`
+	FileSize  int64       `json:"file_size"`
+	BlockInfo *BlockInfo  `json:"block_info,omitempty"`
+	Error     string      `json:"error,omitempty"`
+}
+
+// GetBlockStatusAPIResponse represents the response for block status
+type GetBlockStatusAPIResponse struct {
+	Success     bool              `json:"success"`
+	BlockInfo   *BlockInfo        `json:"block_info,omitempty"`
+	Controller  *ControllerStatus `json:"controller,omitempty"`
+	Error       string            `json:"error,omitempty"`
+}
+
+// ListBlocksAPIRequest represents the request for listing blocks
+type ListBlocksAPIRequest struct {
+	WorkspaceId string `json:"workspace_id,omitempty"`
+	TabId       string `json:"tab_id,omitempty"`
+	BlockType   string `json:"block_type,omitempty"` // Filter by block type: "terminal", "web", etc.
+}
+
+// ListBlocksAPIResponse represents the response for listing blocks
+type ListBlocksAPIResponse struct {
+	Success bool        `json:"success"`
+	Blocks  []BlockInfo `json:"blocks,omitempty"`
+	Error   string      `json:"error,omitempty"`
+}
+
+// BlockInfo contains detailed information about a block
+type BlockInfo struct {
+	BlockId     string            `json:"block_id"`
+	TabId       string            `json:"tab_id"`
+	WorkspaceId string            `json:"workspace_id"`
+	BlockType   string            `json:"block_type"`    // "terminal", "web", "files", etc.
+	View        string            `json:"view"`          // "term", "web", "preview", etc.
+	Controller  string            `json:"controller"`    // "shell", "cmd", etc.
+	Meta        map[string]any    `json:"meta"`
+	CreatedTs   int64             `json:"created_ts"`
+	Files       []BlockFileInfo   `json:"files,omitempty"`
+	Status      *ControllerStatus `json:"status,omitempty"`
+}
+
+// BlockFileInfo contains information about files in a block
+type BlockFileInfo struct {
+	FileName  string `json:"file_name"`
+	Size      int64  `json:"size"`
+	ModTs     int64  `json:"mod_ts"`
+	Circular  bool   `json:"circular"`
+	MaxSize   int64  `json:"max_size,omitempty"`
+}
+
+// ControllerStatus contains controller runtime status
+type ControllerStatus struct {
+	ControllerType string `json:"controller_type"`
+	Status         string `json:"status"`         // "init", "running", "done"
+	ExitCode       int    `json:"exit_code"`
+	PID            int    `json:"pid,omitempty"`
+	StartTs        int64  `json:"start_ts,omitempty"`
+	EndTs          int64  `json:"end_ts,omitempty"`
+}
+
+// ================================
+// Block Input API Structures
+// ================================
+
+// SendBlockInputAPIRequest represents the request for sending input to a block
+type SendBlockInputAPIRequest struct {
+	BlockId    string                `json:"block_id"`
+	InputData  string                `json:"input_data,omitempty"`  // Text input to send
+	SigName    string                `json:"sig_name,omitempty"`    // Signal name (e.g., "SIGINT", "SIGTERM")
+	TermSize   *waveobj.TermSize     `json:"term_size,omitempty"`   // Terminal size for resize
+	InputType  string                `json:"input_type,omitempty"` // "text", "signal", "resize"
+}
+
+// SendBlockInputAPIResponse represents the response after sending input
+type SendBlockInputAPIResponse struct {
+	Success bool   `json:"success"`
+	Message string `json:"message,omitempty"`
+	Error   string `json:"error,omitempty"`
+}
+
+// ================================
+// Block Content API Methods  
+// ================================
+
+// GetBlockContent reads content from a block file (typically terminal output)
+func (ws *WidgetAPIService) GetBlockContent(ctx context.Context, blockId string, fileName string, offset int64, size int64) (*GetBlockContentAPIResponse, error) {
+	log.Printf("WidgetAPIService.GetBlockContent called with block_id=%s, file=%s, offset=%d, size=%d", blockId, fileName, offset, size)
+
+	if blockId == "" {
+		return &GetBlockContentAPIResponse{
+			Success: false,
+			Error:   "block_id is required",
+		}, nil
+	}
+
+	// Default to terminal output file
+	if fileName == "" {
+		fileName = wavebase.BlockFile_Term
+	}
+
+	// Get block info first
+	block, err := wstore.DBGet[*waveobj.Block](ctx, blockId)
+	if err != nil || block == nil {
+		return &GetBlockContentAPIResponse{
+			Success: false,
+			Error:   fmt.Sprintf("block not found: %s", blockId),
+		}, nil
+	}
+
+	// Read file content
+	var content []byte
+	var fileSize int64
+
+	if size == 0 {
+		// Read entire file
+		_, content, err = filestore.WFS.ReadFile(ctx, blockId, fileName)
+		if err != nil {
+			return &GetBlockContentAPIResponse{
+				Success: false,
+				Error:   fmt.Sprintf("failed to read file: %s", err.Error()),
+			}, nil
+		}
+		fileSize = int64(len(content))
+	} else {
+		// Read specific range
+		_, content, err = filestore.WFS.ReadAt(ctx, blockId, fileName, offset, size)
+		if err != nil {
+			return &GetBlockContentAPIResponse{
+				Success: false,
+				Error:   fmt.Sprintf("failed to read file at offset: %s", err.Error()),
+			}, nil
+		}
+		
+		// Get file size
+		stat, err := filestore.WFS.Stat(ctx, blockId, fileName)
+		if err == nil {
+			fileSize = stat.Size
+		}
+	}
+
+	// Build block info
+	blockInfo := &BlockInfo{
+		BlockId:    block.OID,
+		TabId:      getStringFromMeta(block.Meta, "tab"),
+		BlockType:  getBlockTypeFromMeta(block.Meta),
+		View:       getStringFromMeta(block.Meta, "view"),
+		Controller: getStringFromMeta(block.Meta, "controller"),
+		Meta:       block.Meta,
+		CreatedTs:  time.Now().UnixMilli(), // Use current time as fallback
+	}
+
+	// Get workspace ID by finding which workspace contains this tab
+	if blockInfo.TabId != "" {
+		workspaceId, err := wstore.DBFindWorkspaceForTabId(ctx, blockInfo.TabId)
+		if err == nil {
+			blockInfo.WorkspaceId = workspaceId
+		}
+	}
+
+	return &GetBlockContentAPIResponse{
+		Success:   true,
+		Content:   string(content),
+		Size:      int64(len(content)),
+		FileSize:  fileSize,
+		BlockInfo: blockInfo,
+	}, nil
+}
+
+// GetBlockStatus gets the status and metadata of a block
+func (ws *WidgetAPIService) GetBlockStatus(ctx context.Context, blockId string) (*GetBlockStatusAPIResponse, error) {
+	log.Printf("WidgetAPIService.GetBlockStatus called with block_id=%s", blockId)
+
+	if blockId == "" {
+		return &GetBlockStatusAPIResponse{
+			Success: false,
+			Error:   "block_id is required",
+		}, nil
+	}
+
+	// Get block from database
+	block, err := wstore.DBGet[*waveobj.Block](ctx, blockId)
+	if err != nil || block == nil {
+		return &GetBlockStatusAPIResponse{
+			Success: false,
+			Error:   fmt.Sprintf("block not found: %s", blockId),
+		}, nil
+	}
+
+	// Build block info
+	blockInfo := &BlockInfo{
+		BlockId:    block.OID,
+		TabId:      getStringFromMeta(block.Meta, "tab"),
+		BlockType:  getBlockTypeFromMeta(block.Meta),
+		View:       getStringFromMeta(block.Meta, "view"),
+		Controller: getStringFromMeta(block.Meta, "controller"),
+		Meta:       block.Meta,
+		CreatedTs:  time.Now().UnixMilli(), // Use current time as fallback
+	}
+
+	// Get workspace ID by finding which workspace contains this tab
+	if blockInfo.TabId != "" {
+		workspaceId, err := wstore.DBFindWorkspaceForTabId(ctx, blockInfo.TabId)
+		if err == nil {
+			blockInfo.WorkspaceId = workspaceId
+		}
+	}
+
+	// Get block files info
+	files := []BlockFileInfo{}
+	
+	// Check common block files
+	commonFiles := []string{wavebase.BlockFile_Term, wavebase.BlockFile_VDom, "env", "history"}
+	for _, fileName := range commonFiles {
+		stat, err := filestore.WFS.Stat(ctx, blockId, fileName)
+		if err == nil {
+			files = append(files, BlockFileInfo{
+				FileName: fileName,
+				Size:     stat.Size,
+				ModTs:    stat.ModTs,
+				Circular: stat.Opts.Circular,
+				MaxSize:  stat.Opts.MaxSize,
+			})
+		}
+	}
+	blockInfo.Files = files
+
+	// Get controller status if it's a shell/terminal block
+	var controllerStatus *ControllerStatus
+	if blockInfo.Controller == "shell" || blockInfo.Controller == "cmd" {
+		bc := blockcontroller.GetBlockController(blockId)
+		if bc != nil {
+			status := bc.GetRuntimeStatus()
+			controllerStatus = &ControllerStatus{
+				ControllerType: bc.ControllerType,
+				Status:         status.ShellProcStatus,
+				ExitCode:       status.ShellProcExitCode,
+				StartTs:        time.Now().UnixMilli(), // Use current time as fallback
+			}
+		}
+	}
+
+	return &GetBlockStatusAPIResponse{
+		Success:    true,
+		BlockInfo:  blockInfo,
+		Controller: controllerStatus,
+	}, nil
+}
+
+// ListBlocks lists blocks in a workspace or tab with optional filtering
+func (ws *WidgetAPIService) ListBlocks(ctx context.Context, req ListBlocksAPIRequest) (*ListBlocksAPIResponse, error) {
+	log.Printf("WidgetAPIService.ListBlocks called with workspace_id=%s, tab_id=%s, block_type=%s", req.WorkspaceId, req.TabId, req.BlockType)
+
+	var blocks []BlockInfo
+	var err error
+
+	if req.TabId != "" {
+		// List blocks in specific tab
+		blocks, err = ws.listBlocksInTab(ctx, req.TabId, req.BlockType)
+	} else if req.WorkspaceId != "" {
+		// List blocks in all tabs of workspace
+		blocks, err = ws.listBlocksInWorkspace(ctx, req.WorkspaceId, req.BlockType)
+	} else {
+		return &ListBlocksAPIResponse{
+			Success: false,
+			Error:   "either workspace_id or tab_id is required",
+		}, nil
+	}
+
+	if err != nil {
+		return &ListBlocksAPIResponse{
+			Success: false,
+			Error:   fmt.Sprintf("failed to list blocks: %s", err.Error()),
+		}, nil
+	}
+
+	return &ListBlocksAPIResponse{
+		Success: true,
+		Blocks:  blocks,
+	}, nil
+}
+
+// Helper methods
+
+func (ws *WidgetAPIService) listBlocksInTab(ctx context.Context, tabId string, blockType string) ([]BlockInfo, error) {
+	tab, err := wstore.DBGet[*waveobj.Tab](ctx, tabId)
+	if err != nil || tab == nil {
+		return nil, fmt.Errorf("tab not found: %s", tabId)
+	}
+
+	var blocks []BlockInfo
+	for _, blockId := range tab.BlockIds {
+		block, err := wstore.DBGet[*waveobj.Block](ctx, blockId)
+		if err != nil || block == nil {
+			continue
+		}
+
+		blockInfo := ws.buildBlockInfo(ctx, block)
+		
+		// Filter by block type if specified
+		if blockType != "" && blockInfo.BlockType != blockType {
+			continue
+		}
+
+		blocks = append(blocks, blockInfo)
+	}
+
+	return blocks, nil
+}
+
+func (ws *WidgetAPIService) listBlocksInWorkspace(ctx context.Context, workspaceId string, blockType string) ([]BlockInfo, error) {
+	workspace, err := wcore.GetWorkspace(ctx, workspaceId)
+	if err != nil {
+		return nil, fmt.Errorf("workspace not found: %s", workspaceId)
+	}
+
+	var blocks []BlockInfo
+	
+	// Process all tabs (regular + pinned)
+	allTabIds := append(workspace.TabIds, workspace.PinnedTabIds...)
+	
+	for _, tabId := range allTabIds {
+		tabBlocks, err := ws.listBlocksInTab(ctx, tabId, blockType)
+		if err != nil {
+			log.Printf("Failed to list blocks in tab %s: %v", tabId, err)
+			continue
+		}
+		blocks = append(blocks, tabBlocks...)
+	}
+
+	return blocks, nil
+}
+
+func (ws *WidgetAPIService) buildBlockInfo(ctx context.Context, block *waveobj.Block) BlockInfo {
+	blockInfo := BlockInfo{
+		BlockId:    block.OID,
+		TabId:      getStringFromMeta(block.Meta, "tab"),
+		BlockType:  getBlockTypeFromMeta(block.Meta),
+		View:       getStringFromMeta(block.Meta, "view"),
+		Controller: getStringFromMeta(block.Meta, "controller"),
+		Meta:       block.Meta,
+		CreatedTs:  time.Now().UnixMilli(), // Use current time as fallback
+	}
+
+	// Get workspace ID by finding which workspace contains this tab
+	if blockInfo.TabId != "" {
+		workspaceId, err := wstore.DBFindWorkspaceForTabId(ctx, blockInfo.TabId)
+		if err == nil {
+			blockInfo.WorkspaceId = workspaceId
+		}
+	}
+
+	return blockInfo
+}
+
+func getBlockTypeFromMeta(meta map[string]any) string {
+	view := getStringFromMeta(meta, "view")
+	switch view {
+	case "term":
+		return "terminal"
+	case "web":
+		return "web"
+	case "preview":
+		return "files"
+	case "waveai":
+		return "ai"
+	case "sysinfo":
+		return "sysinfo"
+	default:
+		return view
+	}
+}
+
+func getStringFromMeta(meta map[string]any, key string) string {
+	if meta == nil {
+		return ""
+	}
+	if val, ok := meta[key]; ok {
+		if str, ok := val.(string); ok {
+			return str
+		}
+	}
+	return ""
+}
+
+// ================================
+// Block Input API Methods
+// ================================
+
+// SendBlockInput sends input (text, signals, or terminal resize) to a block
+func (ws *WidgetAPIService) SendBlockInput(ctx context.Context, req SendBlockInputAPIRequest) (*SendBlockInputAPIResponse, error) {
+	log.Printf("WidgetAPIService.SendBlockInput called with block_id=%s, input_type=%s", req.BlockId, req.InputType)
+
+	if req.BlockId == "" {
+		return &SendBlockInputAPIResponse{
+			Success: false,
+			Error:   "block_id is required",
+		}, nil
+	}
+
+	// Validate block exists
+	block, err := wstore.DBGet[*waveobj.Block](ctx, req.BlockId)
+	if err != nil || block == nil {
+		return &SendBlockInputAPIResponse{
+			Success: false,
+			Error:   fmt.Sprintf("block not found: %s", req.BlockId),
+		}, nil
+	}
+
+	// Validate that this is a terminal block
+	blockType := getBlockTypeFromMeta(block.Meta)
+	controller := getStringFromMeta(block.Meta, "controller")
+	if blockType != "terminal" || (controller != "shell" && controller != "cmd") {
+		return &SendBlockInputAPIResponse{
+			Success: false,
+			Error:   fmt.Sprintf("block %s is not a terminal (type: %s, controller: %s)", req.BlockId, blockType, controller),
+		}, nil
+	}
+
+	// Get the block controller
+	bc := blockcontroller.GetBlockController(req.BlockId)
+	if bc == nil {
+		return &SendBlockInputAPIResponse{
+			Success: false,
+			Error:   fmt.Sprintf("no controller found for block %s", req.BlockId),
+		}, nil
+	}
+
+	// Build input union based on request type
+	inputUnion := &blockcontroller.BlockInputUnion{}
+	var inputDescription string
+
+	// Default input type to "text" if not specified but input_data is provided
+	if req.InputType == "" && req.InputData != "" {
+		req.InputType = "text"
+	}
+
+	switch req.InputType {
+	case "text", "":
+		if req.InputData == "" {
+			return &SendBlockInputAPIResponse{
+				Success: false,
+				Error:   "input_data is required for text input",
+			}, nil
+		}
+		inputUnion.InputData = []byte(req.InputData)
+		inputDescription = fmt.Sprintf("text input (%d bytes)", len(req.InputData))
+		
+	case "signal":
+		if req.SigName == "" {
+			return &SendBlockInputAPIResponse{
+				Success: false,
+				Error:   "sig_name is required for signal input",
+			}, nil
+		}
+		inputUnion.SigName = req.SigName
+		inputDescription = fmt.Sprintf("signal %s", req.SigName)
+		
+	case "resize":
+		if req.TermSize == nil {
+			return &SendBlockInputAPIResponse{
+				Success: false,
+				Error:   "term_size is required for resize input",
+			}, nil
+		}
+		inputUnion.TermSize = req.TermSize
+		inputDescription = fmt.Sprintf("terminal resize to %dx%d", req.TermSize.Cols, req.TermSize.Rows)
+		
+	default:
+		return &SendBlockInputAPIResponse{
+			Success: false,
+			Error:   fmt.Sprintf("invalid input_type: %s (must be 'text', 'signal', or 'resize')", req.InputType),
+		}, nil
+	}
+
+	// Send input to the block controller
+	err = bc.SendInput(inputUnion)
+	if err != nil {
+		return &SendBlockInputAPIResponse{
+			Success: false,
+			Error:   fmt.Sprintf("failed to send input to block controller: %s", err.Error()),
+		}, nil
+	}
+
+	log.Printf("Successfully sent %s to block %s", inputDescription, req.BlockId)
+
+	return &SendBlockInputAPIResponse{
+		Success: true,
+		Message: fmt.Sprintf("Successfully sent %s to terminal", inputDescription),
 	}, nil
 }
