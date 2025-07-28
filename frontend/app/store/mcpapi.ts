@@ -4,6 +4,8 @@
 // MCP (Model Context Protocol) API 接口
 // 提供与MCP服务器交互的功能
 
+import { getWebServerEndpoint } from "@/util/endpoints";
+
 export interface MCPTool {
     name: string;
     description: string;
@@ -60,16 +62,15 @@ export interface MCPResourceResponse {
 }
 
 class MCPAPIClient {
-    private baseUrl: string;
-
-    constructor(baseUrl: string = "http://127.0.0.1:60289") {
-        this.baseUrl = baseUrl;
+    private getBaseUrl(): string {
+        return getWebServerEndpoint();
     }
 
     // 获取MCP服务器状态
     async getServerStatus(): Promise<{ servers: Record<string, MCPServer> }> {
+        const baseUrl = this.getBaseUrl();
         try {
-            const response = await fetch(`${this.baseUrl}/api/v1/widgets/mcp/status`, {
+            const response = await fetch(`${baseUrl}/api/v1/widgets/mcp/status`, {
                 method: "GET",
                 signal: AbortSignal.timeout(5000),
             });
@@ -87,7 +88,7 @@ class MCPAPIClient {
                     "wave-terminal": {
                         id: "wave-terminal",
                         name: "Wave Terminal",
-                        url: this.baseUrl,
+                        url: baseUrl,
                         status: "connected",
                         tools: [
                             {
@@ -142,9 +143,10 @@ class MCPAPIClient {
 
     // 调用MCP工具
     async callTool(request: MCPToolCallRequest): Promise<MCPToolCallResponse> {
+        const baseUrl = this.getBaseUrl();
         try {
             // 首先尝试标准MCP API
-            const response = await fetch(`${this.baseUrl}/api/v1/mcp/tools/call`, {
+            const response = await fetch(`${baseUrl}/api/v1/mcp/tools/call`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -167,10 +169,11 @@ class MCPAPIClient {
 
     // Fallback到现有Widget API
     private async callToolFallback(request: MCPToolCallRequest): Promise<MCPToolCallResponse> {
+        const baseUrl = this.getBaseUrl();
         try {
             switch (request.tool) {
                 case "list_workspaces":
-                    const workspacesResponse = await fetch(`${this.baseUrl}/api/v1/widgets/workspaces`);
+                    const workspacesResponse = await fetch(`${baseUrl}/api/v1/widgets/workspaces`);
                     if (workspacesResponse.ok) {
                         const data = await workspacesResponse.json();
                         return {
@@ -188,7 +191,7 @@ class MCPAPIClient {
                     const { name, id } = request.arguments || {};
                     if (name) {
                         const workspaceResponse = await fetch(
-                            `${this.baseUrl}/api/v1/widgets/workspace/name/${encodeURIComponent(name)}`
+                            `${baseUrl}/api/v1/widgets/workspace/name/${encodeURIComponent(name)}`
                         );
                         if (workspaceResponse.ok) {
                             const data = await workspaceResponse.json();
@@ -205,7 +208,7 @@ class MCPAPIClient {
                     break;
 
                 case "create_widget":
-                    const createResponse = await fetch(`${this.baseUrl}/api/v1/widgets`, {
+                    const createResponse = await fetch(`${baseUrl}/api/v1/widgets`, {
                         method: "POST",
                         headers: {
                             "Content-Type": "application/json",
@@ -240,8 +243,9 @@ class MCPAPIClient {
 
     // 获取MCP资源
     async getResource(request: MCPResourceRequest): Promise<MCPResourceResponse> {
+        const baseUrl = this.getBaseUrl();
         try {
-            const response = await fetch(`${this.baseUrl}/api/v1/mcp/resources/get`, {
+            const response = await fetch(`${baseUrl}/api/v1/mcp/resources/get`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -263,9 +267,10 @@ class MCPAPIClient {
     }
 
     private async getResourceFallback(request: MCPResourceRequest): Promise<MCPResourceResponse> {
+        const baseUrl = this.getBaseUrl();
         try {
             if (request.uri.startsWith("workspaces://")) {
-                const response = await fetch(`${this.baseUrl}/api/v1/widgets/workspaces`);
+                const response = await fetch(`${baseUrl}/api/v1/widgets/workspaces`);
                 if (response.ok) {
                     const data = await response.json();
                     return {

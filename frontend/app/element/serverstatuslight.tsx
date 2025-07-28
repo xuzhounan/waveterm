@@ -4,6 +4,7 @@
 import * as React from "react";
 import * as jotai from "jotai";
 import { globalStore } from "@/store/global";
+import { getWebServerEndpoint } from "@/util/endpoints";
 import clsx from "clsx";
 import "./serverstatuslight.scss";
 
@@ -41,13 +42,11 @@ class ServerStatusLightModel {
 
     async checkServerStatus() {
         try {
-            // 使用固定端口配置，确保生产环境稳定性 - 修正为60289
-            const FIXED_WEB_PORT = 60289;
-            // 优先使用127.0.0.1避免代理问题
-            const baseUrl = `http://127.0.0.1:${FIXED_WEB_PORT}`;
-            console.log(`检查服务器状态灯: ${baseUrl}`);
+            // 使用动态端点检查服务器状态
+            const endpoint = getWebServerEndpoint();
+            console.log(`检查服务器状态灯: ${endpoint}`);
             
-            const response = await fetch(`${baseUrl}/api/v1/widgets`, {
+            const response = await fetch(`${endpoint}/api/v1/widgets`, {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
@@ -59,7 +58,7 @@ class ServerStatusLightModel {
             if (response.ok) {
                 globalStore.set(this.statusAtom, {
                     status: "running",
-                    message: "MCP Server is running",
+                    message: "Web Server is running",
                     lastChecked: Date.now(),
                 });
             } else {
@@ -72,7 +71,7 @@ class ServerStatusLightModel {
         } catch (error) {
             globalStore.set(this.statusAtom, {
                 status: "stopped",
-                message: "MCP Server is not responding",
+                message: "Web Server is not responding",
                 lastChecked: Date.now(),
             });
         }
@@ -233,7 +232,7 @@ export const ServerStatusLight: React.FC<ServerStatusLightProps> = ({
                                     className="action-btn"
                                     onClick={(e) => {
                                         e.stopPropagation();
-                                        window.open('http://127.0.0.1:60289/api/v1/widgets', '_blank');
+                                        window.open(`${getWebServerEndpoint()}/api/v1/widgets`, '_blank');
                                     }}
                                 >
                                     <i className="fa fa-external-link" /> Open API

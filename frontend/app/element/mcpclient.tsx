@@ -4,6 +4,7 @@
 import * as React from "react";
 import * as jotai from "jotai";
 import { globalStore } from "@/store/global";
+import { getWebServerEndpoint } from "@/util/endpoints";
 import clsx from "clsx";
 import "./mcpclient.scss";
 
@@ -57,8 +58,9 @@ class MCPClientModel {
 
     async checkMCPStatus() {
         try {
-            // 检查本地MCP服务器状态 - 使用127.0.0.1避免代理问题
-            const response = await fetch("http://127.0.0.1:60289/api/v1/widgets/mcp/status", {
+            // 使用动态端点检查MCP服务器状态
+            const endpoint = getWebServerEndpoint();
+            const response = await fetch(`${endpoint}/api/v1/widgets/mcp/status`, {
                 method: "GET",
                 signal: AbortSignal.timeout(3000),
             });
@@ -90,13 +92,14 @@ class MCPClientModel {
     }
 
     updateMCPDataFallback() {
-        // 使用基于Widget API服务器状态的fallback数据 - 使用正确的端口60289
+        // 使用基于Widget API服务器状态的fallback数据 - 使用动态端点
+        const endpoint = getWebServerEndpoint();
         const fallbackData: MCPClientData = {
             servers: {
                 "wave-terminal": {
                     name: "Wave Terminal",
                     status: "connected",
-                    url: "http://127.0.0.1:60289",
+                    url: endpoint,
                     lastSeen: Date.now(),
                     tools: ["create_widget", "list_workspaces", "get_workspace"],
                     resources: ["workspaces", "widgets", "terminals"],

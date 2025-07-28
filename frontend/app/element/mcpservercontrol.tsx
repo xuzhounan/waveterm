@@ -4,6 +4,7 @@
 // import { Button } from "@/app/element/button"; // 使用原生button元素
 import { atom, useAtomValue } from "jotai";
 import { useEffect, useState } from "react";
+import { getWebServerEndpoint } from "@/util/endpoints";
 import "./mcpservercontrol.scss";
 
 interface MCPServerStatus {
@@ -20,21 +21,18 @@ const mcpServerStatusAtom = atom<MCPServerStatus>({
     lastCheck: 0,
 });
 
-// 固定端口配置 - 与服务器端保持一致
-const FIXED_MCP_PORT = 60289;
-
-// 尝试多个地址以解决代理/DNS问题
-// 优先使用127.0.0.1避免代理问题，localhost作为备选
-const ENDPOINTS = [
-    `http://127.0.0.1:${FIXED_MCP_PORT}`,
-    `http://localhost:${FIXED_MCP_PORT}`
-];
+// 获取动态端点地址函数
+function getMCPServerEndpoints(): string[] {
+    const webEndpoint = getWebServerEndpoint();
+    return [webEndpoint]; // 直接使用动态端点
+}
 
 async function checkMCPServerStatus(): Promise<MCPServerStatus> {
     let lastError: Error | null = null;
     
-    // 尝试不同的端点地址
-    for (const endpoint of ENDPOINTS) {
+    // 使用动态端点地址
+    const endpoints = getMCPServerEndpoints();
+    for (const endpoint of endpoints) {
         try {
             console.log(`尝试连接MCP服务器: ${endpoint}`);
             const response = await fetch(`${endpoint}/api/v1/widgets/mcp/status`, {
@@ -50,9 +48,11 @@ async function checkMCPServerStatus(): Promise<MCPServerStatus> {
                 const data = await response.json();
                 if (data.success) {
                     console.log(`MCP服务器连接成功: ${endpoint}`);
+                    const portMatch = endpoint.match(/:(\d+)/);
+                    const port = portMatch ? parseInt(portMatch[1]) : undefined;
                     return {
                         isRunning: data.status?.running || true,
-                        port: FIXED_MCP_PORT,
+                        port: port,
                         lastCheck: Date.now(),
                     };
                 } else {
@@ -77,8 +77,9 @@ async function checkMCPServerStatus(): Promise<MCPServerStatus> {
 }
 
 async function startMCPServer(): Promise<boolean> {
-    // 尝试使用相同的端点列表启动服务器
-    for (const endpoint of ENDPOINTS) {
+    // 使用动态端点启动服务器
+    const endpoints = getMCPServerEndpoints();
+    for (const endpoint of endpoints) {
         try {
             console.log(`尝试启动MCP服务器: ${endpoint}`);
             const response = await fetch(`${endpoint}/api/v1/widgets/mcp/restart`, {
