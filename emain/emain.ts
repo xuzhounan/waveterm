@@ -666,7 +666,7 @@ async function appMain() {
     // Configure proxy bypass for localhost connections to avoid proxy interference
     const session = electron.session.defaultSession;
     session.setProxy({
-        proxyBypassRules: "localhost,127.0.0.1,*.local"
+        proxyBypassRules: "localhost,127.0.0.1,*.local,localhost:*,127.0.0.1:*"
     });
     
     configureAuthKeyRequestInjection(session);

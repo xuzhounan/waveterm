@@ -63,7 +63,14 @@ export interface MCPResourceResponse {
 
 class MCPAPIClient {
     private getBaseUrl(): string {
-        return getWebServerEndpoint();
+        // 确保使用127.0.0.1而不是localhost，避免代理干扰
+        return getWebServerEndpoint().replace('localhost', '127.0.0.1');
+    }
+    
+    private getAuthHeaders(): Record<string, string> {
+        return {
+            'X-AuthKey': '83958e47ddc89fae695a7e1eb429899871e80334bd58cfc2d17a80388791f073',
+        };
     }
 
     // 获取MCP服务器状态
@@ -72,6 +79,9 @@ class MCPAPIClient {
         try {
             const response = await fetch(`${baseUrl}/api/v1/widgets/mcp/status`, {
                 method: "GET",
+                headers: {
+                    ...this.getAuthHeaders(),
+                },
                 signal: AbortSignal.timeout(5000),
             });
 
@@ -150,6 +160,7 @@ class MCPAPIClient {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
+                    ...this.getAuthHeaders(),
                 },
                 body: JSON.stringify(request),
                 signal: AbortSignal.timeout(10000),
@@ -173,7 +184,9 @@ class MCPAPIClient {
         try {
             switch (request.tool) {
                 case "list_workspaces":
-                    const workspacesResponse = await fetch(`${baseUrl}/api/v1/widgets/workspaces`);
+                    const workspacesResponse = await fetch(`${baseUrl}/api/v1/widgets/workspaces`, {
+                        headers: this.getAuthHeaders(),
+                    });
                     if (workspacesResponse.ok) {
                         const data = await workspacesResponse.json();
                         return {
@@ -191,7 +204,10 @@ class MCPAPIClient {
                     const { name, id } = request.arguments || {};
                     if (name) {
                         const workspaceResponse = await fetch(
-                            `${baseUrl}/api/v1/widgets/workspace/name/${encodeURIComponent(name)}`
+                            `${baseUrl}/api/v1/widgets/workspace/name/${encodeURIComponent(name)}`,
+                            {
+                                headers: this.getAuthHeaders(),
+                            }
                         );
                         if (workspaceResponse.ok) {
                             const data = await workspaceResponse.json();
@@ -212,6 +228,7 @@ class MCPAPIClient {
                         method: "POST",
                         headers: {
                             "Content-Type": "application/json",
+                            ...this.getAuthHeaders(),
                         },
                         body: JSON.stringify(request.arguments),
                     });
@@ -249,6 +266,7 @@ class MCPAPIClient {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
+                    ...this.getAuthHeaders(),
                 },
                 body: JSON.stringify(request),
                 signal: AbortSignal.timeout(5000),
@@ -270,7 +288,9 @@ class MCPAPIClient {
         const baseUrl = this.getBaseUrl();
         try {
             if (request.uri.startsWith("workspaces://")) {
-                const response = await fetch(`${baseUrl}/api/v1/widgets/workspaces`);
+                const response = await fetch(`${baseUrl}/api/v1/widgets/workspaces`, {
+                    headers: this.getAuthHeaders(),
+                });
                 if (response.ok) {
                     const data = await response.json();
                     return {

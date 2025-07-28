@@ -58,10 +58,13 @@ class MCPClientModel {
 
     async checkMCPStatus() {
         try {
-            // 使用动态端点检查MCP服务器状态
-            const endpoint = getWebServerEndpoint();
+            // 使用动态端点检查MCP服务器状态，确保使用127.0.0.1避免代理干扰
+            const endpoint = getWebServerEndpoint().replace('localhost', '127.0.0.1');
             const response = await fetch(`${endpoint}/api/v1/widgets/mcp/status`, {
                 method: "GET",
+                headers: {
+                    'X-AuthKey': '83958e47ddc89fae695a7e1eb429899871e80334bd58cfc2d17a80388791f073',
+                },
                 signal: AbortSignal.timeout(3000),
             });
 

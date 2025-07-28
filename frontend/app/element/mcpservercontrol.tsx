@@ -21,10 +21,12 @@ const mcpServerStatusAtom = atom<MCPServerStatus>({
     lastCheck: 0,
 });
 
-// 获取动态端点地址函数
+// 获取动态端点地址函数，确保使用127.0.0.1避免代理干扰
 function getMCPServerEndpoints(): string[] {
     const webEndpoint = getWebServerEndpoint();
-    return [webEndpoint]; // 直接使用动态端点
+    // 强制使用127.0.0.1而不是localhost，避免代理干扰
+    const directEndpoint = webEndpoint.replace('localhost', '127.0.0.1');
+    return [directEndpoint];
 }
 
 async function checkMCPServerStatus(): Promise<MCPServerStatus> {
@@ -40,6 +42,7 @@ async function checkMCPServerStatus(): Promise<MCPServerStatus> {
                 headers: {
                     'Cache-Control': 'no-cache',
                     'Accept': 'application/json',
+                    'X-AuthKey': '83958e47ddc89fae695a7e1eb429899871e80334bd58cfc2d17a80388791f073',
                 },
                 signal: AbortSignal.timeout(5000), // 增加超时时间
             });
@@ -88,6 +91,7 @@ async function startMCPServer(): Promise<boolean> {
                     'Cache-Control': 'no-cache',
                     'Accept': 'application/json',
                     'Content-Type': 'application/json',
+                    'X-AuthKey': '83958e47ddc89fae695a7e1eb429899871e80334bd58cfc2d17a80388791f073',
                 },
                 signal: AbortSignal.timeout(10000), // 增加启动超时时间
             });

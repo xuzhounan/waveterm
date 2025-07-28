@@ -42,14 +42,15 @@ class ServerStatusLightModel {
 
     async checkServerStatus() {
         try {
-            // 使用动态端点检查服务器状态
-            const endpoint = getWebServerEndpoint();
+            // 使用动态端点检查服务器状态，确保使用127.0.0.1避免代理干扰
+            const endpoint = getWebServerEndpoint().replace('localhost', '127.0.0.1');
             console.log(`检查服务器状态灯: ${endpoint}`);
             
             const response = await fetch(`${endpoint}/api/v1/widgets`, {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
+                    'X-AuthKey': '83958e47ddc89fae695a7e1eb429899871e80334bd58cfc2d17a80388791f073',
                 },
                 // 设置较短的超时时间
                 signal: AbortSignal.timeout(3000),
