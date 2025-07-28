@@ -184,7 +184,7 @@ class WaveTerminalMCPServer extends Server {
                     
                     if (response.ok && result.success) {
                         const workspaceList = result.workspaces.map(ws => 
-                            `• ${ws.name} (ID: ${ws.workspace_id})\n  活跃标签: ${ws.active_tab_id}\n  标签数量: ${ws.tab_ids.length}`
+                            `• ${ws.name} (ID: ${ws.workspace_id})\n  活跃标签: ${ws.active_tab_id}\n  标签数量: ${ws.tab_ids ? ws.tab_ids.length : 0}`
                         ).join('\n\n');
                         
                         return {
@@ -214,7 +214,7 @@ class WaveTerminalMCPServer extends Server {
                                       `名称: ${ws.name}\n` +
                                       `ID: ${ws.workspace_id}\n` +
                                       `活跃标签: ${ws.active_tab_id}\n` +
-                                      `标签列表: ${ws.tab_ids.join(', ')}\n\n` +
+                                      `标签列表: ${ws.tab_ids ? ws.tab_ids.join(', ') : '无'}\n\n` +
                                       `💡 可以使用此工作区ID创建新的widget。`
                             }]
                         };
