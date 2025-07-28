@@ -208,6 +208,24 @@ func (ws *WidgetAPIService) CreateWidget(ctx context.Context, req CreateWidgetAP
 		},
 	})
 
+	// Force refresh the tab layout by sending a layout state update
+	// This is needed to trigger the frontend to process pending layout actions
+	layoutStateId, err := wcore.GetLayoutIdForTab(ctx, tabId)
+	if err == nil {
+		// Send a direct layout state update event
+		wps.Broker.Publish(wps.WaveEvent{
+			Event: wps.Event_WaveObjUpdate,
+			Scopes: []string{
+				waveobj.MakeORef(waveobj.OType_LayoutState, layoutStateId).String(),
+			},
+			Data: waveobj.WaveObjUpdate{
+				UpdateType: waveobj.UpdateType_Update,
+				OType:      waveobj.OType_LayoutState,
+				OID:        layoutStateId,
+			},
+		})
+	}
+
 	// Prepare response
 	widgetInfo := &WidgetInfo{
 		BlockId:     block.OID,
