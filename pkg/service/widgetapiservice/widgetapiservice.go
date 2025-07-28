@@ -192,27 +192,14 @@ func (ws *WidgetAPIService) CreateWidget(ctx context.Context, req CreateWidgetAP
 	}
 
 	// Send database update events to notify frontend
+	// This includes updates for the block, tab, and any other objects that were modified
 	updates := waveobj.ContextGetUpdatesRtn(ctx)
 	wps.Broker.SendUpdateEvents(updates)
 
-	// Send workspace update event using the correct event type
-	wps.Broker.Publish(wps.WaveEvent{
-		Event: wps.Event_WorkspaceUpdate,
-		Scopes: []string{
-			fmt.Sprintf("workspace:%s", req.WorkspaceId),
-		},
-		Data: map[string]any{
-			"workspaceid": req.WorkspaceId,
-			"tabid":       tabId,
-			"blockid":     block.OID,
-		},
-	})
-
-	// Force refresh the tab layout by sending a layout state update
-	// This is needed to trigger the frontend to process pending layout actions
+	// Send focused layout state update to ensure the new widget is displayed
+	// This is the minimal event needed to refresh the UI properly
 	layoutStateId, err := wcore.GetLayoutIdForTab(ctx, tabId)
 	if err == nil {
-		// Send a direct layout state update event
 		wps.Broker.Publish(wps.WaveEvent{
 			Event: wps.Event_WaveObjUpdate,
 			Scopes: []string{
