@@ -365,6 +365,9 @@ func main() {
 	go updateTelemetryCountsLoop()
 	startupActivityUpdate() // must be after startConfigWatcher()
 	blocklogger.InitBlockLogger()
+	
+	// Initialize Event Bridge for cross-server synchronization
+	wps.InitEventBridge()
 
 	webListener, err := web.MakeTCPListener("web")
 	if err != nil {

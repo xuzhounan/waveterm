@@ -470,6 +470,11 @@ func RunWebServer(listener net.Listener) {
 	// Widget API endpoints
 	gr.PathPrefix("/api/v1/widgets").HandlerFunc(handleWidgetAPI)
 	
+	// Event Bridge API endpoints
+	gr.HandleFunc("/api/v1/bridge/event", BridgeAPIHandler)
+	gr.HandleFunc("/api/v1/bridge/status", BridgeStatusHandler)
+	gr.HandleFunc("/api/v1/bridge/config", BridgeConfigHandler)
+	
 	gr.PathPrefix(docsitePrefix).Handler(http.StripPrefix(docsitePrefix, docsite.GetDocsiteHandler()))
 	gr.PathPrefix(schemaPrefix).Handler(http.StripPrefix(schemaPrefix, schema.GetSchemaHandler()))
 	handler := http.TimeoutHandler(gr, HttpTimeoutDuration, "Timeout")

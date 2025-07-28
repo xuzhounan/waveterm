@@ -20,6 +20,7 @@ import (
 	"github.com/wavetermdev/waveterm/pkg/wcore"
 	"github.com/wavetermdev/waveterm/pkg/wps"
 	"github.com/wavetermdev/waveterm/pkg/wshrpc"
+	"os"
 	"github.com/wavetermdev/waveterm/pkg/wstore"
 )
 
@@ -269,13 +270,28 @@ func (ws *WidgetAPIService) CreateWidget(ctx context.Context, req CreateWidgetAP
 	// Send database update events to notify frontend
 	// This includes updates for the block, tab, and any other objects that were modified
 	updates := waveobj.ContextGetUpdatesRtn(ctx)
-	wps.Broker.SendUpdateEvents(updates)
+	
+	// Get source ID for event bridging (hostname or MCP server identifier)
+	sourceID := os.Getenv("WAVETERM_SERVER_ID")
+	if sourceID == "" {
+		sourceID = "mcp-server"
+	}
+	
+	// Send events with bridge support for cross-server synchronization
+	for _, update := range updates {
+		event := wps.WaveEvent{
+			Event:  wps.Event_WaveObjUpdate,
+			Scopes: []string{waveobj.MakeORef(update.OType, update.OID).String()},
+			Data:   update,
+		}
+		wps.Broker.PublishWithBridge(event, sourceID)
+	}
 
 	// Send focused layout state update to ensure the new widget is displayed
 	// This is the minimal event needed to refresh the UI properly
 	layoutStateId, err := wcore.GetLayoutIdForTab(ctx, tabId)
 	if err == nil {
-		wps.Broker.Publish(wps.WaveEvent{
+		layoutEvent := wps.WaveEvent{
 			Event: wps.Event_WaveObjUpdate,
 			Scopes: []string{
 				waveobj.MakeORef(waveobj.OType_LayoutState, layoutStateId).String(),
@@ -285,7 +301,8 @@ func (ws *WidgetAPIService) CreateWidget(ctx context.Context, req CreateWidgetAP
 				OType:      waveobj.OType_LayoutState,
 				OID:        layoutStateId,
 			},
-		})
+		}
+		wps.Broker.PublishWithBridge(layoutEvent, sourceID)
 	}
 
 	// Prepare response
