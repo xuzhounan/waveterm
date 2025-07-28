@@ -76,6 +76,7 @@ func copyHeaders(dst, src http.Header) {
 	}
 }
 
+
 type notFoundBlockingResponseWriter struct {
 	w       http.ResponseWriter
 	status  int
@@ -472,8 +473,19 @@ func RunWebServer(listener net.Listener) {
 	gr.PathPrefix(docsitePrefix).Handler(http.StripPrefix(docsitePrefix, docsite.GetDocsiteHandler()))
 	gr.PathPrefix(schemaPrefix).Handler(http.StripPrefix(schemaPrefix, schema.GetSchemaHandler()))
 	handler := http.TimeoutHandler(gr, HttpTimeoutDuration, "Timeout")
+	
+	// Apply our custom CORS handler
+	handler = NewCORSHandler(handler)
+	
+	// Apply additional Gorilla CORS handler for development mode as backup
 	if wavebase.IsDevMode() {
-		handler = handlers.CORS(handlers.AllowedOrigins([]string{"*"}))(handler)
+		handler = handlers.CORS(
+			handlers.AllowedOrigins([]string{"*", "http://localhost:5173", "http://127.0.0.1:5173"}),
+			handlers.AllowedMethods([]string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"}),
+			handlers.AllowedHeaders([]string{"Content-Type", "Authorization", "X-AuthKey", "X-Requested-With", "Cache-Control"}),
+			handlers.AllowCredentials(),
+			handlers.ExposedHeaders([]string{"Content-Type", "Content-Length", "X-ZoneFileInfo", "Cache-Control", "Last-Modified"}),
+		)(handler)
 	}
 	server := &http.Server{
 		ReadTimeout:    HttpReadTimeout,

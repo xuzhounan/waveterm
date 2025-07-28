@@ -84,12 +84,12 @@ class ServerStatusViewModel implements ViewModel {
         try {
             globalStore.set(this.loadingAtom, true);
             
-            // 使用MCP服务器固定端口配置
-            const FIXED_MCP_WEB_PORT = 60289;
-            const FIXED_MCP_WS_PORT = 60290;
+            // 使用动态端点配置而不是硬编码端口
+            const { getWebServerEndpoint } = await import("@/util/endpoints");
+            const baseUrl = getWebServerEndpoint().replace('localhost', '127.0.0.1');
             
-            console.log(`检查MCP服务器状态: http://127.0.0.1:${FIXED_MCP_WEB_PORT}`);
-            const response = await fetch(`http://127.0.0.1:${FIXED_MCP_WEB_PORT}/api/v1/widgets/mcp/status`, {
+            console.log(`检查MCP服务器状态: ${baseUrl}`);
+            const response = await fetch(`${baseUrl}/api/v1/widgets/mcp/status`, {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
@@ -99,14 +99,19 @@ class ServerStatusViewModel implements ViewModel {
             
             if (response.ok) {
                 const responseData = await response.json();
-                console.log(`MCP服务器连接成功: ${FIXED_MCP_WEB_PORT}`, responseData);
+                console.log(`MCP服务器连接成功`, responseData);
                 
                 const isRunning = responseData.success && responseData.status?.running;
+                
+                // 从baseUrl中提取端口
+                const urlMatch = baseUrl.match(/:(\d+)/);
+                const webPort = urlMatch ? parseInt(urlMatch[1]) : 60289;
+                
                 const statusData: ServerStatusData = {
                     isRunning: isRunning,
-                    webPort: responseData.status?.port || FIXED_MCP_WEB_PORT,
-                    wsPort: FIXED_MCP_WS_PORT,
-                    apiUrl: `http://localhost:${FIXED_MCP_WEB_PORT}`,
+                    webPort: responseData.status?.port || webPort,
+                    wsPort: webPort + 1, // WebSocket端口通常是Web端口+1
+                    apiUrl: baseUrl,
                     lastUpdated: Date.now(),
                 };
                 globalStore.set(this.statusDataAtom, statusData);

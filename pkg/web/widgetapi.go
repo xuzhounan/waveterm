@@ -25,13 +25,11 @@ func handleWidgetAPI(w http.ResponseWriter, r *http.Request) {
 	//	return
 	// }
 
-	// Set CORS headers for API requests
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+	// Set Content-Type for JSON responses
 	w.Header().Set("Content-Type", "application/json")
 
-	// Handle OPTIONS requests for CORS preflight
+	// CORS is handled by the global CORS middleware in web.go
+	// Handle OPTIONS requests for CORS preflight (as backup)
 	if r.Method == "OPTIONS" {
 		w.WriteHeader(http.StatusOK)
 		return

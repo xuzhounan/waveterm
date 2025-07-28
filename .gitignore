@@ -34,3 +34,6 @@ storybook-static/
 test-results.xml
 
 docsite/
+*.pid
+*.log
+*.port

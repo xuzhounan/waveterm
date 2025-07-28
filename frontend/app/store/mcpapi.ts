@@ -63,8 +63,15 @@ export interface MCPResourceResponse {
 
 class MCPAPIClient {
     private getBaseUrl(): string {
-        // 确保使用127.0.0.1而不是localhost，避免代理干扰
-        return getWebServerEndpoint().replace('localhost', '127.0.0.1');
+        // 获取基础URL，在开发模式下确保使用正确的端口
+        const baseUrl = getWebServerEndpoint();
+        
+        // 在开发环境中，确保使用127.0.0.1以避免CORS问题
+        if (baseUrl.includes('localhost')) {
+            return baseUrl.replace('localhost', '127.0.0.1');
+        }
+        
+        return baseUrl;
     }
     
     private getAuthHeaders(): Record<string, string> {
