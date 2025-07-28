@@ -162,7 +162,10 @@ func (ws *WidgetAPIService) CreateWidget(ctx context.Context, req CreateWidgetAP
 		createData.TargetAction = req.Position.Action
 	}
 
-	blockRef, err := wcore.CreateBlock(ctx, createData.TabId, createData.BlockDef, createData.RtOpts)
+	// Create runtime options if not provided
+	rtOpts := &waveobj.RuntimeOpts{}
+	
+	block, err := wcore.CreateBlock(ctx, createData.TabId, createData.BlockDef, rtOpts)
 	if err != nil {
 		return &CreateWidgetAPIResponse{
 			Success: false,
@@ -182,15 +185,42 @@ func (ws *WidgetAPIService) CreateWidget(ctx context.Context, req CreateWidgetAP
 			fmt.Sprintf("tab:%s", tabId),
 		},
 		Data: map[string]any{
-			"blockid":     blockRef.OID,
+			"blockid":     block.OID,
 			"tabid":       tabId,
 			"workspaceid": req.WorkspaceId,
 		},
 	})
 
+	// Send additional tab:update event to ensure the tab is refreshed
+	wps.Broker.Publish(wps.WaveEvent{
+		Event: "tab:update",
+		Scopes: []string{
+			fmt.Sprintf("workspace:%s", req.WorkspaceId),
+			fmt.Sprintf("tab:%s", tabId),
+		},
+		Data: map[string]any{
+			"tabid":       tabId,
+			"workspaceid": req.WorkspaceId,
+			"blockid":     block.OID,
+		},
+	})
+
+	// Send workspace update event
+	wps.Broker.Publish(wps.WaveEvent{
+		Event: "workspace:update",
+		Scopes: []string{
+			fmt.Sprintf("workspace:%s", req.WorkspaceId),
+		},
+		Data: map[string]any{
+			"workspaceid": req.WorkspaceId,
+			"tabid":       tabId,
+			"blockid":     block.OID,
+		},
+	})
+
 	// Prepare response
 	widgetInfo := &WidgetInfo{
-		BlockId:     blockRef.OID,
+		BlockId:     block.OID,
 		TabId:       tabId,
 		WorkspaceId: req.WorkspaceId,
 		WidgetType:  req.WidgetType,
@@ -202,7 +232,7 @@ func (ws *WidgetAPIService) CreateWidget(ctx context.Context, req CreateWidgetAP
 
 	return &CreateWidgetAPIResponse{
 		Success: true,
-		BlockId: blockRef.OID,
+		BlockId: block.OID,
 		Message: fmt.Sprintf("Widget '%s' created successfully", req.WidgetType),
 		Widget:  widgetInfo,
 	}, nil
