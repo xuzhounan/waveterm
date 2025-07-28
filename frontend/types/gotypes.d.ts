@@ -357,6 +357,23 @@ declare global {
         count: number;
     };
 
+    // widgetapiservice.CreateTabAPIRequest
+    type CreateTabAPIRequest = {
+        workspace_id: string;
+        tab_name?: string;
+        pinned?: boolean;
+        activate?: boolean;
+    };
+
+    // widgetapiservice.CreateTabAPIResponse
+    type CreateTabAPIResponse = {
+        success: boolean;
+        tab_id?: string;
+        message?: string;
+        error?: string;
+        tab?: TabInfo;
+    };
+
     // widgetapiservice.CreateWidgetAPIRequest
     type CreateWidgetAPIRequest = {
         workspace_id: string;
@@ -516,6 +533,13 @@ declare global {
         error?: string;
     };
 
+    // widgetapiservice.GetWorkspaceInfoAPIResponse
+    type GetWorkspaceInfoAPIResponse = {
+        success: boolean;
+        workspace?: WorkspaceBasicInfo;
+        error?: string;
+    };
+
     // widgetapiservice.GetWorkspaceWidgetsAPIResponse
     type GetWorkspaceWidgetsAPIResponse = {
         success: boolean;
@@ -549,6 +573,13 @@ declare global {
     type LeafOrderEntry = {
         nodeid: string;
         blockid: string;
+    };
+
+    // widgetapiservice.ListTabsAPIResponse
+    type ListTabsAPIResponse = {
+        success: boolean;
+        tabs?: TabInfo[];
+        error?: string;
     };
 
     // widgetapiservice.ListWorkspacesAPIResponse
@@ -743,6 +774,19 @@ declare global {
         focusednodeid?: string;
         leaforder?: LeafOrderEntry[];
         meta?: MetaType;
+    };
+
+    // widgetapiservice.SetActiveTabAPIRequest
+    type SetActiveTabAPIRequest = {
+        workspace_id: string;
+        tab_id: string;
+    };
+
+    // widgetapiservice.SetActiveTabAPIResponse
+    type SetActiveTabAPIResponse = {
+        success: boolean;
+        message?: string;
+        error?: string;
     };
 
     // webcmd.SetBlockTermSizeWSCommand
@@ -941,6 +985,16 @@ declare global {
         name: string;
         layoutstate: string;
         blockids: string[];
+    };
+
+    // widgetapiservice.TabInfo
+    type TabInfo = {
+        tab_id: string;
+        workspace_id: string;
+        name: string;
+        pinned: boolean;
+        block_ids: string[];
+        is_active: boolean;
     };
 
     // waveobj.TermSize
@@ -1476,8 +1530,14 @@ declare global {
     type WorkspaceBasicInfo = {
         workspace_id: string;
         name: string;
+        icon?: string;
+        color?: string;
         tab_ids: string[];
+        pinned_tab_ids?: string[];
         active_tab_id?: string;
+        tabs_info?: TabInfo[];
+        total_tabs: number;
+        total_blocks: number;
     };
 
     // waveobj.WorkspaceFavorite

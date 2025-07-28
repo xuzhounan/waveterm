@@ -98,17 +98,29 @@ export const UserInputService = new UserInputServiceType();
 
 // widgetapiservice.WidgetAPIService (widgetapi)
 class WidgetAPIServiceType {
+    CreateTab(arg2: CreateTabAPIRequest): Promise<CreateTabAPIResponse> {
+        return WOS.callBackendService("widgetapi", "CreateTab", Array.from(arguments))
+    }
     CreateWidget(arg2: CreateWidgetAPIRequest): Promise<CreateWidgetAPIResponse> {
         return WOS.callBackendService("widgetapi", "CreateWidget", Array.from(arguments))
     }
     GetWorkspaceByName(arg2: string): Promise<GetWorkspaceByNameAPIResponse> {
         return WOS.callBackendService("widgetapi", "GetWorkspaceByName", Array.from(arguments))
     }
+    GetWorkspaceInfo(arg2: string): Promise<GetWorkspaceInfoAPIResponse> {
+        return WOS.callBackendService("widgetapi", "GetWorkspaceInfo", Array.from(arguments))
+    }
     GetWorkspaceWidgets(arg2: string): Promise<GetWorkspaceWidgetsAPIResponse> {
         return WOS.callBackendService("widgetapi", "GetWorkspaceWidgets", Array.from(arguments))
     }
+    ListTabs(arg2: string): Promise<ListTabsAPIResponse> {
+        return WOS.callBackendService("widgetapi", "ListTabs", Array.from(arguments))
+    }
     ListWorkspaces(): Promise<ListWorkspacesAPIResponse> {
         return WOS.callBackendService("widgetapi", "ListWorkspaces", Array.from(arguments))
+    }
+    SetActiveTab(arg2: SetActiveTabAPIRequest): Promise<SetActiveTabAPIResponse> {
+        return WOS.callBackendService("widgetapi", "SetActiveTab", Array.from(arguments))
     }
 }
 

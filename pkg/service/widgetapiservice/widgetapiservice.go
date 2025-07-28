@@ -12,9 +12,9 @@ import (
 	"time"
 
 	"github.com/wavetermdev/waveterm/pkg/service/workspaceservice"
-	"github.com/wavetermdev/waveterm/pkg/wcore"
 	"github.com/wavetermdev/waveterm/pkg/waveobj"
 	"github.com/wavetermdev/waveterm/pkg/wconfig"
+	"github.com/wavetermdev/waveterm/pkg/wcore"
 	"github.com/wavetermdev/waveterm/pkg/wps"
 	"github.com/wavetermdev/waveterm/pkg/wshrpc"
 	"github.com/wavetermdev/waveterm/pkg/wstore"
@@ -26,15 +26,15 @@ var WidgetAPIServiceInstance = &WidgetAPIService{}
 
 // CreateWidgetAPIRequest represents the REST API request for creating a widget
 type CreateWidgetAPIRequest struct {
-	WorkspaceId   string            `json:"workspace_id"`
-	TabId         string            `json:"tab_id,omitempty"`         // If empty, will use active tab
-	WidgetType    string            `json:"widget_type"`              // terminal, web, files, ai, sysinfo, or custom
-	Title         string            `json:"title,omitempty"`          // Optional custom title
-	Icon          string            `json:"icon,omitempty"`           // Optional custom icon
-	Meta          map[string]any    `json:"meta,omitempty"`           // Additional metadata for the widget
-	Position      *WidgetPosition   `json:"position,omitempty"`       // Where to place the widget
-	Magnified     bool              `json:"magnified,omitempty"`      // Whether widget should be magnified
-	Ephemeral     bool              `json:"ephemeral,omitempty"`      // Whether widget is temporary
+	WorkspaceId string          `json:"workspace_id"`
+	TabId       string          `json:"tab_id,omitempty"`    // If empty, will use active tab
+	WidgetType  string          `json:"widget_type"`         // terminal, web, files, ai, sysinfo, or custom
+	Title       string          `json:"title,omitempty"`     // Optional custom title
+	Icon        string          `json:"icon,omitempty"`      // Optional custom icon
+	Meta        map[string]any  `json:"meta,omitempty"`      // Additional metadata for the widget
+	Position    *WidgetPosition `json:"position,omitempty"`  // Where to place the widget
+	Magnified   bool            `json:"magnified,omitempty"` // Whether widget should be magnified
+	Ephemeral   bool            `json:"ephemeral,omitempty"` // Whether widget is temporary
 }
 
 // WidgetPosition specifies where to place the new widget
@@ -45,82 +45,82 @@ type WidgetPosition struct {
 
 // CreateWidgetAPIResponse represents the API response after creating a widget
 type CreateWidgetAPIResponse struct {
-	Success   bool                `json:"success"`
-	BlockId   string              `json:"block_id,omitempty"`
-	Message   string              `json:"message,omitempty"`
-	Error     string              `json:"error,omitempty"`
-	Widget    *WidgetInfo         `json:"widget,omitempty"`
+	Success bool        `json:"success"`
+	BlockId string      `json:"block_id,omitempty"`
+	Message string      `json:"message,omitempty"`
+	Error   string      `json:"error,omitempty"`
+	Widget  *WidgetInfo `json:"widget,omitempty"`
 }
 
 // WidgetInfo contains information about the created widget
 type WidgetInfo struct {
-	BlockId     string            `json:"block_id"`
-	TabId       string            `json:"tab_id"`
-	WorkspaceId string            `json:"workspace_id"`
-	WidgetType  string            `json:"widget_type"`
-	Title       string            `json:"title"`
-	Icon        string            `json:"icon"`
-	Meta        map[string]any    `json:"meta"`
-	CreatedAt   int64             `json:"created_at"`
+	BlockId     string         `json:"block_id"`
+	TabId       string         `json:"tab_id"`
+	WorkspaceId string         `json:"workspace_id"`
+	WidgetType  string         `json:"widget_type"`
+	Title       string         `json:"title"`
+	Icon        string         `json:"icon"`
+	Meta        map[string]any `json:"meta"`
+	CreatedAt   int64          `json:"created_at"`
 }
 
 // GetWorkspaceWidgetsAPIResponse represents available widgets in a workspace
 type GetWorkspaceWidgetsAPIResponse struct {
-	Success bool                             `json:"success"`
+	Success bool                                 `json:"success"`
 	Widgets map[string]*wconfig.WidgetConfigType `json:"widgets,omitempty"`
-	Error   string                           `json:"error,omitempty"`
+	Error   string                               `json:"error,omitempty"`
 }
 
 // ListWorkspacesAPIResponse represents the list of available workspaces
 type ListWorkspacesAPIResponse struct {
-	Success    bool                  `json:"success"`
-	Workspaces []WorkspaceBasicInfo  `json:"workspaces,omitempty"`
-	Error      string                `json:"error,omitempty"`
+	Success    bool                 `json:"success"`
+	Workspaces []WorkspaceBasicInfo `json:"workspaces,omitempty"`
+	Error      string               `json:"error,omitempty"`
 }
 
 // WorkspaceBasicInfo contains basic workspace information
 type WorkspaceBasicInfo struct {
-	WorkspaceId    string     `json:"workspace_id"`
-	Name           string     `json:"name"`
-	Icon           string     `json:"icon,omitempty"`
-	Color          string     `json:"color,omitempty"`
-	TabIds         []string   `json:"tab_ids"`
-	PinnedTabIds   []string   `json:"pinned_tab_ids,omitempty"`
-	ActiveTabId    string     `json:"active_tab_id,omitempty"`
-	TabsInfo       []TabInfo  `json:"tabs_info,omitempty"`
-	TotalTabs      int        `json:"total_tabs"`
-	TotalBlocks    int        `json:"total_blocks"`
+	WorkspaceId  string    `json:"workspace_id"`
+	Name         string    `json:"name"`
+	Icon         string    `json:"icon,omitempty"`
+	Color        string    `json:"color,omitempty"`
+	TabIds       []string  `json:"tab_ids"`
+	PinnedTabIds []string  `json:"pinned_tab_ids,omitempty"`
+	ActiveTabId  string    `json:"active_tab_id,omitempty"`
+	TabsInfo     []TabInfo `json:"tabs_info,omitempty"`
+	TotalTabs    int       `json:"total_tabs"`
+	TotalBlocks  int       `json:"total_blocks"`
 }
 
 // GetWorkspaceByNameAPIResponse represents the response for getting workspace by name
 type GetWorkspaceByNameAPIResponse struct {
-	Success   bool                 `json:"success"`
-	Workspace *WorkspaceBasicInfo  `json:"workspace,omitempty"`
-	Error     string               `json:"error,omitempty"`
+	Success   bool                `json:"success"`
+	Workspace *WorkspaceBasicInfo `json:"workspace,omitempty"`
+	Error     string              `json:"error,omitempty"`
 }
 
 // GetWorkspaceInfoAPIResponse represents the response for getting detailed workspace info
 type GetWorkspaceInfoAPIResponse struct {
-	Success   bool                 `json:"success"`
-	Workspace *WorkspaceBasicInfo  `json:"workspace,omitempty"`
-	Error     string               `json:"error,omitempty"`
+	Success   bool                `json:"success"`
+	Workspace *WorkspaceBasicInfo `json:"workspace,omitempty"`
+	Error     string              `json:"error,omitempty"`
 }
 
 // CreateTabAPIRequest represents the request for creating a new tab
 type CreateTabAPIRequest struct {
 	WorkspaceId string `json:"workspace_id"`
-	TabName     string `json:"tab_name,omitempty"`    // Optional custom tab name
-	Pinned      bool   `json:"pinned,omitempty"`      // Whether tab should be pinned
-	Activate    bool   `json:"activate,omitempty"`    // Whether to activate the new tab
+	TabName     string `json:"tab_name,omitempty"` // Optional custom tab name
+	Pinned      bool   `json:"pinned,omitempty"`   // Whether tab should be pinned
+	Activate    bool   `json:"activate,omitempty"` // Whether to activate the new tab
 }
 
 // CreateTabAPIResponse represents the response after creating a tab
 type CreateTabAPIResponse struct {
-	Success bool      `json:"success"`
-	TabId   string    `json:"tab_id,omitempty"`
-	Message string    `json:"message,omitempty"`
-	Error   string    `json:"error,omitempty"`
-	Tab     *TabInfo  `json:"tab,omitempty"`
+	Success bool     `json:"success"`
+	TabId   string   `json:"tab_id,omitempty"`
+	Message string   `json:"message,omitempty"`
+	Error   string   `json:"error,omitempty"`
+	Tab     *TabInfo `json:"tab,omitempty"`
 }
 
 // TabInfo contains information about a tab
@@ -135,9 +135,9 @@ type TabInfo struct {
 
 // ListTabsAPIResponse represents the response for listing tabs in a workspace
 type ListTabsAPIResponse struct {
-	Success bool       `json:"success"`
-	Tabs    []TabInfo  `json:"tabs,omitempty"`
-	Error   string     `json:"error,omitempty"`
+	Success bool      `json:"success"`
+	Tabs    []TabInfo `json:"tabs,omitempty"`
+	Error   string    `json:"error,omitempty"`
 }
 
 // SetActiveTabAPIRequest represents the request for setting active tab
@@ -211,10 +211,10 @@ func (ws *WidgetAPIService) CreateWidget(ctx context.Context, req CreateWidgetAP
 
 	// Create the block
 	createData := wshrpc.CommandCreateBlockData{
-		TabId:      tabId,
-		BlockDef:   blockDef,
-		Magnified:  req.Magnified,
-		Ephemeral:  req.Ephemeral,
+		TabId:     tabId,
+		BlockDef:  blockDef,
+		Magnified: req.Magnified,
+		Ephemeral: req.Ephemeral,
 	}
 
 	// Set position if specified
@@ -225,7 +225,7 @@ func (ws *WidgetAPIService) CreateWidget(ctx context.Context, req CreateWidgetAP
 
 	// Create runtime options if not provided
 	rtOpts := &waveobj.RuntimeOpts{}
-	
+
 	block, err := wcore.CreateBlock(ctx, createData.TabId, createData.BlockDef, rtOpts)
 	if err != nil {
 		return &CreateWidgetAPIResponse{
@@ -240,9 +240,9 @@ func (ws *WidgetAPIService) CreateWidget(ctx context.Context, req CreateWidgetAP
 		BlockId:    block.OID,
 		Magnified:  req.Magnified,
 		Ephemeral:  req.Ephemeral,
-		Focused:    true,  // Focus the new widget
+		Focused:    true, // Focus the new widget
 	}
-	
+
 	// Queue the layout action so the frontend knows how to display the block
 	err = wcore.QueueLayoutActionForTab(ctx, tabId, *layoutAction)
 	if err != nil {
@@ -323,7 +323,7 @@ func (ws *WidgetAPIService) GetWorkspaceWidgets(ctx context.Context, workspaceId
 		configCopy := config
 		widgetConfigPtr[key] = &configCopy
 	}
-	
+
 	return &GetWorkspaceWidgetsAPIResponse{
 		Success: true,
 		Widgets: widgetConfigPtr,
@@ -396,7 +396,7 @@ func (ws *WidgetAPIService) ListWorkspaces(ctx context.Context) (*ListWorkspaces
 			tabsInfo = append(tabsInfo, tabInfo)
 			totalBlocks += len(tab.BlockIds)
 		}
-		
+
 		workspaces = append(workspaces, WorkspaceBasicInfo{
 			WorkspaceId:  workspace.OID,
 			Name:         workspace.Name,
@@ -445,7 +445,7 @@ func (ws *WidgetAPIService) GetWorkspaceByName(ctx context.Context, workspaceNam
 			log.Printf("Failed to get workspace %s: %v", info.WorkspaceId, err)
 			continue
 		}
-		
+
 		// Case-insensitive name comparison
 		if strings.EqualFold(workspace.Name, workspaceName) {
 			// 收集标签页详细信息
@@ -504,7 +504,7 @@ func (ws *WidgetAPIService) GetWorkspaceByName(ctx context.Context, workspaceNam
 				TotalTabs:    len(workspace.TabIds) + len(workspace.PinnedTabIds),
 				TotalBlocks:  totalBlocks,
 			}
-			
+
 			return &GetWorkspaceByNameAPIResponse{
 				Success:   true,
 				Workspace: workspaceInfo,
@@ -591,15 +591,15 @@ func (ws *WidgetAPIService) GetWorkspaceInfo(ctx context.Context, workspaceId st
 	}
 
 	workspaceInfo := &WorkspaceBasicInfo{
-		WorkspaceId:   workspace.OID,
-		Name:          workspace.Name,
-		Icon:          workspace.Icon,
-		Color:         workspace.Color,
-		TabIds:        append(workspace.TabIds, workspace.PinnedTabIds...),
-		ActiveTabId:   workspace.ActiveTabId,
-		TabsInfo:      tabsInfo,
-		TotalTabs:     len(tabsInfo),
-		TotalBlocks:   totalBlocks,
+		WorkspaceId: workspace.OID,
+		Name:        workspace.Name,
+		Icon:        workspace.Icon,
+		Color:       workspace.Color,
+		TabIds:      append(workspace.TabIds, workspace.PinnedTabIds...),
+		ActiveTabId: workspace.ActiveTabId,
+		TabsInfo:    tabsInfo,
+		TotalTabs:   len(tabsInfo),
+		TotalBlocks: totalBlocks,
 	}
 
 	return &GetWorkspaceInfoAPIResponse{

@@ -15,16 +15,15 @@ import (
 	"strings"
 	"time"
 
-	// "github.com/wavetermdev/waveterm/pkg/authkey" // 临时注释用于测试
 	"github.com/wavetermdev/waveterm/pkg/service/widgetapiservice"
-	"github.com/wavetermdev/waveterm/pkg/wcore"
 	"github.com/wavetermdev/waveterm/pkg/waveobj"
+	"github.com/wavetermdev/waveterm/pkg/wcore"
 	"github.com/wavetermdev/waveterm/pkg/wstore"
 )
 
 // handleWidgetAPI routes widget API requests to appropriate handlers
 func handleWidgetAPI(w http.ResponseWriter, r *http.Request) {
-	// 临时禁用认证用于测试 - TODO: 在生产环境中启用
+	// TODO: Enable authentication in production
 	// if err := authkey.ValidateIncomingRequest(r); err != nil {
 	//	http.Error(w, "Unauthorized", http.StatusUnauthorized)
 	//	return
@@ -43,9 +42,6 @@ func handleWidgetAPI(w http.ResponseWriter, r *http.Request) {
 	// Parse URL path to determine the specific API endpoint
 	path := strings.TrimPrefix(r.URL.Path, "/api/v1/widgets")
 	pathParts := strings.Split(strings.Trim(path, "/"), "/")
-
-	// Debug logging
-	log.Printf("Request path: %s, trimmed path: %s, pathParts: %v", r.URL.Path, path, pathParts)
 
 	ctx := r.Context()
 
@@ -106,7 +102,7 @@ func handleWidgetAPI(w http.ResponseWriter, r *http.Request) {
 // handleCreateWidget creates a new widget in a workspace
 func handleCreateWidget(w http.ResponseWriter, r *http.Request, ctx context.Context) {
 	var req widgetapiservice.CreateWidgetAPIRequest
-	
+
 	decoder := json.NewDecoder(r.Body)
 	if err := decoder.Decode(&req); err != nil {
 		log.Printf("Error decoding create widget request: %v", err)
@@ -321,9 +317,9 @@ func handleListWidgetTypes(w http.ResponseWriter, r *http.Request, ctx context.C
 				"example_response": map[string]interface{}{
 					"success": true,
 					"workspace": map[string]interface{}{
-						"workspace_id": "workspace-123",
-						"name":         "Default",
-						"tab_ids":      []string{"tab-1", "tab-2"},
+						"workspace_id":  "workspace-123",
+						"name":          "Default",
+						"tab_ids":       []string{"tab-1", "tab-2"},
 						"active_tab_id": "tab-1",
 					},
 				},
@@ -349,15 +345,15 @@ func handleMCPServerStatus(w http.ResponseWriter, r *http.Request, ctx context.C
 			}
 		}
 	}
-	
+
 	// Check for active MCP client connections (like Claude Code)
 	servers := make(map[string]interface{})
-	
+
 	// TODO: Implement actual MCP client detection logic
 	// For now, we'll detect based on process names and connections
 	// This is a simplified detection mechanism
 	hasClaudeClient := checkForClaudeCodeClient()
-	
+
 	if hasClaudeClient {
 		servers["claude-code"] = map[string]interface{}{
 			"name":      "Claude Code",
@@ -368,7 +364,7 @@ func handleMCPServerStatus(w http.ResponseWriter, r *http.Request, ctx context.C
 			"resources": []string{"workspaces", "widgets", "terminals"},
 		}
 	}
-	
+
 	log.Printf("MCP server status - Port: %d, Connected clients: %d", currentPort, len(servers))
 
 	// 返回兼容两种用途的格式：
@@ -392,11 +388,11 @@ func handleMCPServerRestart(w http.ResponseWriter, r *http.Request, ctx context.
 
 	// Since this appears to be an embedded MCP interface rather than a separate process,
 	// we'll simulate a "restart" by reinitializing the MCP functionality state
-	
+
 	// Check if the web server itself is running (which it is if we're handling this request)
 	isRunning := true
 	currentPort := 0
-	
+
 	// Try to extract port from the request
 	if r.Host != "" {
 		// Parse port from Host header if available
@@ -406,9 +402,9 @@ func handleMCPServerRestart(w http.ResponseWriter, r *http.Request, ctx context.
 			}
 		}
 	}
-	
+
 	log.Printf("MCP functionality reinitialized - Running: %v, Port: %d", isRunning, currentPort)
-	
+
 	response := map[string]interface{}{
 		"success": true,
 		"message": "MCP server functionality reinitialized successfully",
@@ -430,7 +426,7 @@ func checkForClaudeCodeClient() bool {
 		log.Printf("Error checking for Claude processes: %v", err)
 		return false
 	}
-	
+
 	// If we found Claude processes, check for mcp-bridge as well
 	if len(output) > 0 {
 		cmd2 := exec.Command("pgrep", "-f", "mcp-bridge")
@@ -439,11 +435,11 @@ func checkForClaudeCodeClient() bool {
 			log.Printf("Error checking for mcp-bridge processes: %v", err2)
 			return false
 		}
-		
+
 		// Both Claude and mcp-bridge processes exist
 		return len(output2) > 0
 	}
-	
+
 	return false
 }
 
@@ -455,27 +451,27 @@ func getCurrentTimestamp() int64 {
 // handleFixWorkspaceData fixes workspace data inconsistencies
 func handleFixWorkspaceData(w http.ResponseWriter, r *http.Request, ctx context.Context) {
 	log.Printf("Fixing workspace data inconsistencies")
-	
+
 	ctx = waveobj.ContextWithUpdates(ctx)
-	
+
 	// Target workspace: waveterm
 	workspaceId := "39720a34-6d5b-477c-bc5f-4ac6f8eb1abf"
 	activeTabId := "3c1f7d5e-f971-4812-a688-4e1b2310411f"
-	
+
 	// Get workspace
 	workspace, err := wcore.GetWorkspace(ctx, workspaceId)
 	if err != nil {
 		writeErrorResponse(w, fmt.Sprintf("Failed to get workspace: %s", err.Error()), http.StatusInternalServerError)
 		return
 	}
-	
+
 	// Check if active tab exists
 	tab, err := wstore.DBGet[*waveobj.Tab](ctx, activeTabId)
 	if err != nil || tab == nil {
 		writeErrorResponse(w, fmt.Sprintf("Active tab not found: %s", activeTabId), http.StatusInternalServerError)
 		return
 	}
-	
+
 	// Check if active_tab_id is in tab_ids
 	found := false
 	for _, tabId := range workspace.TabIds {
@@ -484,23 +480,23 @@ func handleFixWorkspaceData(w http.ResponseWriter, r *http.Request, ctx context.
 			break
 		}
 	}
-	
+
 	result := map[string]interface{}{
-		"success": true,
-		"workspace_id": workspaceId,
-		"active_tab_id": activeTabId,
-		"tab_name": tab.Name,
-		"tab_blocks_count": len(tab.BlockIds),
-		"tab_blocks": tab.BlockIds,
+		"success":                  true,
+		"workspace_id":             workspaceId,
+		"active_tab_id":            activeTabId,
+		"tab_name":                 tab.Name,
+		"tab_blocks_count":         len(tab.BlockIds),
+		"tab_blocks":               tab.BlockIds,
 		"workspace_tab_ids_before": workspace.TabIds,
 	}
-	
+
 	if !found {
 		log.Printf("Adding active tab %s to workspace %s tab_ids", activeTabId, workspaceId)
-		
+
 		// Add active tab to tab_ids
 		workspace.TabIds = append(workspace.TabIds, activeTabId)
-		
+
 		// Update workspace
 		err = wstore.WithTx(ctx, func(tx *wstore.TxWrap) error {
 			return wstore.DBUpdate(tx.Context(), workspace)
@@ -509,24 +505,24 @@ func handleFixWorkspaceData(w http.ResponseWriter, r *http.Request, ctx context.
 			writeErrorResponse(w, fmt.Sprintf("Failed to update workspace: %s", err.Error()), http.StatusInternalServerError)
 			return
 		}
-		
+
 		result["fixed"] = true
 		result["workspace_tab_ids_after"] = workspace.TabIds
 		result["message"] = "Active tab added to workspace tab_ids"
-		
+
 		log.Printf("Workspace data fixed successfully")
 	} else {
 		result["fixed"] = false
 		result["message"] = "No fix needed, active tab already in tab_ids"
 	}
-	
+
 	json.NewEncoder(w).Encode(result)
 }
 
 // handleCreateTab creates a new tab in a workspace
 func handleCreateTab(w http.ResponseWriter, r *http.Request, ctx context.Context) {
 	var req widgetapiservice.CreateTabAPIRequest
-	
+
 	decoder := json.NewDecoder(r.Body)
 	if err := decoder.Decode(&req); err != nil {
 		log.Printf("Error decoding create tab request: %v", err)
@@ -579,7 +575,7 @@ func handleListTabs(w http.ResponseWriter, r *http.Request, ctx context.Context,
 // handleSetActiveTab sets the active tab in a workspace
 func handleSetActiveTab(w http.ResponseWriter, r *http.Request, ctx context.Context) {
 	var req widgetapiservice.SetActiveTabAPIRequest
-	
+
 	decoder := json.NewDecoder(r.Body)
 	if err := decoder.Decode(&req); err != nil {
 		log.Printf("Error decoding set active tab request: %v", err)

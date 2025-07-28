@@ -47,3 +47,6 @@ db/
 *.db
 *.db-shm
 *.db-wal
+
+# Test executables
+wavesrv-test
