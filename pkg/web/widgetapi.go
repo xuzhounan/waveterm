@@ -327,9 +327,16 @@ func handleMCPServerStatus(w http.ResponseWriter, r *http.Request, ctx context.C
 	
 	log.Printf("MCP server status - Port: %d, Connected clients: %d", currentPort, len(servers))
 
+	// 返回兼容两种用途的格式：
+	// 1. 前端 MCP 客户端组件需要 servers 字段
+	// 2. Server Status 组件需要 status 字段
 	response := map[string]interface{}{
 		"success": true,
 		"servers": servers,
+		"status": map[string]interface{}{
+			"running": len(servers) > 0 || currentPort > 0, // 如果有连接的客户端或者服务器在运行
+			"port":    currentPort,
+		},
 	}
 
 	json.NewEncoder(w).Encode(response)
