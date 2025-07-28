@@ -37,3 +37,13 @@ docsite/
 *.pid
 *.log
 *.port
+
+# Build artifacts
+build/
+*.bak
+
+# Database files
+db/
+*.db
+*.db-shm
+*.db-wal
