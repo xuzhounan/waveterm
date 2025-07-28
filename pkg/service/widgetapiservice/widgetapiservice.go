@@ -79,10 +79,16 @@ type ListWorkspacesAPIResponse struct {
 
 // WorkspaceBasicInfo contains basic workspace information
 type WorkspaceBasicInfo struct {
-	WorkspaceId string `json:"workspace_id"`
-	Name        string `json:"name"`
-	TabIds      []string `json:"tab_ids"`
-	ActiveTabId string `json:"active_tab_id,omitempty"`
+	WorkspaceId    string     `json:"workspace_id"`
+	Name           string     `json:"name"`
+	Icon           string     `json:"icon,omitempty"`
+	Color          string     `json:"color,omitempty"`
+	TabIds         []string   `json:"tab_ids"`
+	PinnedTabIds   []string   `json:"pinned_tab_ids,omitempty"`
+	ActiveTabId    string     `json:"active_tab_id,omitempty"`
+	TabsInfo       []TabInfo  `json:"tabs_info,omitempty"`
+	TotalTabs      int        `json:"total_tabs"`
+	TotalBlocks    int        `json:"total_blocks"`
 }
 
 // GetWorkspaceByNameAPIResponse represents the response for getting workspace by name
@@ -90,6 +96,53 @@ type GetWorkspaceByNameAPIResponse struct {
 	Success   bool                 `json:"success"`
 	Workspace *WorkspaceBasicInfo  `json:"workspace,omitempty"`
 	Error     string               `json:"error,omitempty"`
+}
+
+// CreateTabAPIRequest represents the request for creating a new tab
+type CreateTabAPIRequest struct {
+	WorkspaceId string `json:"workspace_id"`
+	TabName     string `json:"tab_name,omitempty"`    // Optional custom tab name
+	Pinned      bool   `json:"pinned,omitempty"`      // Whether tab should be pinned
+	Activate    bool   `json:"activate,omitempty"`    // Whether to activate the new tab
+}
+
+// CreateTabAPIResponse represents the response after creating a tab
+type CreateTabAPIResponse struct {
+	Success bool      `json:"success"`
+	TabId   string    `json:"tab_id,omitempty"`
+	Message string    `json:"message,omitempty"`
+	Error   string    `json:"error,omitempty"`
+	Tab     *TabInfo  `json:"tab,omitempty"`
+}
+
+// TabInfo contains information about a tab
+type TabInfo struct {
+	TabId       string   `json:"tab_id"`
+	WorkspaceId string   `json:"workspace_id"`
+	Name        string   `json:"name"`
+	Pinned      bool     `json:"pinned"`
+	BlockIds    []string `json:"block_ids"`
+	IsActive    bool     `json:"is_active"`
+}
+
+// ListTabsAPIResponse represents the response for listing tabs in a workspace
+type ListTabsAPIResponse struct {
+	Success bool       `json:"success"`
+	Tabs    []TabInfo  `json:"tabs,omitempty"`
+	Error   string     `json:"error,omitempty"`
+}
+
+// SetActiveTabAPIRequest represents the request for setting active tab
+type SetActiveTabAPIRequest struct {
+	WorkspaceId string `json:"workspace_id"`
+	TabId       string `json:"tab_id"`
+}
+
+// SetActiveTabAPIResponse represents the response after setting active tab
+type SetActiveTabAPIResponse struct {
+	Success bool   `json:"success"`
+	Message string `json:"message,omitempty"`
+	Error   string `json:"error,omitempty"`
 }
 
 // CreateWidget creates a new widget in the specified workspace
@@ -291,12 +344,62 @@ func (ws *WidgetAPIService) ListWorkspaces(ctx context.Context) (*ListWorkspaces
 			log.Printf("Failed to get workspace %s: %v", info.WorkspaceId, err)
 			continue
 		}
+
+		// 收集标签页详细信息
+		var tabsInfo []TabInfo
+		totalBlocks := 0
+
+		// 处理普通标签页
+		for _, tabId := range workspace.TabIds {
+			tab, err := wstore.DBGet[*waveobj.Tab](ctx, tabId)
+			if err != nil || tab == nil {
+				log.Printf("Failed to get tab %s: %v", tabId, err)
+				continue
+			}
+
+			tabInfo := TabInfo{
+				TabId:       tab.OID,
+				WorkspaceId: workspace.OID,
+				Name:        tab.Name,
+				Pinned:      false,
+				BlockIds:    tab.BlockIds,
+				IsActive:    workspace.ActiveTabId == tab.OID,
+			}
+			tabsInfo = append(tabsInfo, tabInfo)
+			totalBlocks += len(tab.BlockIds)
+		}
+
+		// 处理固定标签页
+		for _, tabId := range workspace.PinnedTabIds {
+			tab, err := wstore.DBGet[*waveobj.Tab](ctx, tabId)
+			if err != nil || tab == nil {
+				log.Printf("Failed to get pinned tab %s: %v", tabId, err)
+				continue
+			}
+
+			tabInfo := TabInfo{
+				TabId:       tab.OID,
+				WorkspaceId: workspace.OID,
+				Name:        tab.Name,
+				Pinned:      true,
+				BlockIds:    tab.BlockIds,
+				IsActive:    workspace.ActiveTabId == tab.OID,
+			}
+			tabsInfo = append(tabsInfo, tabInfo)
+			totalBlocks += len(tab.BlockIds)
+		}
 		
 		workspaces = append(workspaces, WorkspaceBasicInfo{
-			WorkspaceId: workspace.OID,
-			Name:        workspace.Name,
-			TabIds:      workspace.TabIds,
-			ActiveTabId: workspace.ActiveTabId,
+			WorkspaceId:  workspace.OID,
+			Name:         workspace.Name,
+			Icon:         workspace.Icon,
+			Color:        workspace.Color,
+			TabIds:       workspace.TabIds,
+			PinnedTabIds: workspace.PinnedTabIds,
+			ActiveTabId:  workspace.ActiveTabId,
+			TabsInfo:     tabsInfo,
+			TotalTabs:    len(workspace.TabIds) + len(workspace.PinnedTabIds),
+			TotalBlocks:  totalBlocks,
 		})
 	}
 
@@ -337,11 +440,61 @@ func (ws *WidgetAPIService) GetWorkspaceByName(ctx context.Context, workspaceNam
 		
 		// Case-insensitive name comparison
 		if strings.EqualFold(workspace.Name, workspaceName) {
+			// 收集标签页详细信息
+			var tabsInfo []TabInfo
+			totalBlocks := 0
+
+			// 处理普通标签页
+			for _, tabId := range workspace.TabIds {
+				tab, err := wstore.DBGet[*waveobj.Tab](ctx, tabId)
+				if err != nil || tab == nil {
+					log.Printf("Failed to get tab %s: %v", tabId, err)
+					continue
+				}
+
+				tabInfo := TabInfo{
+					TabId:       tab.OID,
+					WorkspaceId: workspace.OID,
+					Name:        tab.Name,
+					Pinned:      false,
+					BlockIds:    tab.BlockIds,
+					IsActive:    workspace.ActiveTabId == tab.OID,
+				}
+				tabsInfo = append(tabsInfo, tabInfo)
+				totalBlocks += len(tab.BlockIds)
+			}
+
+			// 处理固定标签页
+			for _, tabId := range workspace.PinnedTabIds {
+				tab, err := wstore.DBGet[*waveobj.Tab](ctx, tabId)
+				if err != nil || tab == nil {
+					log.Printf("Failed to get pinned tab %s: %v", tabId, err)
+					continue
+				}
+
+				tabInfo := TabInfo{
+					TabId:       tab.OID,
+					WorkspaceId: workspace.OID,
+					Name:        tab.Name,
+					Pinned:      true,
+					BlockIds:    tab.BlockIds,
+					IsActive:    workspace.ActiveTabId == tab.OID,
+				}
+				tabsInfo = append(tabsInfo, tabInfo)
+				totalBlocks += len(tab.BlockIds)
+			}
+
 			workspaceInfo := &WorkspaceBasicInfo{
-				WorkspaceId: workspace.OID,
-				Name:        workspace.Name,
-				TabIds:      workspace.TabIds,
-				ActiveTabId: workspace.ActiveTabId,
+				WorkspaceId:  workspace.OID,
+				Name:         workspace.Name,
+				Icon:         workspace.Icon,
+				Color:        workspace.Color,
+				TabIds:       workspace.TabIds,
+				PinnedTabIds: workspace.PinnedTabIds,
+				ActiveTabId:  workspace.ActiveTabId,
+				TabsInfo:     tabsInfo,
+				TotalTabs:    len(workspace.TabIds) + len(workspace.PinnedTabIds),
+				TotalBlocks:  totalBlocks,
 			}
 			
 			return &GetWorkspaceByNameAPIResponse{
@@ -404,4 +557,170 @@ func (ws *WidgetAPIService) createBlockDefFromWidgetType(widgetType string, cust
 	}
 
 	return blockDef, nil
+}
+
+// CreateTab creates a new tab in the specified workspace
+func (ws *WidgetAPIService) CreateTab(ctx context.Context, req CreateTabAPIRequest) (*CreateTabAPIResponse, error) {
+	log.Printf("WidgetAPIService.CreateTab called with workspace_id=%s, tab_name=%s", req.WorkspaceId, req.TabName)
+
+	// Add updates context to collect database changes
+	ctx = waveobj.ContextWithUpdates(ctx)
+
+	// Validate workspace exists
+	workspace, err := wcore.GetWorkspace(ctx, req.WorkspaceId)
+	if err != nil {
+		return &CreateTabAPIResponse{
+			Success: false,
+			Error:   fmt.Sprintf("workspace not found: %s", err.Error()),
+		}, nil
+	}
+
+	// Create the tab
+	tabId, err := wcore.CreateTab(ctx, req.WorkspaceId, req.TabName, req.Activate, req.Pinned, false)
+	if err != nil {
+		return &CreateTabAPIResponse{
+			Success: false,
+			Error:   fmt.Sprintf("failed to create tab: %s", err.Error()),
+		}, nil
+	}
+
+	// Get the created tab for response
+	tab, err := wstore.DBGet[*waveobj.Tab](ctx, tabId)
+	if err != nil {
+		return &CreateTabAPIResponse{
+			Success: false,
+			Error:   fmt.Sprintf("failed to get created tab: %s", err.Error()),
+		}, nil
+	}
+
+	// Send database update events to notify frontend
+	updates := waveobj.ContextGetUpdatesRtn(ctx)
+	wps.Broker.SendUpdateEvents(updates)
+
+	// Prepare tab info for response
+	tabInfo := &TabInfo{
+		TabId:       tab.OID,
+		WorkspaceId: req.WorkspaceId,
+		Name:        tab.Name,
+		Pinned:      req.Pinned,
+		BlockIds:    tab.BlockIds,
+		IsActive:    workspace.ActiveTabId == tab.OID,
+	}
+
+	return &CreateTabAPIResponse{
+		Success: true,
+		TabId:   tabId,
+		Message: fmt.Sprintf("Tab '%s' created successfully", tab.Name),
+		Tab:     tabInfo,
+	}, nil
+}
+
+// ListTabs returns all tabs in the specified workspace
+func (ws *WidgetAPIService) ListTabs(ctx context.Context, workspaceId string) (*ListTabsAPIResponse, error) {
+	log.Printf("WidgetAPIService.ListTabs called with workspace_id=%s", workspaceId)
+
+	// Validate workspace exists
+	workspace, err := wcore.GetWorkspace(ctx, workspaceId)
+	if err != nil {
+		return &ListTabsAPIResponse{
+			Success: false,
+			Error:   fmt.Sprintf("workspace not found: %s", err.Error()),
+		}, nil
+	}
+
+	var tabs []TabInfo
+
+	// Process regular tabs
+	for _, tabId := range workspace.TabIds {
+		tab, err := wstore.DBGet[*waveobj.Tab](ctx, tabId)
+		if err != nil {
+			log.Printf("Failed to get tab %s: %v", tabId, err)
+			continue
+		}
+		if tab == nil {
+			continue
+		}
+
+		tabs = append(tabs, TabInfo{
+			TabId:       tab.OID,
+			WorkspaceId: workspaceId,
+			Name:        tab.Name,
+			Pinned:      false,
+			BlockIds:    tab.BlockIds,
+			IsActive:    workspace.ActiveTabId == tab.OID,
+		})
+	}
+
+	// Process pinned tabs
+	for _, tabId := range workspace.PinnedTabIds {
+		tab, err := wstore.DBGet[*waveobj.Tab](ctx, tabId)
+		if err != nil {
+			log.Printf("Failed to get pinned tab %s: %v", tabId, err)
+			continue
+		}
+		if tab == nil {
+			continue
+		}
+
+		tabs = append(tabs, TabInfo{
+			TabId:       tab.OID,
+			WorkspaceId: workspaceId,
+			Name:        tab.Name,
+			Pinned:      true,
+			BlockIds:    tab.BlockIds,
+			IsActive:    workspace.ActiveTabId == tab.OID,
+		})
+	}
+
+	return &ListTabsAPIResponse{
+		Success: true,
+		Tabs:    tabs,
+	}, nil
+}
+
+// SetActiveTab sets the active tab in the specified workspace
+func (ws *WidgetAPIService) SetActiveTab(ctx context.Context, req SetActiveTabAPIRequest) (*SetActiveTabAPIResponse, error) {
+	log.Printf("WidgetAPIService.SetActiveTab called with workspace_id=%s, tab_id=%s", req.WorkspaceId, req.TabId)
+
+	// Add updates context to collect database changes
+	ctx = waveobj.ContextWithUpdates(ctx)
+
+	// Validate workspace exists
+	_, err := wcore.GetWorkspace(ctx, req.WorkspaceId)
+	if err != nil {
+		return &SetActiveTabAPIResponse{
+			Success: false,
+			Error:   fmt.Sprintf("workspace not found: %s", err.Error()),
+		}, nil
+	}
+
+	// Validate tab exists
+	tab, err := wstore.DBGet[*waveobj.Tab](ctx, req.TabId)
+	if err != nil || tab == nil {
+		return &SetActiveTabAPIResponse{
+			Success: false,
+			Error:   fmt.Sprintf("tab not found: %s", req.TabId),
+		}, nil
+	}
+
+	// Set the active tab
+	err = wcore.SetActiveTab(ctx, req.WorkspaceId, req.TabId)
+	if err != nil {
+		return &SetActiveTabAPIResponse{
+			Success: false,
+			Error:   fmt.Sprintf("failed to set active tab: %s", err.Error()),
+		}, nil
+	}
+
+	// Send database update events to notify frontend
+	updates := waveobj.ContextGetUpdatesRtn(ctx)
+	wps.Broker.SendUpdateEvents(updates)
+
+	// Send active tab update event
+	wcore.SendActiveTabUpdate(ctx, req.WorkspaceId, req.TabId)
+
+	return &SetActiveTabAPIResponse{
+		Success: true,
+		Message: fmt.Sprintf("Tab '%s' set as active", tab.Name),
+	}, nil
 }

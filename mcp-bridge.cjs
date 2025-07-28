@@ -128,6 +128,64 @@ class WaveTerminalMCPServer extends Server {
                         type: "object",
                         properties: {}
                     }
+                },
+                {
+                    name: "create_tab",
+                    description: "在指定工作区中创建新的标签页",
+                    inputSchema: {
+                        type: "object",
+                        properties: {
+                            workspace_id: { 
+                                type: "string", 
+                                description: "工作区ID" 
+                            },
+                            tab_name: { 
+                                type: "string", 
+                                description: "标签页名称（可选）" 
+                            },
+                            pinned: { 
+                                type: "boolean", 
+                                description: "是否固定标签页（默认false）" 
+                            },
+                            activate: { 
+                                type: "boolean", 
+                                description: "是否激活新标签页（默认false）" 
+                            }
+                        },
+                        required: ["workspace_id"]
+                    }
+                },
+                {
+                    name: "list_tabs",
+                    description: "列出指定工作区中的所有标签页",
+                    inputSchema: {
+                        type: "object",
+                        properties: {
+                            workspace_id: { 
+                                type: "string", 
+                                description: "工作区ID" 
+                            }
+                        },
+                        required: ["workspace_id"]
+                    }
+                },
+                {
+                    name: "set_active_tab",
+                    description: "设置指定工作区的活跃标签页",
+                    inputSchema: {
+                        type: "object",
+                        properties: {
+                            workspace_id: { 
+                                type: "string", 
+                                description: "工作区ID" 
+                            },
+                            tab_id: { 
+                                type: "string", 
+                                description: "要激活的标签页ID" 
+                            }
+                        },
+                        required: ["workspace_id", "tab_id"]
+                    }
                 }
             ]
         };
@@ -276,6 +334,81 @@ class WaveTerminalMCPServer extends Server {
                         }]
                     };
 
+                case "create_tab":
+                    response = await fetch(`${this.waveTerminalUrl}/api/v1/widgets/tabs`, {
+                        method: "POST",
+                        headers,
+                        body: JSON.stringify(args)
+                    });
+                    result = await response.json();
+                    
+                    if (response.ok && result.success) {
+                        const tab = result.tab;
+                        return {
+                            content: [{
+                                type: "text",
+                                text: `✅ 标签页创建成功！\n\n` +
+                                      `名称: ${tab.name}\n` +
+                                      `标签页ID: ${tab.tab_id}\n` +
+                                      `工作区: ${tab.workspace_id}\n` +
+                                      `固定: ${tab.pinned ? '是' : '否'}\n` +
+                                      `活跃: ${tab.is_active ? '是' : '否'}\n` +
+                                      `块数量: ${tab.block_ids.length}\n\n` +
+                                      `💡 可以使用 create_widget 在此标签页中创建新的widget。`
+                            }]
+                        };
+                    } else {
+                        throw new Error(`标签页创建失败: ${response.status} - ${JSON.stringify(result)}`);
+                    }
+
+                case "list_tabs":
+                    response = await fetch(`${this.waveTerminalUrl}/api/v1/widgets/workspace/${args.workspace_id}/tabs`, {
+                        headers
+                    });
+                    result = await response.json();
+                    
+                    if (response.ok && result.success) {
+                        const tabsList = result.tabs.map((tab, index) => 
+                            `${index + 1}. **${tab.name}** (ID: ${tab.tab_id})\n` +
+                            `   • 状态: ${tab.is_active ? '🟢 活跃' : '⚪ 非活跃'}\n` +
+                            `   • 类型: ${tab.pinned ? '📌 固定' : '📄 普通'}\n` +
+                            `   • 块数量: ${tab.block_ids.length}`
+                        ).join('\n\n');
+                        
+                        return {
+                            content: [{
+                                type: "text",
+                                text: `📋 工作区标签页列表 (${result.tabs.length}个):\n\n${tabsList}\n\n` +
+                                      `💡 使用 create_widget 在特定标签页中创建widget，或使用 set_active_tab 切换活跃标签页。`
+                            }]
+                        };
+                    } else {
+                        throw new Error(`获取标签页列表失败: ${JSON.stringify(result)}`);
+                    }
+
+                case "set_active_tab":
+                    response = await fetch(`${this.waveTerminalUrl}/api/v1/widgets/tabs/activate`, {
+                        method: "POST",
+                        headers,
+                        body: JSON.stringify(args)
+                    });
+                    result = await response.json();
+                    
+                    if (response.ok && result.success) {
+                        return {
+                            content: [{
+                                type: "text",
+                                text: `✅ 活跃标签页设置成功！\n\n` +
+                                      `工作区: ${args.workspace_id}\n` +
+                                      `活跃标签页: ${args.tab_id}\n\n` +
+                                      `${result.message}\n\n` +
+                                      `💡 现在可以在此标签页中创建新的widget。`
+                            }]
+                        };
+                    } else {
+                        throw new Error(`设置活跃标签页失败: ${response.status} - ${JSON.stringify(result)}`);
+                    }
+
                 default:
                     throw new Error(`未知工具: ${name}`);
             }
@@ -310,6 +443,12 @@ class WaveTerminalMCPServer extends Server {
                     uri: "status://server",
                     name: "服务器状态",
                     description: "Wave Terminal服务器当前状态",
+                    mimeType: "application/json"
+                },
+                {
+                    uri: "tabs://all",
+                    name: "所有标签页",
+                    description: "所有工作区中的标签页信息",
                     mimeType: "application/json"
                 }
             ]
@@ -371,6 +510,49 @@ class WaveTerminalMCPServer extends Server {
                             uri,
                             mimeType: "application/json",
                             text: JSON.stringify(status, null, 2)
+                        }]
+                    };
+
+                case "tabs://all":
+                    // Get all workspaces first
+                    response = await fetch(`${this.waveTerminalUrl}/api/v1/widgets/workspaces`, {
+                        headers
+                    });
+                    const workspacesResult = await response.json();
+                    
+                    if (!response.ok || !workspacesResult.success) {
+                        throw new Error("Failed to fetch workspaces");
+                    }
+                    
+                    // Collect tabs from all workspaces
+                    const allTabs = [];
+                    for (const workspace of workspacesResult.workspaces) {
+                        try {
+                            const tabsResponse = await fetch(`${this.waveTerminalUrl}/api/v1/widgets/workspace/${workspace.workspace_id}/tabs`, {
+                                headers
+                            });
+                            const tabsResult = await tabsResponse.json();
+                            
+                            if (tabsResponse.ok && tabsResult.success) {
+                                allTabs.push({
+                                    workspace_id: workspace.workspace_id,
+                                    workspace_name: workspace.name,
+                                    tabs: tabsResult.tabs
+                                });
+                            }
+                        } catch (error) {
+                            console.error(`Failed to fetch tabs for workspace ${workspace.workspace_id}:`, error);
+                        }
+                    }
+                    
+                    return {
+                        contents: [{
+                            uri,
+                            mimeType: "application/json",
+                            text: JSON.stringify({
+                                timestamp: new Date().toISOString(),
+                                workspaces: allTabs
+                            }, null, 2)
                         }]
                     };
 

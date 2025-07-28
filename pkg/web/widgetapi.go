@@ -54,6 +54,12 @@ func handleWidgetAPI(w http.ResponseWriter, r *http.Request) {
 		} else if path == "/mcp/restart" {
 			// POST /api/v1/widgets/mcp/restart - Restart MCP server
 			handleMCPServerRestart(w, r, ctx)
+		} else if path == "/tabs" {
+			// POST /api/v1/widgets/tabs - Create tab
+			handleCreateTab(w, r, ctx)
+		} else if len(pathParts) == 2 && pathParts[0] == "tabs" && pathParts[1] == "activate" {
+			// POST /api/v1/widgets/tabs/activate - Set active tab
+			handleSetActiveTab(w, r, ctx)
 		} else {
 			http.Error(w, "Not Found", http.StatusNotFound)
 		}
@@ -78,6 +84,10 @@ func handleWidgetAPI(w http.ResponseWriter, r *http.Request) {
 		} else if path == "/debug/fix-workspace" {
 			// GET /api/v1/widgets/debug/fix-workspace - Fix workspace data inconsistencies
 			handleFixWorkspaceData(w, r, ctx)
+		} else if len(pathParts) == 3 && pathParts[0] == "workspace" && pathParts[2] == "tabs" {
+			// GET /api/v1/widgets/workspace/{workspace_id}/tabs - List tabs in workspace
+			workspaceId := pathParts[1]
+			handleListTabs(w, r, ctx, workspaceId)
 		} else {
 			http.Error(w, "Not Found", http.StatusNotFound)
 		}
@@ -326,7 +336,7 @@ func handleMCPServerStatus(w http.ResponseWriter, r *http.Request, ctx context.C
 			"status":    "connected",
 			"url":       fmt.Sprintf("http://127.0.0.1:%d", currentPort),
 			"lastSeen":  getCurrentTimestamp(),
-			"tools":     []string{"create_widget", "list_workspaces", "get_workspace_by_name", "get_widget_types", "check_server_status"},
+			"tools":     []string{"create_widget", "list_workspaces", "get_workspace_by_name", "get_widget_types", "check_server_status", "create_tab", "list_tabs", "set_active_tab"},
 			"resources": []string{"workspaces", "widgets", "terminals"},
 		}
 	}
@@ -483,6 +493,94 @@ func handleFixWorkspaceData(w http.ResponseWriter, r *http.Request, ctx context.
 	}
 	
 	json.NewEncoder(w).Encode(result)
+}
+
+// handleCreateTab creates a new tab in a workspace
+func handleCreateTab(w http.ResponseWriter, r *http.Request, ctx context.Context) {
+	var req widgetapiservice.CreateTabAPIRequest
+	
+	decoder := json.NewDecoder(r.Body)
+	if err := decoder.Decode(&req); err != nil {
+		log.Printf("Error decoding create tab request: %v", err)
+		writeErrorResponse(w, "Invalid JSON request body", http.StatusBadRequest)
+		return
+	}
+
+	// Validate required fields
+	if req.WorkspaceId == "" {
+		writeErrorResponse(w, "workspace_id is required", http.StatusBadRequest)
+		return
+	}
+
+	log.Printf("Creating tab: workspace=%s, name=%s", req.WorkspaceId, req.TabName)
+
+	// Call the service to create the tab
+	response, err := widgetapiservice.WidgetAPIServiceInstance.CreateTab(ctx, req)
+	if err != nil {
+		log.Printf("Error creating tab: %v", err)
+		writeErrorResponse(w, fmt.Sprintf("Internal server error: %s", err.Error()), http.StatusInternalServerError)
+		return
+	}
+
+	// Return the response
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(response)
+}
+
+// handleListTabs returns all tabs for a workspace
+func handleListTabs(w http.ResponseWriter, r *http.Request, ctx context.Context, workspaceId string) {
+	if workspaceId == "" {
+		writeErrorResponse(w, "workspace_id is required", http.StatusBadRequest)
+		return
+	}
+
+	log.Printf("Listing tabs for workspace: %s", workspaceId)
+
+	// Call the service to list tabs
+	response, err := widgetapiservice.WidgetAPIServiceInstance.ListTabs(ctx, workspaceId)
+	if err != nil {
+		log.Printf("Error listing tabs: %v", err)
+		writeErrorResponse(w, fmt.Sprintf("Internal server error: %s", err.Error()), http.StatusInternalServerError)
+		return
+	}
+
+	// Return the response
+	json.NewEncoder(w).Encode(response)
+}
+
+// handleSetActiveTab sets the active tab in a workspace
+func handleSetActiveTab(w http.ResponseWriter, r *http.Request, ctx context.Context) {
+	var req widgetapiservice.SetActiveTabAPIRequest
+	
+	decoder := json.NewDecoder(r.Body)
+	if err := decoder.Decode(&req); err != nil {
+		log.Printf("Error decoding set active tab request: %v", err)
+		writeErrorResponse(w, "Invalid JSON request body", http.StatusBadRequest)
+		return
+	}
+
+	// Validate required fields
+	if req.WorkspaceId == "" {
+		writeErrorResponse(w, "workspace_id is required", http.StatusBadRequest)
+		return
+	}
+	if req.TabId == "" {
+		writeErrorResponse(w, "tab_id is required", http.StatusBadRequest)
+		return
+	}
+
+	log.Printf("Setting active tab: workspace=%s, tab=%s", req.WorkspaceId, req.TabId)
+
+	// Call the service to set active tab
+	response, err := widgetapiservice.WidgetAPIServiceInstance.SetActiveTab(ctx, req)
+	if err != nil {
+		log.Printf("Error setting active tab: %v", err)
+		writeErrorResponse(w, fmt.Sprintf("Internal server error: %s", err.Error()), http.StatusInternalServerError)
+		return
+	}
+
+	// Return the response
+	json.NewEncoder(w).Encode(response)
 }
 
 // writeErrorResponse writes a standardized error response
