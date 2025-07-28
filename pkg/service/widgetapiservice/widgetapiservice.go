@@ -173,6 +173,24 @@ func (ws *WidgetAPIService) CreateWidget(ctx context.Context, req CreateWidgetAP
 		}, nil
 	}
 
+	// Create layout action to make the block visible in the UI
+	layoutAction := &waveobj.LayoutActionData{
+		ActionType: wcore.LayoutActionDataType_Insert,
+		BlockId:    block.OID,
+		Magnified:  req.Magnified,
+		Ephemeral:  req.Ephemeral,
+		Focused:    true,  // Focus the new widget
+	}
+	
+	// Queue the layout action so the frontend knows how to display the block
+	err = wcore.QueueLayoutActionForTab(ctx, tabId, *layoutAction)
+	if err != nil {
+		return &CreateWidgetAPIResponse{
+			Success: false,
+			Error:   fmt.Sprintf("failed to queue layout action: %s", err.Error()),
+		}, nil
+	}
+
 	// Send database update events to notify frontend
 	updates := waveobj.ContextGetUpdatesRtn(ctx)
 	wps.Broker.SendUpdateEvents(updates)
