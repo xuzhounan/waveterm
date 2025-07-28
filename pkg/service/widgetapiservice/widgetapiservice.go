@@ -229,7 +229,7 @@ func (ws *WidgetAPIService) CreateWidget(ctx context.Context, req CreateWidgetAP
 	// Create runtime options if not provided
 	rtOpts := &waveobj.RuntimeOpts{}
 
-	block, err := wcore.CreateBlock(ctx, createData.TabId, createData.BlockDef, rtOpts)
+	block, err := wcore.CreateBlock(ctx, tabId, createData.BlockDef, rtOpts)
 	if err != nil {
 		return &CreateWidgetAPIResponse{
 			Success: false,
@@ -996,7 +996,7 @@ func (ws *WidgetAPIService) GetBlockContent(ctx context.Context, blockId string,
 	// Build block info
 	blockInfo := &BlockInfo{
 		BlockId:    block.OID,
-		TabId:      getStringFromMeta(block.Meta, "tab"),
+		TabId:      getTabIdFromBlock(block),
 		BlockType:  getBlockTypeFromMeta(block.Meta),
 		View:       getStringFromMeta(block.Meta, "view"),
 		Controller: getStringFromMeta(block.Meta, "controller"),
@@ -1044,7 +1044,7 @@ func (ws *WidgetAPIService) GetBlockStatus(ctx context.Context, blockId string) 
 	// Build block info
 	blockInfo := &BlockInfo{
 		BlockId:    block.OID,
-		TabId:      getStringFromMeta(block.Meta, "tab"),
+		TabId:      getTabIdFromBlock(block),
 		BlockType:  getBlockTypeFromMeta(block.Meta),
 		View:       getStringFromMeta(block.Meta, "view"),
 		Controller: getStringFromMeta(block.Meta, "controller"),
@@ -1188,7 +1188,7 @@ func (ws *WidgetAPIService) listBlocksInWorkspace(ctx context.Context, workspace
 func (ws *WidgetAPIService) buildBlockInfo(ctx context.Context, block *waveobj.Block) BlockInfo {
 	blockInfo := BlockInfo{
 		BlockId:    block.OID,
-		TabId:      getStringFromMeta(block.Meta, "tab"),
+		TabId:      getTabIdFromBlock(block),
 		BlockType:  getBlockTypeFromMeta(block.Meta),
 		View:       getStringFromMeta(block.Meta, "view"),
 		Controller: getStringFromMeta(block.Meta, "controller"),
@@ -1234,6 +1234,25 @@ func getStringFromMeta(meta map[string]any, key string) string {
 			return str
 		}
 	}
+	return ""
+}
+
+// getTabIdFromBlock extracts the TabId from a block's ParentORef
+func getTabIdFromBlock(block *waveobj.Block) string {
+	if block == nil || block.ParentORef == "" {
+		return ""
+	}
+	
+	parentORef := waveobj.ParseORefNoErr(block.ParentORef)
+	if parentORef == nil {
+		return ""
+	}
+	
+	// Only return TabId if the parent is actually a Tab
+	if parentORef.OType == waveobj.OType_Tab {
+		return parentORef.OID
+	}
+	
 	return ""
 }
 

@@ -4,7 +4,7 @@
       "command": "node",
       "args": ["/Users/xzn/Desktop/code-project/waveterm/mcp-bridge.cjs"],
       "env": {
-        "WAVE_TERMINAL_URL": "http://127.0.0.1:59918",
+        "WAVE_TERMINAL_URL": "http://127.0.0.1:56521",
         "WAVE_TERMINAL_AUTH_KEY": ""
       }
     }
