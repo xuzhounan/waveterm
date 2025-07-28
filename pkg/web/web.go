@@ -474,11 +474,8 @@ func RunWebServer(listener net.Listener) {
 	gr.PathPrefix(schemaPrefix).Handler(http.StripPrefix(schemaPrefix, schema.GetSchemaHandler()))
 	handler := http.TimeoutHandler(gr, HttpTimeoutDuration, "Timeout")
 	
-	// Apply our custom CORS handler
-	handler = NewCORSHandler(handler)
-	
-	// Apply additional Gorilla CORS handler for development mode as backup
-	if wavebase.IsDevMode() {
+	// Apply Gorilla CORS handler for MCP API access (always enabled for API endpoints)
+	if true { // Force enable CORS for MCP compatibility
 		handler = handlers.CORS(
 			handlers.AllowedOrigins([]string{"*", "http://localhost:5173", "http://127.0.0.1:5173"}),
 			handlers.AllowedMethods([]string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"}),
