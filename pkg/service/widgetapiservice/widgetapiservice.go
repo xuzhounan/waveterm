@@ -177,37 +177,9 @@ func (ws *WidgetAPIService) CreateWidget(ctx context.Context, req CreateWidgetAP
 	updates := waveobj.ContextGetUpdatesRtn(ctx)
 	wps.Broker.SendUpdateEvents(updates)
 
-	// Send custom block:create event
+	// Send workspace update event using the correct event type
 	wps.Broker.Publish(wps.WaveEvent{
-		Event: "block:create",
-		Scopes: []string{
-			fmt.Sprintf("workspace:%s", req.WorkspaceId),
-			fmt.Sprintf("tab:%s", tabId),
-		},
-		Data: map[string]any{
-			"blockid":     block.OID,
-			"tabid":       tabId,
-			"workspaceid": req.WorkspaceId,
-		},
-	})
-
-	// Send additional tab:update event to ensure the tab is refreshed
-	wps.Broker.Publish(wps.WaveEvent{
-		Event: "tab:update",
-		Scopes: []string{
-			fmt.Sprintf("workspace:%s", req.WorkspaceId),
-			fmt.Sprintf("tab:%s", tabId),
-		},
-		Data: map[string]any{
-			"tabid":       tabId,
-			"workspaceid": req.WorkspaceId,
-			"blockid":     block.OID,
-		},
-	})
-
-	// Send workspace update event
-	wps.Broker.Publish(wps.WaveEvent{
-		Event: "workspace:update",
+		Event: wps.Event_WorkspaceUpdate,
 		Scopes: []string{
 			fmt.Sprintf("workspace:%s", req.WorkspaceId),
 		},

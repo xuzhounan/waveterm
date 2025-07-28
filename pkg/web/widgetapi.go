@@ -17,6 +17,9 @@ import (
 
 	// "github.com/wavetermdev/waveterm/pkg/authkey" // 临时注释用于测试
 	"github.com/wavetermdev/waveterm/pkg/service/widgetapiservice"
+	"github.com/wavetermdev/waveterm/pkg/wcore"
+	"github.com/wavetermdev/waveterm/pkg/waveobj"
+	"github.com/wavetermdev/waveterm/pkg/wstore"
 )
 
 // handleWidgetAPI routes widget API requests to appropriate handlers
@@ -72,6 +75,9 @@ func handleWidgetAPI(w http.ResponseWriter, r *http.Request) {
 		} else if path == "/mcp/status" {
 			// GET /api/v1/widgets/mcp/status - Check MCP server status
 			handleMCPServerStatus(w, r, ctx)
+		} else if path == "/debug/fix-workspace" {
+			// GET /api/v1/widgets/debug/fix-workspace - Fix workspace data inconsistencies
+			handleFixWorkspaceData(w, r, ctx)
 		} else {
 			http.Error(w, "Not Found", http.StatusNotFound)
 		}
@@ -406,6 +412,77 @@ func checkForClaudeCodeClient() bool {
 // getCurrentTimestamp returns current timestamp in milliseconds
 func getCurrentTimestamp() int64 {
 	return time.Now().UnixNano() / int64(time.Millisecond)
+}
+
+// handleFixWorkspaceData fixes workspace data inconsistencies
+func handleFixWorkspaceData(w http.ResponseWriter, r *http.Request, ctx context.Context) {
+	log.Printf("Fixing workspace data inconsistencies")
+	
+	ctx = waveobj.ContextWithUpdates(ctx)
+	
+	// Target workspace: waveterm
+	workspaceId := "39720a34-6d5b-477c-bc5f-4ac6f8eb1abf"
+	activeTabId := "3c1f7d5e-f971-4812-a688-4e1b2310411f"
+	
+	// Get workspace
+	workspace, err := wcore.GetWorkspace(ctx, workspaceId)
+	if err != nil {
+		writeErrorResponse(w, fmt.Sprintf("Failed to get workspace: %s", err.Error()), http.StatusInternalServerError)
+		return
+	}
+	
+	// Check if active tab exists
+	tab, err := wstore.DBGet[*waveobj.Tab](ctx, activeTabId)
+	if err != nil || tab == nil {
+		writeErrorResponse(w, fmt.Sprintf("Active tab not found: %s", activeTabId), http.StatusInternalServerError)
+		return
+	}
+	
+	// Check if active_tab_id is in tab_ids
+	found := false
+	for _, tabId := range workspace.TabIds {
+		if tabId == activeTabId {
+			found = true
+			break
+		}
+	}
+	
+	result := map[string]interface{}{
+		"success": true,
+		"workspace_id": workspaceId,
+		"active_tab_id": activeTabId,
+		"tab_name": tab.Name,
+		"tab_blocks_count": len(tab.BlockIds),
+		"tab_blocks": tab.BlockIds,
+		"workspace_tab_ids_before": workspace.TabIds,
+	}
+	
+	if !found {
+		log.Printf("Adding active tab %s to workspace %s tab_ids", activeTabId, workspaceId)
+		
+		// Add active tab to tab_ids
+		workspace.TabIds = append(workspace.TabIds, activeTabId)
+		
+		// Update workspace
+		err = wstore.WithTx(ctx, func(tx *wstore.TxWrap) error {
+			return wstore.DBUpdate(tx.Context(), workspace)
+		})
+		if err != nil {
+			writeErrorResponse(w, fmt.Sprintf("Failed to update workspace: %s", err.Error()), http.StatusInternalServerError)
+			return
+		}
+		
+		result["fixed"] = true
+		result["workspace_tab_ids_after"] = workspace.TabIds
+		result["message"] = "Active tab added to workspace tab_ids"
+		
+		log.Printf("Workspace data fixed successfully")
+	} else {
+		result["fixed"] = false
+		result["message"] = "No fix needed, active tab already in tab_ids"
+	}
+	
+	json.NewEncoder(w).Encode(result)
 }
 
 // writeErrorResponse writes a standardized error response
