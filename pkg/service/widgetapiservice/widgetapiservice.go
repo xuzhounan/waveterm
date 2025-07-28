@@ -99,6 +99,13 @@ type GetWorkspaceByNameAPIResponse struct {
 	Error     string               `json:"error,omitempty"`
 }
 
+// GetWorkspaceInfoAPIResponse represents the response for getting detailed workspace info
+type GetWorkspaceInfoAPIResponse struct {
+	Success   bool                 `json:"success"`
+	Workspace *WorkspaceBasicInfo  `json:"workspace,omitempty"`
+	Error     string               `json:"error,omitempty"`
+}
+
 // CreateTabAPIRequest represents the request for creating a new tab
 type CreateTabAPIRequest struct {
 	WorkspaceId string `json:"workspace_id"`
@@ -509,6 +516,95 @@ func (ws *WidgetAPIService) GetWorkspaceByName(ctx context.Context, workspaceNam
 	return &GetWorkspaceByNameAPIResponse{
 		Success: false,
 		Error:   fmt.Sprintf("workspace with name '%s' not found", workspaceName),
+	}, nil
+}
+
+// GetWorkspaceInfo returns detailed information about a specific workspace by ID
+func (ws *WidgetAPIService) GetWorkspaceInfo(ctx context.Context, workspaceId string) (*GetWorkspaceInfoAPIResponse, error) {
+	log.Printf("WidgetAPIService.GetWorkspaceInfo called with workspace_id=%s", workspaceId)
+
+	if workspaceId == "" {
+		return &GetWorkspaceInfoAPIResponse{
+			Success: false,
+			Error:   "workspace_id is required",
+		}, nil
+	}
+
+	// Get the workspace directly by ID
+	workspace, err := wcore.GetWorkspace(ctx, workspaceId)
+	if err != nil {
+		return &GetWorkspaceInfoAPIResponse{
+			Success: false,
+			Error:   fmt.Sprintf("failed to get workspace: %s", err.Error()),
+		}, nil
+	}
+
+	if workspace == nil {
+		return &GetWorkspaceInfoAPIResponse{
+			Success: false,
+			Error:   fmt.Sprintf("workspace with ID '%s' not found", workspaceId),
+		}, nil
+	}
+
+	// Build detailed tab information
+	var tabsInfo []TabInfo
+	totalBlocks := 0
+
+	// 处理普通标签页
+	for _, tabId := range workspace.TabIds {
+		tab, err := wstore.DBGet[*waveobj.Tab](ctx, tabId)
+		if err != nil || tab == nil {
+			log.Printf("Failed to get tab %s: %v", tabId, err)
+			continue
+		}
+
+		tabInfo := TabInfo{
+			TabId:       tab.OID,
+			WorkspaceId: workspace.OID,
+			Name:        tab.Name,
+			Pinned:      false,
+			BlockIds:    tab.BlockIds,
+			IsActive:    workspace.ActiveTabId == tab.OID,
+		}
+		tabsInfo = append(tabsInfo, tabInfo)
+		totalBlocks += len(tab.BlockIds)
+	}
+
+	// 处理固定标签页
+	for _, tabId := range workspace.PinnedTabIds {
+		tab, err := wstore.DBGet[*waveobj.Tab](ctx, tabId)
+		if err != nil || tab == nil {
+			log.Printf("Failed to get pinned tab %s: %v", tabId, err)
+			continue
+		}
+
+		tabInfo := TabInfo{
+			TabId:       tab.OID,
+			WorkspaceId: workspace.OID,
+			Name:        tab.Name,
+			Pinned:      true,
+			BlockIds:    tab.BlockIds,
+			IsActive:    workspace.ActiveTabId == tab.OID,
+		}
+		tabsInfo = append(tabsInfo, tabInfo)
+		totalBlocks += len(tab.BlockIds)
+	}
+
+	workspaceInfo := &WorkspaceBasicInfo{
+		WorkspaceId:   workspace.OID,
+		Name:          workspace.Name,
+		Icon:          workspace.Icon,
+		Color:         workspace.Color,
+		TabIds:        append(workspace.TabIds, workspace.PinnedTabIds...),
+		ActiveTabId:   workspace.ActiveTabId,
+		TabsInfo:      tabsInfo,
+		TotalTabs:     len(tabsInfo),
+		TotalBlocks:   totalBlocks,
+	}
+
+	return &GetWorkspaceInfoAPIResponse{
+		Success:   true,
+		Workspace: workspaceInfo,
 	}, nil
 }
 

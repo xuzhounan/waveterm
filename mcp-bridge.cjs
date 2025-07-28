@@ -186,6 +186,36 @@ class WaveTerminalMCPServer extends Server {
                         },
                         required: ["workspace_id", "tab_id"]
                     }
+                },
+                {
+                    name: "get_workspace",
+                    description: "根据工作区ID获取详细的工作区信息",
+                    inputSchema: {
+                        type: "object",
+                        properties: {
+                            workspace_id: { 
+                                type: "string", 
+                                description: "工作区ID" 
+                            }
+                        },
+                        required: ["workspace_id"]
+                    }
+                },
+                {
+                    name: "restart_mcp_server",
+                    description: "重启MCP服务器功能",
+                    inputSchema: {
+                        type: "object",
+                        properties: {}
+                    }
+                },
+                {
+                    name: "fix_workspace_data",
+                    description: "修复工作区数据不一致问题（调试工具）",
+                    inputSchema: {
+                        type: "object",
+                        properties: {}
+                    }
                 }
             ]
         };
@@ -407,6 +437,77 @@ class WaveTerminalMCPServer extends Server {
                         };
                     } else {
                         throw new Error(`设置活跃标签页失败: ${response.status} - ${JSON.stringify(result)}`);
+                    }
+
+                case "get_workspace":
+                    response = await fetch(`${this.waveTerminalUrl}/api/v1/widgets/workspace/info/${args.workspace_id}`, {
+                        headers
+                    });
+                    result = await response.json();
+                    
+                    if (response.ok && result.success) {
+                        const ws = result.workspace;
+                        return {
+                            content: [{
+                                type: "text",
+                                text: `🔍 工作区详细信息:\n\n` +
+                                      `名称: ${ws.name}\n` +
+                                      `ID: ${ws.workspace_id}\n` +
+                                      `活跃标签: ${ws.active_tab_id}\n` +
+                                      `标签页数量: ${ws.tabs ? ws.tabs.length : 0}\n` +
+                                      `总块数量: ${ws.total_blocks || 0}\n\n` +
+                                      `标签页列表:\n${ws.tabs ? ws.tabs.map(tab => 
+                                          `• ${tab.name} (${tab.tab_id}) ${tab.is_active ? '🟢' : '⚪'} ${tab.pinned ? '📌' : ''}`
+                                      ).join('\n') : '无'}\n\n` +
+                                      `💡 可以使用此工作区信息进行widget管理。`
+                            }]
+                        };
+                    } else {
+                        throw new Error(`获取工作区信息失败: ${response.status} - ${JSON.stringify(result)}`);
+                    }
+
+                case "restart_mcp_server":
+                    response = await fetch(`${this.waveTerminalUrl}/api/v1/widgets/mcp/restart`, {
+                        method: "POST",
+                        headers,
+                        body: JSON.stringify({})
+                    });
+                    result = await response.json();
+                    
+                    if (response.ok && result.success) {
+                        return {
+                            content: [{
+                                type: "text",
+                                text: `🔄 MCP服务器重启成功！\n\n` +
+                                      `状态: ${result.status.running ? '✅ 运行中' : '❌ 已停止'}\n` +
+                                      `端口: ${result.status.port}\n\n` +
+                                      `${result.message}\n\n` +
+                                      `💡 MCP服务器功能已重新初始化，可以继续使用API功能。`
+                            }]
+                        };
+                    } else {
+                        throw new Error(`MCP服务器重启失败: ${response.status} - ${JSON.stringify(result)}`);
+                    }
+
+                case "fix_workspace_data":
+                    response = await fetch(`${this.waveTerminalUrl}/api/v1/widgets/debug/fix-workspace`, {
+                        headers
+                    });
+                    result = await response.json();
+                    
+                    if (response.ok && result.success) {
+                        return {
+                            content: [{
+                                type: "text",
+                                text: `🔧 工作区数据修复完成！\n\n` +
+                                      `修复操作: ${result.fixes_applied ? result.fixes_applied.join(', ') : '无需修复'}\n` +
+                                      `修复时间: ${result.timestamp}\n\n` +
+                                      `${result.message}\n\n` +
+                                      `💡 工作区数据已检查并修复，现在应该正常工作。`
+                            }]
+                        };
+                    } else {
+                        throw new Error(`工作区数据修复失败: ${response.status} - ${JSON.stringify(result)}`);
                     }
 
                 default:

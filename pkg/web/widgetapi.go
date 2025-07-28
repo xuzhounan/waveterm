@@ -44,6 +44,9 @@ func handleWidgetAPI(w http.ResponseWriter, r *http.Request) {
 	path := strings.TrimPrefix(r.URL.Path, "/api/v1/widgets")
 	pathParts := strings.Split(strings.Trim(path, "/"), "/")
 
+	// Debug logging
+	log.Printf("Request path: %s, trimmed path: %s, pathParts: %v", r.URL.Path, path, pathParts)
+
 	ctx := r.Context()
 
 	switch r.Method {
@@ -71,6 +74,10 @@ func handleWidgetAPI(w http.ResponseWriter, r *http.Request) {
 			// GET /api/v1/widgets/workspace/{workspace_id} - Get workspace widgets
 			workspaceId := pathParts[1]
 			handleGetWorkspaceWidgets(w, r, ctx, workspaceId)
+		} else if len(pathParts) == 3 && pathParts[0] == "workspace" && pathParts[1] == "info" {
+			// GET /api/v1/widgets/workspace/info/{workspace_id} - Get workspace detailed info
+			workspaceId := pathParts[2]
+			handleGetWorkspaceInfo(w, r, ctx, workspaceId)
 		} else if len(pathParts) == 3 && pathParts[0] == "workspace" && pathParts[1] == "name" {
 			// GET /api/v1/widgets/workspace/name/{workspace_name} - Get workspace by name
 			workspaceName := pathParts[2]
@@ -161,6 +168,27 @@ func handleListWorkspaces(w http.ResponseWriter, r *http.Request, ctx context.Co
 	response, err := widgetapiservice.WidgetAPIServiceInstance.ListWorkspaces(ctx)
 	if err != nil {
 		log.Printf("Error listing workspaces: %v", err)
+		writeErrorResponse(w, fmt.Sprintf("Internal server error: %s", err.Error()), http.StatusInternalServerError)
+		return
+	}
+
+	// Return the response
+	json.NewEncoder(w).Encode(response)
+}
+
+// handleGetWorkspaceInfo returns detailed workspace information by ID
+func handleGetWorkspaceInfo(w http.ResponseWriter, r *http.Request, ctx context.Context, workspaceId string) {
+	if workspaceId == "" {
+		writeErrorResponse(w, "workspace_id is required", http.StatusBadRequest)
+		return
+	}
+
+	log.Printf("Getting workspace info for workspace: %s", workspaceId)
+
+	// Call the service to get workspace info
+	response, err := widgetapiservice.WidgetAPIServiceInstance.GetWorkspaceInfo(ctx, workspaceId)
+	if err != nil {
+		log.Printf("Error getting workspace info: %v", err)
 		writeErrorResponse(w, fmt.Sprintf("Internal server error: %s", err.Error()), http.StatusInternalServerError)
 		return
 	}
@@ -336,7 +364,7 @@ func handleMCPServerStatus(w http.ResponseWriter, r *http.Request, ctx context.C
 			"status":    "connected",
 			"url":       fmt.Sprintf("http://127.0.0.1:%d", currentPort),
 			"lastSeen":  getCurrentTimestamp(),
-			"tools":     []string{"create_widget", "list_workspaces", "get_workspace_by_name", "get_widget_types", "check_server_status", "create_tab", "list_tabs", "set_active_tab"},
+			"tools":     []string{"create_widget", "list_workspaces", "get_workspace_by_name", "get_workspace", "get_widget_types", "check_server_status", "create_tab", "list_tabs", "set_active_tab", "restart_mcp_server", "fix_workspace_data"},
 			"resources": []string{"workspaces", "widgets", "terminals"},
 		}
 	}
