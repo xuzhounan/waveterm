@@ -32,7 +32,7 @@ class WaveTerminalMCPServer extends Server {
             }
         });
         
-        this.waveTerminalUrl = process.env.WAVE_TERMINAL_URL || "http://localhost:61269";
+        this.waveTerminalUrl = process.env.WAVE_TERMINAL_URL || "http://127.0.0.1:60289";
         this.authKey = process.env.WAVE_TERMINAL_AUTH_KEY;
         
         console.error(`[MCP] Wave Terminal MCP Server starting...`);
