@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/wavetermdev/waveterm/pkg/filestore"
 	"github.com/wavetermdev/waveterm/pkg/blockcontroller"
+	"github.com/wavetermdev/waveterm/pkg/filestore"
 	"github.com/wavetermdev/waveterm/pkg/service/workspaceservice"
 	"github.com/wavetermdev/waveterm/pkg/wavebase"
 	"github.com/wavetermdev/waveterm/pkg/waveobj"
@@ -253,6 +253,17 @@ func (ws *WidgetAPIService) CreateWidget(ctx context.Context, req CreateWidgetAP
 			Success: false,
 			Error:   fmt.Sprintf("failed to queue layout action: %s", err.Error()),
 		}, nil
+	}
+
+	// Start the block controller if it's a terminal/shell block
+	controllerType := getStringFromMeta(block.Meta, "controller")
+	if controllerType == "shell" || controllerType == "cmd" {
+		log.Printf("Starting controller for block %s (type: %s)", block.OID, controllerType)
+		err = blockcontroller.ResyncController(ctx, tabId, block.OID, nil, false)
+		if err != nil {
+			log.Printf("Warning: Failed to start controller for block %s: %v", block.OID, err)
+			// Don't fail the widget creation, just log the warning
+		}
 	}
 
 	// Send database update events to notify frontend
