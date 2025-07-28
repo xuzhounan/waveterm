@@ -10,8 +10,10 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os/exec"
 	"strconv"
 	"strings"
+	"time"
 
 	// "github.com/wavetermdev/waveterm/pkg/authkey" // 临时注释用于测试
 	"github.com/wavetermdev/waveterm/pkg/service/widgetapiservice"
@@ -289,15 +291,12 @@ func handleListWidgetTypes(w http.ResponseWriter, r *http.Request, ctx context.C
 	json.NewEncoder(w).Encode(widgetTypes)
 }
 
-// handleMCPServerStatus checks the status of MCP server functionality
+// handleMCPServerStatus checks the status of MCP server functionality and connected clients
 func handleMCPServerStatus(w http.ResponseWriter, r *http.Request, ctx context.Context) {
 	log.Printf("Checking MCP server status")
 
-	// Since we're able to handle this request, the web server (and thus MCP functionality) is running
-	isRunning := true
-	currentPort := 0
-	
 	// Try to extract port from the request
+	currentPort := 0
 	if r.Host != "" {
 		// Parse port from Host header if available
 		if colonIndex := strings.LastIndex(r.Host, ":"); colonIndex != -1 {
@@ -307,14 +306,30 @@ func handleMCPServerStatus(w http.ResponseWriter, r *http.Request, ctx context.C
 		}
 	}
 	
-	log.Printf("MCP functionality status - Running: %v, Port: %d", isRunning, currentPort)
+	// Check for active MCP client connections (like Claude Code)
+	servers := make(map[string]interface{})
+	
+	// TODO: Implement actual MCP client detection logic
+	// For now, we'll detect based on process names and connections
+	// This is a simplified detection mechanism
+	hasClaudeClient := checkForClaudeCodeClient()
+	
+	if hasClaudeClient {
+		servers["claude-code"] = map[string]interface{}{
+			"name":      "Claude Code",
+			"status":    "connected",
+			"url":       fmt.Sprintf("http://127.0.0.1:%d", currentPort),
+			"lastSeen":  getCurrentTimestamp(),
+			"tools":     []string{"create_widget", "list_workspaces", "get_workspace_by_name", "get_widget_types", "check_server_status"},
+			"resources": []string{"workspaces", "widgets", "terminals"},
+		}
+	}
+	
+	log.Printf("MCP server status - Port: %d, Connected clients: %d", currentPort, len(servers))
 
 	response := map[string]interface{}{
 		"success": true,
-		"status": map[string]interface{}{
-			"running": isRunning,
-			"port":    currentPort,
-		},
+		"servers": servers,
 	}
 
 	json.NewEncoder(w).Encode(response)
@@ -353,6 +368,37 @@ func handleMCPServerRestart(w http.ResponseWriter, r *http.Request, ctx context.
 	}
 
 	json.NewEncoder(w).Encode(response)
+}
+
+// checkForClaudeCodeClient checks if Claude Code MCP client is connected
+func checkForClaudeCodeClient() bool {
+	// Check for Claude processes running
+	cmd := exec.Command("pgrep", "-f", "claude")
+	output, err := cmd.Output()
+	if err != nil {
+		log.Printf("Error checking for Claude processes: %v", err)
+		return false
+	}
+	
+	// If we found Claude processes, check for mcp-bridge as well
+	if len(output) > 0 {
+		cmd2 := exec.Command("pgrep", "-f", "mcp-bridge")
+		output2, err2 := cmd2.Output()
+		if err2 != nil {
+			log.Printf("Error checking for mcp-bridge processes: %v", err2)
+			return false
+		}
+		
+		// Both Claude and mcp-bridge processes exist
+		return len(output2) > 0
+	}
+	
+	return false
+}
+
+// getCurrentTimestamp returns current timestamp in milliseconds
+func getCurrentTimestamp() int64 {
+	return time.Now().UnixNano() / int64(time.Millisecond)
 }
 
 // writeErrorResponse writes a standardized error response
