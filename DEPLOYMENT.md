@@ -544,7 +544,7 @@ curl -H "X-AuthKey: $WAVETERM_AUTH_KEY" \
 如果遇到部署问题，请检查：
 
 1. **日志文件**: `waveterm-server.log`
-2. **端口占用**: `netstat -tulpn | grep 809`
+2. **端口占用**: `netstat -tulpn | grep 8090`
 3. **权限问题**: 确保有数据目录写入权限
 4. **依赖版本**: 确认Node.js和Go版本符合要求
 
