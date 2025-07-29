@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -844,8 +845,27 @@ func handlePersistentServerStatus(w http.ResponseWriter, r *http.Request, ctx co
 func handlePersistentServerStart(w http.ResponseWriter, r *http.Request, ctx context.Context) {
 	log.Printf("Starting persistent server")
 
+	// 获取项目根目录
+	workDir, err := os.Getwd()
+	if err != nil {
+		log.Printf("Failed to get working directory: %v", err)
+		writeErrorResponse(w, "Failed to get working directory", http.StatusInternalServerError)
+		return
+	}
+	
+	// 构建脚本的绝对路径
+	scriptPath := filepath.Join(workDir, "persistent-server.sh")
+	
+	// 检查脚本是否存在
+	if _, err := os.Stat(scriptPath); os.IsNotExist(err) {
+		log.Printf("Script not found at: %s", scriptPath)
+		writeErrorResponse(w, fmt.Sprintf("persistent-server.sh not found at %s", scriptPath), http.StatusInternalServerError)
+		return
+	}
+
 	// 执行启动脚本
-	cmd := exec.Command("./persistent-server.sh", "start")
+	cmd := exec.Command("bash", scriptPath, "start")
+	cmd.Dir = workDir // 设置工作目录
 	output, err := cmd.CombinedOutput()
 
 	response := map[string]interface{}{
@@ -854,6 +874,7 @@ func handlePersistentServerStart(w http.ResponseWriter, r *http.Request, ctx con
 	}
 
 	if err != nil {
+		log.Printf("Script execution failed: %v, output: %s", err, string(output))
 		response["error"] = err.Error()
 		w.WriteHeader(http.StatusInternalServerError)
 	} else {
@@ -867,8 +888,27 @@ func handlePersistentServerStart(w http.ResponseWriter, r *http.Request, ctx con
 func handlePersistentServerStop(w http.ResponseWriter, r *http.Request, ctx context.Context) {
 	log.Printf("Stopping persistent server")
 
+	// 获取项目根目录
+	workDir, err := os.Getwd()
+	if err != nil {
+		log.Printf("Failed to get working directory: %v", err)
+		writeErrorResponse(w, "Failed to get working directory", http.StatusInternalServerError)
+		return
+	}
+	
+	// 构建脚本的绝对路径
+	scriptPath := filepath.Join(workDir, "persistent-server.sh")
+	
+	// 检查脚本是否存在
+	if _, err := os.Stat(scriptPath); os.IsNotExist(err) {
+		log.Printf("Script not found at: %s", scriptPath)
+		writeErrorResponse(w, fmt.Sprintf("persistent-server.sh not found at %s", scriptPath), http.StatusInternalServerError)
+		return
+	}
+
 	// 执行停止脚本
-	cmd := exec.Command("./persistent-server.sh", "stop")
+	cmd := exec.Command("bash", scriptPath, "stop")
+	cmd.Dir = workDir // 设置工作目录
 	output, err := cmd.CombinedOutput()
 
 	response := map[string]interface{}{
@@ -877,6 +917,7 @@ func handlePersistentServerStop(w http.ResponseWriter, r *http.Request, ctx cont
 	}
 
 	if err != nil {
+		log.Printf("Script execution failed: %v, output: %s", err, string(output))
 		response["error"] = err.Error()
 		w.WriteHeader(http.StatusInternalServerError)
 	} else {

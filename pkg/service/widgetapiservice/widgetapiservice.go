@@ -677,6 +677,8 @@ func (ws *WidgetAPIService) createBlockDefFromWidgetType(widgetType string, cust
 		blockDef.Meta["view"] = "help"
 	case "tips":
 		blockDef.Meta["view"] = "tips"
+	case "serverstatus":
+		blockDef.Meta["view"] = "serverstatus"
 	default:
 		// For custom widget types, assume they provided the view in meta
 		if _, exists := blockDef.Meta["view"]; !exists {
