@@ -845,7 +845,7 @@ func handlePersistentServerStatus(w http.ResponseWriter, r *http.Request, ctx co
 func handlePersistentServerStart(w http.ResponseWriter, r *http.Request, ctx context.Context) {
 	log.Printf("Starting persistent server")
 
-	// 获取项目根目录
+	// 获取当前工作目录
 	workDir, err := os.Getwd()
 	if err != nil {
 		log.Printf("Failed to get working directory: %v", err)
@@ -853,8 +853,36 @@ func handlePersistentServerStart(w http.ResponseWriter, r *http.Request, ctx con
 		return
 	}
 	
-	// 构建脚本的绝对路径
+	// 尝试在当前目录查找脚本，如果找不到则在上级目录查找
 	scriptPath := filepath.Join(workDir, "persistent-server.sh")
+	if _, err := os.Stat(scriptPath); os.IsNotExist(err) {
+		// 尝试上级目录（可能从子目录运行）
+		parentDir := filepath.Dir(workDir)
+		scriptPath = filepath.Join(parentDir, "persistent-server.sh")
+		if _, err := os.Stat(scriptPath); os.IsNotExist(err) {
+			// 最后尝试项目根目录的推测路径
+			possiblePaths := []string{
+				"/Users/xzn/Desktop/code-project/waveterm/persistent-server.sh",
+				filepath.Join(os.Getenv("HOME"), "Desktop/code-project/waveterm/persistent-server.sh"),
+			}
+			found := false
+			for _, path := range possiblePaths {
+				if _, err := os.Stat(path); err == nil {
+					scriptPath = path
+					workDir = filepath.Dir(path) // 更新工作目录
+					found = true
+					break
+				}
+			}
+			if !found {
+				log.Printf("persistent-server.sh not found in current dir (%s), parent dir (%s), or common paths", workDir, parentDir)
+				writeErrorResponse(w, fmt.Sprintf("persistent-server.sh not found. Searched in: %s, %s", workDir, parentDir), http.StatusNotFound)
+				return
+			}
+		} else {
+			workDir = parentDir // 更新工作目录为找到脚本的目录
+		}
+	}
 	
 	// 检查脚本是否存在
 	if _, err := os.Stat(scriptPath); os.IsNotExist(err) {
@@ -888,7 +916,7 @@ func handlePersistentServerStart(w http.ResponseWriter, r *http.Request, ctx con
 func handlePersistentServerStop(w http.ResponseWriter, r *http.Request, ctx context.Context) {
 	log.Printf("Stopping persistent server")
 
-	// 获取项目根目录
+	// 获取当前工作目录
 	workDir, err := os.Getwd()
 	if err != nil {
 		log.Printf("Failed to get working directory: %v", err)
@@ -896,8 +924,36 @@ func handlePersistentServerStop(w http.ResponseWriter, r *http.Request, ctx cont
 		return
 	}
 	
-	// 构建脚本的绝对路径
+	// 尝试在当前目录查找脚本，如果找不到则在上级目录查找
 	scriptPath := filepath.Join(workDir, "persistent-server.sh")
+	if _, err := os.Stat(scriptPath); os.IsNotExist(err) {
+		// 尝试上级目录（可能从子目录运行）
+		parentDir := filepath.Dir(workDir)
+		scriptPath = filepath.Join(parentDir, "persistent-server.sh")
+		if _, err := os.Stat(scriptPath); os.IsNotExist(err) {
+			// 最后尝试项目根目录的推测路径
+			possiblePaths := []string{
+				"/Users/xzn/Desktop/code-project/waveterm/persistent-server.sh",
+				filepath.Join(os.Getenv("HOME"), "Desktop/code-project/waveterm/persistent-server.sh"),
+			}
+			found := false
+			for _, path := range possiblePaths {
+				if _, err := os.Stat(path); err == nil {
+					scriptPath = path
+					workDir = filepath.Dir(path) // 更新工作目录
+					found = true
+					break
+				}
+			}
+			if !found {
+				log.Printf("persistent-server.sh not found in current dir (%s), parent dir (%s), or common paths", workDir, parentDir)
+				writeErrorResponse(w, fmt.Sprintf("persistent-server.sh not found. Searched in: %s, %s", workDir, parentDir), http.StatusNotFound)
+				return
+			}
+		} else {
+			workDir = parentDir // 更新工作目录为找到脚本的目录
+		}
+	}
 	
 	// 检查脚本是否存在
 	if _, err := os.Stat(scriptPath); os.IsNotExist(err) {
