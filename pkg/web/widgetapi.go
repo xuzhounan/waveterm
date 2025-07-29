@@ -253,7 +253,6 @@ func handleGetWorkspaceByName(w http.ResponseWriter, r *http.Request, ctx contex
 
 // handleListWidgetTypes returns available widget types and their descriptions
 func handleListWidgetTypes(w http.ResponseWriter, r *http.Request, ctx context.Context) {
-	log.Printf("Listing widget types")
 
 	// Define available widget types
 	widgetTypes := map[string]interface{}{
@@ -363,7 +362,6 @@ func handleListWidgetTypes(w http.ResponseWriter, r *http.Request, ctx context.C
 
 // handleMCPServerStatus checks the status of MCP server functionality and connected clients
 func handleMCPServerStatus(w http.ResponseWriter, r *http.Request, ctx context.Context) {
-	log.Printf("Checking MCP server status")
 
 	// Try to extract port from the request
 	currentPort := 0
@@ -395,7 +393,6 @@ func handleMCPServerStatus(w http.ResponseWriter, r *http.Request, ctx context.C
 		}
 	}
 
-	log.Printf("MCP server status - Port: %d, Connected clients: %d", currentPort, len(servers))
 
 	// 获取EventBridge状态信息
 	bridgeStatus := map[string]interface{}{

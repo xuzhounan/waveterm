@@ -44,7 +44,6 @@ class ServerStatusLightModel {
         try {
             // 使用动态端点检查服务器状态，确保使用127.0.0.1避免代理干扰
             const endpoint = getWebServerEndpoint().replace('localhost', '127.0.0.1');
-            console.log(`检查服务器状态灯: ${endpoint}`);
             
             const response = await fetch(`${endpoint}/api/v1/widgets`, {
                 method: 'GET',
