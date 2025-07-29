@@ -102,7 +102,7 @@ WORKDIR /root/
 COPY --from=backend-builder /app/wave-terminal .
 COPY --from=frontend-builder /app/dist ./dist/
 
-EXPOSE 8080 8081
+EXPOSE 8090 8091
 
 CMD ["./wave-terminal"]
 ```
@@ -113,7 +113,7 @@ CMD ["./wave-terminal"]
 docker build -t wave-terminal-mcp .
 
 # 运行容器
-docker run -p 8080:8080 -p 8081:8081 \
+docker run -p 8090:8090 -p 8091:8091 \
   -e WAVETERM_DATA_DIR="/data" \
   -v wave-data:/data \
   wave-terminal-mcp
@@ -129,8 +129,8 @@ services:
   wave-terminal:
     build: .
     ports:
-      - "8080:8080"
-      - "8081:8081"
+      - "8090:8090"
+      - "8091:8091"
     environment:
       - WAVETERM_DATA_DIR=/data
       - WAVETERM_AUTH_KEY=${WAVETERM_AUTH_KEY}
@@ -192,8 +192,8 @@ spec:
         image: wave-terminal-mcp:latest
         imagePullPolicy: Always
         ports:
-        - containerPort: 8080
-        - containerPort: 8081
+        - containerPort: 8090
+        - containerPort: 8091
         env:
         - name: WAVETERM_DATA_DIR
           value: "/data"
@@ -208,13 +208,13 @@ spec:
         livenessProbe:
           httpGet:
             path: /api/v1/widgets/workspaces
-            port: 8080
+            port: 8090
           initialDelaySeconds: 30
           periodSeconds: 10
         readinessProbe:
           httpGet:
             path: /api/v1/widgets/workspaces
-            port: 8080
+            port: 8090
           initialDelaySeconds: 5
           periodSeconds: 5
       volumes:
@@ -233,10 +233,10 @@ spec:
   ports:
   - name: http
     port: 80
-    targetPort: 8080
+    targetPort: 8090
   - name: websocket
-    port: 8081
-    targetPort: 8081
+    port: 8091
+    targetPort: 8091
   type: LoadBalancer
 
 ---
@@ -341,7 +341,7 @@ certbot certonly --standalone -d yourdomain.com
       "command": "node",
       "args": ["/path/to/waveterm/mcp-bridge.js"],
       "env": {
-        "WAVE_TERMINAL_URL": "http://localhost:61269",
+        "WAVE_TERMINAL_URL": "http://localhost:8090",
         "WAVE_TERMINAL_AUTH_KEY": "your-auth-key"
       }
     }
@@ -362,7 +362,7 @@ class WaveTerminalMCPServer extends MCPServer {
       version: "1.0.0"
     });
     
-    this.waveTerminalUrl = process.env.WAVE_TERMINAL_URL || "http://localhost:61269";
+    this.waveTerminalUrl = process.env.WAVE_TERMINAL_URL || "http://localhost:8090";
     this.authKey = process.env.WAVE_TERMINAL_AUTH_KEY;
   }
 
@@ -451,7 +451,7 @@ console.log("Created widget:", newWidget);
 ### 1. 健康检查
 ```bash
 # 检查API健康状态
-curl -f http://localhost:61269/api/v1/widgets/workspaces || exit 1
+curl -f http://localhost:8090/api/v1/widgets/workspaces || exit 1
 
 # 检查WebSocket连接
 wscat -c ws://localhost:61270
@@ -472,7 +472,7 @@ logrotate -d /etc/logrotate.d/waveterm
 htop -p $(pgrep wave-terminal)
 
 # 监控网络连接
-netstat -tulpn | grep :61269
+netstat -tulpn | grep :8090
 ```
 
 ## 🔄 更新和升级
@@ -523,7 +523,7 @@ ls -la dist/frontend/
 ./persistent-server.sh status
 
 # 检查端口占用
-lsof -i :61269
+lsof -i :8090
 
 # 重启服务器
 ./persistent-server.sh restart
@@ -536,7 +536,7 @@ echo $WAVETERM_AUTH_KEY
 
 # 测试API访问
 curl -H "X-AuthKey: $WAVETERM_AUTH_KEY" \
-  http://localhost:61269/api/v1/widgets/workspaces
+  http://localhost:8090/api/v1/widgets/workspaces
 ```
 
 ## 📞 技术支持

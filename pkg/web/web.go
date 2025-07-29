@@ -422,14 +422,20 @@ func MakeTCPListener(serviceName string) (net.Listener, error) {
 	if serviceName == "web" {
 		if port := os.Getenv("WAVETERM_WEB_PORT"); port != "" {
 			serverAddr = "127.0.0.1:" + port
+		} else {
+			// Default web port for MCP API
+			serverAddr = "127.0.0.1:8090"
 		}
 	} else if serviceName == "websocket" {
 		if port := os.Getenv("WAVETERM_WS_PORT"); port != "" {
 			serverAddr = "127.0.0.1:" + port
+		} else {
+			// Default websocket port
+			serverAddr = "127.0.0.1:8091"
 		}
 	}
 	
-	// Default to auto-assign if no port specified
+	// Fallback to auto-assign for other services
 	if serverAddr == "" {
 		serverAddr = "127.0.0.1:"
 	}

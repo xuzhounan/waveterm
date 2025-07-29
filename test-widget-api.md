@@ -168,7 +168,7 @@ Content-Type: application/json
 
 ### 测试1: 创建终端widget
 ```bash
-curl -X POST http://localhost:8080/api/v1/widgets \
+curl -X POST http://localhost:8090/api/v1/widgets \
   -H "Content-Type: application/json" \
   -d '{
     "workspace_id": "workspace-123",
@@ -182,7 +182,7 @@ curl -X POST http://localhost:8080/api/v1/widgets \
 
 ### 测试2: 创建Web浏览器widget
 ```bash
-curl -X POST http://localhost:8080/api/v1/widgets \
+curl -X POST http://localhost:8090/api/v1/widgets \
   -H "Content-Type: application/json" \
   -d '{
     "workspace_id": "workspace-123", 
@@ -196,12 +196,12 @@ curl -X POST http://localhost:8080/api/v1/widgets \
 
 ### 测试3: 列出工作空间
 ```bash
-curl -X GET http://localhost:8080/api/v1/widgets/workspaces
+curl -X GET http://localhost:8090/api/v1/widgets/workspaces
 ```
 
 ### 测试4: 获取widget类型
 ```bash
-curl -X GET http://localhost:8080/api/v1/widgets
+curl -X GET http://localhost:8090/api/v1/widgets
 ```
 
 ## 错误处理

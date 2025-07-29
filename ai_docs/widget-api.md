@@ -362,7 +362,7 @@ w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 ### 示例测试脚本
 ```bash
 # 创建终端widget
-curl -X POST http://localhost:8080/api/v1/widgets \
+curl -X POST http://localhost:8090/api/v1/widgets \
   -H "Content-Type: application/json" \
   -d '{
     "workspace_id": "ws-123",
@@ -371,10 +371,10 @@ curl -X POST http://localhost:8080/api/v1/widgets \
   }'
 
 # 列出工作空间
-curl -X GET http://localhost:8080/api/v1/widgets/workspaces
+curl -X GET http://localhost:8090/api/v1/widgets/workspaces
 
 # 获取widget类型
-curl -X GET http://localhost:8080/api/v1/widgets
+curl -X GET http://localhost:8090/api/v1/widgets
 ```
 
 ## 最佳实践

@@ -252,7 +252,7 @@ function mergeWidgetConfigs(
         "label": "Project B Dev",
         "blockdef": {
             "meta": {
-                "url": "http://localhost:8080"
+                "url": "http://localhost:8090"
             }
         }
     }

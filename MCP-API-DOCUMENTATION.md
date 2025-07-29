@@ -32,18 +32,18 @@
 .
 ✅ Wave Terminal服务器启动成功!
   进程ID: 33189
-  Web端口: 61269
-  WebSocket端口: 61270
-  API基础URL: http://localhost:61269
+  Web端口: 8090
+  WebSocket端口: 8091
+  API基础URL: http://localhost:8090
   日志文件: waveterm-server.log
 
 ✅ 服务器启动完成！
 
 📋 可用的API端点:
-  • 列出工作区: http://localhost:61269/api/v1/widgets/workspaces
-  • 按名称查找工作区: http://localhost:61269/api/v1/widgets/workspace/name/{name}
-  • 获取工作区widgets: http://localhost:61269/api/v1/widgets/workspace/{id}
-  • 创建widget: http://localhost:61269/api/v1/widgets (POST)
+  • 列出工作区: http://localhost:8090/api/v1/widgets/workspaces
+  • 按名称查找工作区: http://localhost:8090/api/v1/widgets/workspace/name/{name}
+  • 获取工作区widgets: http://localhost:8090/api/v1/widgets/workspace/{id}
+  • 创建widget: http://localhost:8090/api/v1/widgets (POST)
 
 🔑 认证信息 (如果需要):
   Header: X-AuthKey: 83958e47ddc89fae695a7e1eb429899871e80334bd58cfc2d17a80388791f073
@@ -61,7 +61,7 @@
 
 ### 服务器特性
 - **🔄 持久化运行**: 解决了stdin EOF导致的自动关闭问题
-- **📡 动态端口**: 自动分配可用端口，避免冲突
+- **📡 固定端口**: 使用固定端口8090(Web)和8091(WebSocket)，避免配置混乱
 - **🔒 进程管理**: 安全的启动、停止和状态监控
 - **📝 完整日志**: 所有操作和API调用都有详细记录
 - **🛡️ 错误恢复**: 自动处理异常情况和进程清理
@@ -154,7 +154,7 @@ WAVETERM_AUTH_KEY="your-new-key-here" ./persistent-server.sh start
 #### HTTP Header认证 (生产环境)
 ```bash
 curl -H "X-AuthKey: 83958e47ddc89fae695a7e1eb429899871e80334bd58cfc2d17a80388791f073" \
-     "http://localhost:61269/api/v1/widgets/workspaces"
+     "http://localhost:8090/api/v1/widgets/workspaces"
 ```
 
 #### 当前开发状态
@@ -171,7 +171,7 @@ curl -H "X-AuthKey: 83958e47ddc89fae695a7e1eb429899871e80334bd58cfc2d17a80388791
 
 这意味着当前可以直接访问API，无需认证头：
 ```bash
-curl "http://localhost:61269/api/v1/widgets/workspaces"
+curl "http://localhost:8090/api/v1/widgets/workspaces"
 ```
 
 #### 启用生产认证
@@ -195,7 +195,7 @@ curl "http://localhost:61269/api/v1/widgets/workspaces"
 3. **所有API请求需要包含认证头**:
    ```bash
    curl -H "X-AuthKey: 83958e47ddc89fae695a7e1eb429899871e80334bd58cfc2d17a80388791f073" \
-        "http://localhost:61269/api/v1/widgets/workspaces"
+        "http://localhost:8090/api/v1/widgets/workspaces"
    ```
 
 ### 密钥安全最佳实践
@@ -422,7 +422,7 @@ class WaveTerminalMCP:
         return None
 
 # 使用示例
-mcp = WaveTerminalMCP("http://localhost:61269")
+mcp = WaveTerminalMCP("http://localhost:8090")
 
 # 获取waveterm工作区的ID
 workspace_id = mcp.get_workspace_id_by_name("waveterm")
@@ -474,7 +474,7 @@ class WaveTerminalMCP {
 }
 
 // 使用示例
-const mcp = new WaveTerminalMCP('http://localhost:61269');
+const mcp = new WaveTerminalMCP('http://localhost:8090');
 
 async function example() {
     // 获取工作区信息
@@ -501,13 +501,13 @@ async function example() {
 ### 1. 监控工作区状态
 ```bash
 # 定期检查工作区数量和状态
-curl -s "http://localhost:61269/api/v1/widgets/workspaces" | jq '.workspaces | length'
+curl -s "http://localhost:8090/api/v1/widgets/workspaces" | jq '.workspaces | length'
 ```
 
 ### 2. 自动化工作区管理
 ```bash
 # 检查特定工作区是否存在，不存在则创建相关资源
-WORKSPACE_ID=$(curl -s "http://localhost:61269/api/v1/widgets/workspace/name/Development" | jq -r '.workspace.workspace_id // empty')
+WORKSPACE_ID=$(curl -s "http://localhost:8090/api/v1/widgets/workspace/name/Development" | jq -r '.workspace.workspace_id // empty')
 
 if [ -z "$WORKSPACE_ID" ]; then
     echo "Development workspace not found"
@@ -527,7 +527,7 @@ fi
 
 #### 症状: API请求返回连接错误
 ```bash
-curl: (7) Failed to connect to localhost port 61269: Connection refused
+curl: (7) Failed to connect to localhost port 8090: Connection refused
 ```
 
 **解决方案**:
@@ -593,7 +593,7 @@ HTTP/1.1 503 Service Unavailable
 2. **请求超时**:
    ```bash
    # 使用更长的超时时间
-   curl --connect-timeout 10 --max-time 10 "http://localhost:61269/api/v1/widgets/workspaces"
+   curl --connect-timeout 10 --max-time 10 "http://localhost:8090/api/v1/widgets/workspaces"
    ```
 
 #### 症状: 认证错误 (如果启用认证)
@@ -605,7 +605,7 @@ HTTP/1.1 503 Service Unavailable
 ```bash
 # 确保包含正确的认证头
 curl -H "X-AuthKey: 83958e47ddc89fae695a7e1eb429899871e80334bd58cfc2d17a80388791f073" \
-     "http://localhost:61269/api/v1/widgets/workspaces"
+     "http://localhost:8090/api/v1/widgets/workspaces"
 ```
 
 #### 症状: 工作区不存在
@@ -616,7 +616,7 @@ curl -H "X-AuthKey: 83958e47ddc89fae695a7e1eb429899871e80334bd58cfc2d17a80388791
 **解决方案**:
 ```bash
 # 首先列出所有工作区查看可用名称
-curl -s "http://localhost:61269/api/v1/widgets/workspaces" | jq '.workspaces[].name'
+curl -s "http://localhost:8090/api/v1/widgets/workspaces" | jq '.workspaces[].name'
 
 # 或者创建缺失的工作区（需要直接调用Go代码）
 go run test-api-direct-call.go
@@ -689,9 +689,9 @@ go mod download
 
 **正常启动**:
 ```
-[wavesrv] Server [web] listening on 127.0.0.1:61269
-[wavesrv] Server [websocket] listening on 127.0.0.1:61270
-WAVESRV-ESTART ws:127.0.0.1:61270 web:127.0.0.1:61269
+[wavesrv] Server [web] listening on 127.0.0.1:8090
+[wavesrv] Server [websocket] listening on 127.0.0.1:8091
+WAVESRV-ESTART ws:127.0.0.1:8091 web:127.0.0.1:8090
 ```
 
 **API调用成功**:
@@ -748,7 +748,7 @@ pkill -f "go run.*server"
 pkill -f "main-server"
 
 # 清理端口占用
-lsof -ti:61269 | xargs kill -9 2>/dev/null || true
+lsof -ti:8090 | xargs kill -9 2>/dev/null || true
 ```
 
 ### 8. 开发调试
