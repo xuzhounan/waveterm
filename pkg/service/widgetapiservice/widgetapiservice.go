@@ -14,13 +14,13 @@ import (
 	"github.com/wavetermdev/waveterm/pkg/blockcontroller"
 	"github.com/wavetermdev/waveterm/pkg/filestore"
 	"github.com/wavetermdev/waveterm/pkg/service/workspaceservice"
+	"github.com/wavetermdev/waveterm/pkg/util/utilfn"
 	"github.com/wavetermdev/waveterm/pkg/wavebase"
 	"github.com/wavetermdev/waveterm/pkg/waveobj"
 	"github.com/wavetermdev/waveterm/pkg/wconfig"
 	"github.com/wavetermdev/waveterm/pkg/wcore"
 	"github.com/wavetermdev/waveterm/pkg/wps"
 	"github.com/wavetermdev/waveterm/pkg/wshrpc"
-	"os"
 	"github.com/wavetermdev/waveterm/pkg/wstore"
 )
 
@@ -30,15 +30,16 @@ var WidgetAPIServiceInstance = &WidgetAPIService{}
 
 // CreateWidgetAPIRequest represents the REST API request for creating a widget
 type CreateWidgetAPIRequest struct {
-	WorkspaceId string          `json:"workspace_id"`
-	TabId       string          `json:"tab_id,omitempty"`    // If empty, will use active tab
-	WidgetType  string          `json:"widget_type"`         // terminal, web, files, ai, sysinfo, or custom
-	Title       string          `json:"title,omitempty"`     // Optional custom title
-	Icon        string          `json:"icon,omitempty"`      // Optional custom icon
-	Meta        map[string]any  `json:"meta,omitempty"`      // Additional metadata for the widget
-	Position    *WidgetPosition `json:"position,omitempty"`  // Where to place the widget
-	Magnified   bool            `json:"magnified,omitempty"` // Whether widget should be magnified
-	Ephemeral   bool            `json:"ephemeral,omitempty"` // Whether widget is temporary
+	WorkspaceId     string          `json:"workspace_id"`
+	TabId           string          `json:"tab_id,omitempty"`          // If empty, will use active tab
+	WidgetType      string          `json:"widget_type"`               // terminal, web, files, ai, sysinfo, or custom
+	Title           string          `json:"title,omitempty"`           // Optional custom title
+	Icon            string          `json:"icon,omitempty"`            // Optional custom icon
+	Meta            map[string]any  `json:"meta,omitempty"`            // Additional metadata for the widget
+	Position        *WidgetPosition `json:"position,omitempty"`        // Where to place the widget
+	Magnified       bool            `json:"magnified,omitempty"`       // Whether widget should be magnified
+	Ephemeral       bool            `json:"ephemeral,omitempty"`       // Whether widget is temporary
+	AddToWorkspace  bool            `json:"add_to_workspace,omitempty"` // Whether to add widget to workspace widget bar (default: true)
 }
 
 // WidgetPosition specifies where to place the new widget
@@ -270,6 +271,46 @@ func (ws *WidgetAPIService) CreateWidget(ctx context.Context, req CreateWidgetAP
 		if err != nil {
 			log.Printf("Warning: Failed to start controller for block %s: %v", block.OID, err)
 			// Don't fail the widget creation, just log the warning
+		}
+	}
+
+	// Add widget to workspace widget configuration to make it appear in widget bar
+	// Default to true if not explicitly set to false
+	addToWorkspace := req.AddToWorkspace
+	if !req.Ephemeral { // Don't add ephemeral widgets to workspace
+		addToWorkspace = true
+	}
+	
+	if addToWorkspace {
+		widgetKey := fmt.Sprintf("mcp-%s-%d", req.WidgetType, time.Now().Unix())
+		widgetConfig := wconfig.WidgetConfigType{
+			Icon:  req.Icon,
+			Label: req.Title,
+			BlockDef: waveobj.BlockDef{
+				Meta: blockDef.Meta,
+			},
+		}
+		
+		// Set default icon if not provided
+		if widgetConfig.Icon == "" {
+			widgetConfig.Icon = "square-terminal" // Default icon
+		}
+		
+		// Convert to map to set display order
+		widgetConfigMap := make(map[string]any)
+		utilfn.ReUnmarshal(&widgetConfigMap, widgetConfig)
+		widgetConfigMap["display:order"] = 0
+		
+		// Convert back to WidgetConfigType
+		var finalWidgetConfig wconfig.WidgetConfigType
+		utilfn.ReUnmarshal(&finalWidgetConfig, widgetConfigMap)
+		
+		err = wconfig.SetWorkspaceWidgetConfig(req.WorkspaceId, widgetKey, finalWidgetConfig)
+		if err != nil {
+			log.Printf("Warning: Failed to add widget to workspace config: %v", err)
+			// Don't fail the widget creation, just log the warning
+		} else {
+			log.Printf("Added widget %s to workspace %s configuration", widgetKey, req.WorkspaceId)
 		}
 	}
 
