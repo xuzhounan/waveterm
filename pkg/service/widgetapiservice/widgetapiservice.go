@@ -325,9 +325,15 @@ func (ws *WidgetAPIService) CreateWidget(ctx context.Context, req CreateWidgetAP
 	}
 
 	// Send database update events to notify frontend
-	// Use PublishWithBridge to ensure events are forwarded to other Wave Terminal instances
+	// Use both the standard method and PublishWithBridge for maximum compatibility
 	updates := waveobj.ContextGetUpdatesRtn(ctx)
 	log.Printf("[DEBUG] WidgetAPI: sending %d update events with EventBridge", len(updates))
+	
+	// First, send via standard method to ensure local frontend gets notified
+	wps.Broker.SendUpdateEvents(updates)
+	log.Printf("[DEBUG] WidgetAPI: standard update events sent")
+	
+	// Also use PublishWithBridge for any remote instances
 	for _, update := range updates {
 		wps.Broker.PublishWithBridge(wps.WaveEvent{
 			Event:  wps.Event_WaveObjUpdate,
@@ -348,15 +354,21 @@ func (ws *WidgetAPIService) CreateWidget(ctx context.Context, req CreateWidgetAP
 			layoutState.Version++ // Increment version to force update
 			err = wstore.DBUpdate(ctx, layoutState)
 			if err == nil {
-				// Send specific update event for the layout state with bridge
+				// Create layout state update event
+				layoutUpdate := waveobj.WaveObjUpdate{
+					UpdateType: waveobj.UpdateType_Update,
+					OType:      waveobj.OType_LayoutState,
+					OID:        layoutStateId,
+				}
+				
+				// Send via standard method first
+				wps.Broker.SendUpdateEvents([]waveobj.WaveObjUpdate{layoutUpdate})
+				
+				// Also send via bridge for remote instances
 				wps.Broker.PublishWithBridge(wps.WaveEvent{
 					Event:  wps.Event_WaveObjUpdate,
 					Scopes: []string{waveobj.MakeORef(waveobj.OType_LayoutState, layoutStateId).String()},
-					Data: waveobj.WaveObjUpdate{
-						UpdateType: waveobj.UpdateType_Update,
-						OType:      waveobj.OType_LayoutState,
-						OID:        layoutStateId,
-					},
+					Data:   layoutUpdate,
 				}, "mcp-widget-api")
 				log.Printf("[DEBUG] WidgetAPI: forced layout state update and refresh event for tab %s", tabId)
 			}
