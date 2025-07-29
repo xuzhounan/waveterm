@@ -342,6 +342,28 @@ func (ws *WidgetAPIService) CreateWidget(ctx context.Context, req CreateWidgetAP
 		}, "mcp-widget-api")
 	}
 	log.Printf("[DEBUG] WidgetAPI: update events sent successfully with bridge")
+	
+	// Add delayed event publishing to ensure frontend WebSocket connection is ready for MCP calls
+	// This addresses the issue where MCP tools create widgets that require manual refresh
+	go func() {
+		time.Sleep(100 * time.Millisecond) // Allow WebSocket connection to stabilize
+		
+		log.Printf("[DEBUG] WidgetAPI: sending delayed update events for MCP compatibility")
+		
+		// Send delayed standard updates
+		wps.Broker.SendUpdateEvents(updates)
+		
+		// Send delayed bridge updates with retry mechanism
+		for _, update := range updates {
+			wps.Broker.PublishWithBridge(wps.WaveEvent{
+				Event:  wps.Event_WaveObjUpdate,
+				Scopes: []string{waveobj.MakeORef(update.OType, update.OID).String()},
+				Data:   update,
+			}, "mcp-widget-api-delayed")
+		}
+		
+		log.Printf("[DEBUG] WidgetAPI: delayed update events sent for block %s", block.OID)
+	}()
 
 	// Force layout state refresh to ensure frontend recognizes the new widget immediately
 	// Get layout state and force a notification
@@ -370,6 +392,25 @@ func (ws *WidgetAPIService) CreateWidget(ctx context.Context, req CreateWidgetAP
 					Scopes: []string{waveobj.MakeORef(waveobj.OType_LayoutState, layoutStateId).String()},
 					Data:   layoutUpdate,
 				}, "mcp-widget-api")
+				
+				// Add delayed layout state update for MCP compatibility
+				go func(layoutUpdate waveobj.WaveObjUpdate, layoutStateId string) {
+					time.Sleep(150 * time.Millisecond) // Slightly longer delay for layout updates
+					
+					log.Printf("[DEBUG] WidgetAPI: sending delayed layout state update for MCP compatibility")
+					
+					// Send delayed layout update
+					wps.Broker.SendUpdateEvents([]waveobj.WaveObjUpdate{layoutUpdate})
+					
+					wps.Broker.PublishWithBridge(wps.WaveEvent{
+						Event:  wps.Event_WaveObjUpdate,
+						Scopes: []string{waveobj.MakeORef(waveobj.OType_LayoutState, layoutStateId).String()},
+						Data:   layoutUpdate,
+					}, "mcp-widget-api-layout-delayed")
+					
+					log.Printf("[DEBUG] WidgetAPI: delayed layout state update sent for tab %s", tabId)
+				}(layoutUpdate, layoutStateId)
+				
 				log.Printf("[DEBUG] WidgetAPI: forced layout state update and refresh event for tab %s", tabId)
 			}
 		}

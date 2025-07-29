@@ -103,6 +103,9 @@ func handleWidgetAPI(w http.ResponseWriter, r *http.Request) {
 		} else if path == "/debug/fix-workspace" {
 			// GET /api/v1/widgets/debug/fix-workspace - Fix workspace data inconsistencies
 			handleFixWorkspaceData(w, r, ctx)
+		} else if path == "/debug/recent-events" {
+			// GET /api/v1/widgets/debug/recent-events - Show recent cached events for debugging
+			handleGetRecentEvents(w, r, ctx)
 		} else if len(pathParts) == 3 && pathParts[0] == "workspace" && pathParts[2] == "tabs" {
 			// GET /api/v1/widgets/workspace/{workspace_id}/tabs - List tabs in workspace
 			workspaceId := pathParts[1]
@@ -1017,6 +1020,45 @@ func handlePersistentServerStop(w http.ResponseWriter, r *http.Request, ctx cont
 		w.WriteHeader(http.StatusInternalServerError)
 	} else {
 		response["message"] = "Persistent server stop command executed"
+	}
+
+	json.NewEncoder(w).Encode(response)
+}
+
+// handleGetRecentEvents returns recent cached events for debugging widget creation issues
+func handleGetRecentEvents(w http.ResponseWriter, r *http.Request, ctx context.Context) {
+	log.Printf("Getting recent events for debugging")
+
+	// Get events from the last 5 minutes
+	maxAge := 5 * time.Minute
+	recentEvents := wps.Bridge.GetRecentEvents(maxAge)
+
+	// Parse query parameter for filtering by source
+	sourceFilter := r.URL.Query().Get("source")
+	eventFilter := r.URL.Query().Get("event_type")
+
+	// Filter events if requested
+	var filteredEvents []wps.BridgeEvent
+	for _, event := range recentEvents {
+		if sourceFilter != "" && !strings.Contains(event.SourceID, sourceFilter) {
+			continue
+		}
+		if eventFilter != "" && event.Event.Event != eventFilter {
+			continue
+		}
+		filteredEvents = append(filteredEvents, event)
+	}
+
+	response := map[string]interface{}{
+		"success":      true,
+		"total_events": len(recentEvents),
+		"filtered_events": len(filteredEvents),
+		"max_age_minutes": int(maxAge.Minutes()),
+		"events":       filteredEvents,
+		"filters": map[string]string{
+			"source":     sourceFilter,
+			"event_type": eventFilter,
+		},
 	}
 
 	json.NewEncoder(w).Encode(response)

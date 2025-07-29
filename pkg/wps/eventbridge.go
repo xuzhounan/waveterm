@@ -19,11 +19,13 @@ import (
 
 // EventBridge manages cross-server event synchronization
 type EventBridge struct {
-	Lock       *sync.RWMutex
-	RemoteURLs []string              // URLs of remote servers to notify
-	Client     *http.Client          // HTTP client for sending events
-	Enable     bool                  // Whether bridge is enabled
-	Timeout    time.Duration         // Request timeout
+	Lock         *sync.RWMutex
+	RemoteURLs   []string              // URLs of remote servers to notify
+	Client       *http.Client          // HTTP client for sending events
+	Enable       bool                  // Whether bridge is enabled
+	Timeout      time.Duration         // Request timeout
+	RecentEvents []BridgeEvent         // Cache of recent events for reliability
+	CacheSize    int                   // Maximum number of events to cache
 }
 
 // BridgeEvent represents an event to be sent across servers
@@ -35,13 +37,15 @@ type BridgeEvent struct {
 
 // Global event bridge instance
 var Bridge = &EventBridge{
-	Lock:       &sync.RWMutex{},
-	RemoteURLs: []string{},
+	Lock:         &sync.RWMutex{},
+	RemoteURLs:   []string{},
 	Client: &http.Client{
 		Timeout: 5 * time.Second,
 	},
-	Enable:  true, // 默认启用事件桥接以支持MCP实时更新
-	Timeout: 5 * time.Second,
+	Enable:       true, // 默认启用事件桥接以支持MCP实时更新
+	Timeout:      5 * time.Second,
+	RecentEvents: make([]BridgeEvent, 0),
+	CacheSize:    100, // Cache up to 100 recent events
 }
 
 // AddRemoteServer adds a remote server URL to sync events with
@@ -164,10 +168,53 @@ func (eb *EventBridge) sendEventToRemote(url string, bridgeEvent BridgeEvent) {
 	log.Printf("EventBridge: Successfully forwarded event %s to %s", bridgeEvent.Event.Event, url)
 }
 
+// CacheEvent stores an event in the recent events cache for reliability
+func (eb *EventBridge) CacheEvent(event BridgeEvent) {
+	eb.Lock.Lock()
+	defer eb.Lock.Unlock()
+	
+	// Add event to cache
+	eb.RecentEvents = append(eb.RecentEvents, event)
+	
+	// Trim cache if it exceeds maximum size
+	if len(eb.RecentEvents) > eb.CacheSize {
+		// Keep only the most recent events
+		eb.RecentEvents = eb.RecentEvents[len(eb.RecentEvents)-eb.CacheSize:]
+	}
+	
+	log.Printf("EventBridge: Cached event %s from %s, cache size: %d", 
+		event.Event.Event, event.SourceID, len(eb.RecentEvents))
+}
+
+// GetRecentEvents returns a copy of recent events for debugging or retry purposes
+func (eb *EventBridge) GetRecentEvents(maxAge time.Duration) []BridgeEvent {
+	eb.Lock.RLock()
+	defer eb.Lock.RUnlock()
+	
+	cutoff := time.Now().Add(-maxAge).UnixMilli()
+	var recentEvents []BridgeEvent
+	
+	for _, event := range eb.RecentEvents {
+		if event.Timestamp >= cutoff {
+			recentEvents = append(recentEvents, event)
+		}
+	}
+	
+	return recentEvents
+}
+
 // Enhanced Broker Publish method with event bridging
 func (b *BrokerType) PublishWithBridge(event WaveEvent, sourceID string) {
 	// Always publish locally first
 	b.Publish(event)
+	
+	// Cache the event for reliability
+	bridgeEvent := BridgeEvent{
+		Event:     event,
+		SourceID:  sourceID,
+		Timestamp: time.Now().UnixMilli(),
+	}
+	Bridge.CacheEvent(bridgeEvent)
 	
 	// Then forward to remote servers if bridge is enabled and has remote URLs
 	// Note: For MCP usage, we primarily need local publishing, 
