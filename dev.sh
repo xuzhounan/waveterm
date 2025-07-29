@@ -1,8 +1,8 @@
 #!/bin/bash
 # Development environment setup script
 
-export WCLOUD_ENDPOINT="https://api-dev.waveterm.dev/central"
-export WCLOUD_WS_ENDPOINT="wss://wsapi-dev.waveterm.dev/"
+export WCLOUD_ENDPOINT="https://api.waveterm.dev/central"
+export WCLOUD_WS_ENDPOINT="wss://wsapi.waveterm.dev/"
 
 echo "Environment variables set for development"
 echo "WCLOUD_ENDPOINT: $WCLOUD_ENDPOINT"

@@ -26,8 +26,8 @@ tasks:
             - docsite:build:embedded
             - build:backend
         env:
-            WCLOUD_ENDPOINT: "https://api-dev.waveterm.dev/central"
-            WCLOUD_WS_ENDPOINT: "wss://wsapi-dev.waveterm.dev/"
+            WCLOUD_ENDPOINT: "https://api.waveterm.dev/central"
+            WCLOUD_WS_ENDPOINT: "wss://wsapi.waveterm.dev/"
             WAVETERM_DATA_HOME: "/Users/xzn/Library/Application Support/waveterm"
 
     electron:start:
@@ -40,8 +40,8 @@ tasks:
             - docsite:build:embedded
             - build:backend
         env:
-            WCLOUD_ENDPOINT: "https://api-dev.waveterm.dev"
-            WCLOUD_WS_ENDPOINT: "wss://wsapi-dev.waveterm.dev"
+            WCLOUD_ENDPOINT: "https://api.waveterm.dev/central"
+            WCLOUD_WS_ENDPOINT: "wss://wsapi.waveterm.dev/"
             WAVETERM_DATA_HOME: "/Users/xzn/Library/Application Support/waveterm"
 
     storybook:
