@@ -20,6 +20,7 @@ import (
 	"github.com/wavetermdev/waveterm/pkg/service/widgetapiservice"
 	"github.com/wavetermdev/waveterm/pkg/waveobj"
 	"github.com/wavetermdev/waveterm/pkg/wcore"
+	"github.com/wavetermdev/waveterm/pkg/wps"
 	"github.com/wavetermdev/waveterm/pkg/wstore"
 )
 
@@ -393,15 +394,23 @@ func handleMCPServerStatus(w http.ResponseWriter, r *http.Request, ctx context.C
 
 	log.Printf("MCP server status - Port: %d, Connected clients: %d", currentPort, len(servers))
 
+	// 获取EventBridge状态信息
+	bridgeStatus := map[string]interface{}{
+		"enabled":      wps.Bridge.IsEnabled(),
+		"remote_urls":  wps.Bridge.GetRemoteURLs(),
+	}
+
 	// 返回兼容两种用途的格式：
 	// 1. 前端 MCP 客户端组件需要 servers 字段
 	// 2. Server Status 组件需要 status 字段
 	response := map[string]interface{}{
 		"success": true,
 		"servers": servers,
+		"bridge":  bridgeStatus, // 添加Bridge状态信息
 		"status": map[string]interface{}{
 			"running": len(servers) > 0 || currentPort > 0, // 如果有连接的客户端或者服务器在运行
 			"port":    currentPort,
+			"bridge_enabled": wps.Bridge.IsEnabled(), // 在status中也添加bridge状态
 		},
 	}
 

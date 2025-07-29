@@ -161,6 +161,12 @@ type SetActiveTabAPIResponse struct {
 func (ws *WidgetAPIService) CreateWidget(ctx context.Context, req CreateWidgetAPIRequest) (*CreateWidgetAPIResponse, error) {
 	log.Printf("WidgetAPIService.CreateWidget called with workspace_id=%s, widget_type=%s", req.WorkspaceId, req.WidgetType)
 
+	// 确保EventBridge启用以支持MCP实时更新
+	if !wps.Bridge.IsEnabled() {
+		wps.Bridge.SetEnabled(true)
+		log.Printf("EventBridge auto-enabled for MCP widget creation")
+	}
+
 	// Add updates context to collect database changes
 	ctx = waveobj.ContextWithUpdates(ctx)
 

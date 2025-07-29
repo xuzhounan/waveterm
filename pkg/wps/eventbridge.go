@@ -40,7 +40,7 @@ var Bridge = &EventBridge{
 	Client: &http.Client{
 		Timeout: 5 * time.Second,
 	},
-	Enable:  false,
+	Enable:  true, // 默认启用事件桥接以支持MCP实时更新
 	Timeout: 5 * time.Second,
 }
 
@@ -171,5 +171,8 @@ func (b *BrokerType) PublishWithBridge(event WaveEvent, sourceID string) {
 func InitEventBridge() {
 	// This can be called during server startup to configure the bridge
 	// Environment variables or config file can specify remote servers
-	log.Printf("EventBridge: Initialized")
+	
+	// 自动启用事件桥接以支持MCP实时更新
+	Bridge.SetEnabled(true)
+	log.Printf("EventBridge: Initialized and enabled for MCP support")
 }

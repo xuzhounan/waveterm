@@ -20,6 +20,8 @@ type ServerStatusData = {
     uptime?: number;
     lastUpdated: number;
     error?: string;
+    bridgeEnabled?: boolean;
+    bridgeRemoteUrls?: string[];
 };
 
 type PersistentServerStatusData = {
@@ -140,6 +142,8 @@ class ServerStatusViewModel implements ViewModel {
                     wsPort: webPort + 1, // WebSocket端口通常是Web端口+1
                     apiUrl: baseUrl,
                     lastUpdated: Date.now(),
+                    bridgeEnabled: responseData.status?.bridge_enabled || responseData.bridge?.enabled,
+                    bridgeRemoteUrls: responseData.bridge?.remote_urls || [],
                 };
                 globalStore.set(this.statusDataAtom, statusData);
             } else {
@@ -538,6 +542,22 @@ function ServerStatusView({ model, blockId }: ServerStatusViewProps) {
                                     <a href={statusData.apiUrl} target="_blank" rel="noopener noreferrer">
                                         {statusData.apiUrl}
                                     </a>
+                                </div>
+                            </div>
+                            <div className="info-item">
+                                <div className="info-label">Event Bridge</div>
+                                <div className={clsx("info-value", "bridge-status", {
+                                    "bridge-enabled": statusData.bridgeEnabled,
+                                    "bridge-disabled": !statusData.bridgeEnabled
+                                })}>
+                                    <span className="bridge-indicator">
+                                        {statusData.bridgeEnabled ? "🟢 Enabled" : "🔴 Disabled"}
+                                    </span>
+                                    {statusData.bridgeEnabled && statusData.bridgeRemoteUrls && statusData.bridgeRemoteUrls.length > 0 && (
+                                        <span className="bridge-remotes">
+                                            ({statusData.bridgeRemoteUrls.length} remote{statusData.bridgeRemoteUrls.length > 1 ? 's' : ''})
+                                        </span>
+                                    )}
                                 </div>
                             </div>
                             {statusData.authKey && (
