@@ -160,7 +160,6 @@ type SetActiveTabAPIResponse struct {
 
 // CreateWidget creates a new widget in the specified workspace
 func (ws *WidgetAPIService) CreateWidget(ctx context.Context, req CreateWidgetAPIRequest) (*CreateWidgetAPIResponse, error) {
-	log.Printf("WidgetAPIService.CreateWidget called with workspace_id=%s, widget_type=%s", req.WorkspaceId, req.WidgetType)
 
 	// 确保EventBridge启用以支持MCP实时更新
 	if !wps.Bridge.IsEnabled() {
