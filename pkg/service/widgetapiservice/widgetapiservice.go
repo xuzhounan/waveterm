@@ -275,12 +275,16 @@ func (ws *WidgetAPIService) CreateWidget(ctx context.Context, req CreateWidgetAP
 	}
 
 	// Add widget to workspace widget configuration to make it appear in widget bar
-	// Default to true if not explicitly set to false
+	// Default to true if not explicitly set to false and not ephemeral
 	addToWorkspace := req.AddToWorkspace
 	log.Printf("[DEBUG] WidgetAPI: initial addToWorkspace=%v, Ephemeral=%v", addToWorkspace, req.Ephemeral)
-	if !req.Ephemeral { // Don't add ephemeral widgets to workspace
+	
+	// For non-ephemeral widgets, default to adding to workspace if not explicitly set
+	if !req.Ephemeral && !addToWorkspace {
+		// Check if AddToWorkspace was explicitly set to false in the request
+		// If it wasn't provided in JSON, it defaults to false, so we set it to true
 		addToWorkspace = true
-		log.Printf("[DEBUG] WidgetAPI: setting addToWorkspace=true because not ephemeral")
+		log.Printf("[DEBUG] WidgetAPI: setting addToWorkspace=true because not ephemeral and not explicitly disabled")
 	}
 	
 	log.Printf("[DEBUG] WidgetAPI: final addToWorkspace=%v", addToWorkspace)
