@@ -891,22 +891,52 @@ func handlePersistentServerStart(w http.ResponseWriter, r *http.Request, ctx con
 		return
 	}
 
-	// 执行启动脚本
+	// 异步执行启动脚本
 	cmd := exec.Command("bash", scriptPath, "start")
 	cmd.Dir = workDir // 设置工作目录
-	output, err := cmd.CombinedOutput()
+	
+	// 创建日志文件记录脚本输出
+	logFile := filepath.Join(workDir, "persistent-server-start.log")
+	logFileWriter, err := os.Create(logFile)
+	if err != nil {
+		log.Printf("Failed to create log file: %v", err)
+		writeErrorResponse(w, "Failed to create log file", http.StatusInternalServerError)
+		return
+	}
+	defer logFileWriter.Close()
+	
+	cmd.Stdout = logFileWriter
+	cmd.Stderr = logFileWriter
+	
+	log.Printf("Executing script: %s with working directory: %s", scriptPath, workDir)
+	
+	// 启动脚本（异步）
+	err = cmd.Start()
+	if err != nil {
+		log.Printf("Failed to start script: %v", err)
+		writeErrorResponse(w, fmt.Sprintf("Failed to start script: %v", err), http.StatusInternalServerError)
+		return
+	}
+	
+	log.Printf("Script started with PID: %d", cmd.Process.Pid)
+	
+	// 在后台等待脚本完成
+	go func() {
+		err := cmd.Wait()
+		if err != nil {
+			log.Printf("Script execution completed with error: %v", err)
+		} else {
+			log.Printf("Script execution completed successfully")
+		}
+	}()
 
 	response := map[string]interface{}{
-		"success": err == nil,
-		"output":  string(output),
-	}
-
-	if err != nil {
-		log.Printf("Script execution failed: %v, output: %s", err, string(output))
-		response["error"] = err.Error()
-		w.WriteHeader(http.StatusInternalServerError)
-	} else {
-		response["message"] = "Persistent server start command executed"
+		"success": true,
+		"message": "Persistent server start command initiated",
+		"script_path": scriptPath,
+		"working_dir": workDir,
+		"log_file": logFile,
+		"script_pid": cmd.Process.Pid,
 	}
 
 	json.NewEncoder(w).Encode(response)
