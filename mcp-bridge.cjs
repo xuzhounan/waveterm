@@ -34,7 +34,7 @@ class WaveTerminalMCPServer extends Server {
         
         // 优先使用环境变量，其次使用固定端口（与persistent-server.sh一致）
         this.waveTerminalUrl = process.env.WAVE_TERMINAL_URL || 
-                              `http://127.0.0.1:${process.env.WAVETERM_WEB_PORT || '60289'}`;
+                              `http://127.0.0.1:${process.env.WAVETERM_WEB_PORT || '8090'}`;
         this.authKey = process.env.WAVE_TERMINAL_AUTH_KEY;
         
         console.error(`[MCP] Wave Terminal MCP Server starting...`);
