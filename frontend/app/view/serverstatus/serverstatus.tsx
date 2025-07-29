@@ -162,18 +162,39 @@ class ServerStatusViewModel implements ViewModel {
         try {
             globalStore.set(this.persistentLoadingAtom, true);
             
-            // 使用动态端点配置
+            // 获取当前服务器端点，优先检查当前环境
             const { getWebServerEndpoint } = await import("@/util/endpoints");
-            const baseUrl = getWebServerEndpoint().replace('localhost', '127.0.0.1');
+            const currentBaseUrl = getWebServerEndpoint().replace('localhost', '127.0.0.1');
+            const persistentBaseUrl = 'http://127.0.0.1:60289';
             
-            console.log(`检查持久化服务器状态: ${baseUrl}`);
-            const response = await fetch(`${baseUrl}/api/v1/widgets/persistent-server/status`, {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                signal: AbortSignal.timeout(3000),
-            });
+            // 如果当前环境不是持久化服务器端口，先检查当前环境是否支持持久化服务器API
+            let response;
+            let baseUrl = currentBaseUrl;
+            
+            console.log(`检查持久化服务器状态: 尝试当前环境 ${currentBaseUrl}`);
+            try {
+                response = await fetch(`${currentBaseUrl}/api/v1/widgets/persistent-server/status`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    signal: AbortSignal.timeout(3000),
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Current environment response not ok: ${response.status}`);
+                }
+            } catch (error) {
+                console.log(`当前环境失败，尝试持久化服务器端口 ${persistentBaseUrl}`);
+                baseUrl = persistentBaseUrl;
+                response = await fetch(`${persistentBaseUrl}/api/v1/widgets/persistent-server/status`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    signal: AbortSignal.timeout(3000),
+                });
+            }
             
             if (response.ok) {
                 const responseData = await response.json();
@@ -210,17 +231,39 @@ class ServerStatusViewModel implements ViewModel {
         try {
             globalStore.set(this.persistentLoadingAtom, true);
             
+            // 获取当前服务器端点，优先使用当前环境
             const { getWebServerEndpoint } = await import("@/util/endpoints");
-            const baseUrl = getWebServerEndpoint().replace('localhost', '127.0.0.1');
+            const currentBaseUrl = getWebServerEndpoint().replace('localhost', '127.0.0.1');
+            const persistentBaseUrl = 'http://127.0.0.1:60289';
             
-            console.log(`启动持久化服务器: ${baseUrl}`);
-            const response = await fetch(`${baseUrl}/api/v1/widgets/persistent-server/start`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                signal: AbortSignal.timeout(30000), // 启动可能需要更长时间
-            });
+            // 如果当前环境不是持久化服务器端口，先尝试当前环境
+            let response;
+            let baseUrl = currentBaseUrl;
+            
+            console.log(`启动持久化服务器: 尝试当前环境 ${currentBaseUrl}`);
+            try {
+                response = await fetch(`${currentBaseUrl}/api/v1/widgets/persistent-server/start`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    signal: AbortSignal.timeout(30000), // 启动可能需要更长时间
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Current environment response not ok: ${response.status}`);
+                }
+            } catch (error) {
+                console.log(`当前环境失败，尝试持久化服务器端口 ${persistentBaseUrl}`);
+                baseUrl = persistentBaseUrl;
+                response = await fetch(`${persistentBaseUrl}/api/v1/widgets/persistent-server/start`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    signal: AbortSignal.timeout(30000), // 启动可能需要更长时间
+                });
+            }
             
             const responseData = await response.json();
             console.log(`持久化服务器启动响应`, responseData);
@@ -245,17 +288,39 @@ class ServerStatusViewModel implements ViewModel {
         try {
             globalStore.set(this.persistentLoadingAtom, true);
             
+            // 获取当前服务器端点，优先使用当前环境
             const { getWebServerEndpoint } = await import("@/util/endpoints");
-            const baseUrl = getWebServerEndpoint().replace('localhost', '127.0.0.1');
+            const currentBaseUrl = getWebServerEndpoint().replace('localhost', '127.0.0.1');
+            const persistentBaseUrl = 'http://127.0.0.1:60289';
             
-            console.log(`停止持久化服务器: ${baseUrl}`);
-            const response = await fetch(`${baseUrl}/api/v1/widgets/persistent-server/stop`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                signal: AbortSignal.timeout(10000),
-            });
+            // 如果当前环境不是持久化服务器端口，先尝试当前环境
+            let response;
+            let baseUrl = currentBaseUrl;
+            
+            console.log(`停止持久化服务器: 尝试当前环境 ${currentBaseUrl}`);
+            try {
+                response = await fetch(`${currentBaseUrl}/api/v1/widgets/persistent-server/stop`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    signal: AbortSignal.timeout(10000),
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Current environment response not ok: ${response.status}`);
+                }
+            } catch (error) {
+                console.log(`当前环境失败，尝试持久化服务器端口 ${persistentBaseUrl}`);
+                baseUrl = persistentBaseUrl;
+                response = await fetch(`${persistentBaseUrl}/api/v1/widgets/persistent-server/stop`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    signal: AbortSignal.timeout(10000),
+                });
+            }
             
             const responseData = await response.json();
             console.log(`持久化服务器停止响应`, responseData);
