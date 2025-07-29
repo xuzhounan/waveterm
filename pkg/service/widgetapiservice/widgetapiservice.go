@@ -274,42 +274,9 @@ func (ws *WidgetAPIService) CreateWidget(ctx context.Context, req CreateWidgetAP
 	}
 
 	// Send database update events to notify frontend
-	// This includes updates for the block, tab, and any other objects that were modified
+	// Use the standard method for sending updates to ensure compatibility
 	updates := waveobj.ContextGetUpdatesRtn(ctx)
-	
-	// Get source ID for event bridging (hostname or MCP server identifier)
-	sourceID := os.Getenv("WAVETERM_SERVER_ID")
-	if sourceID == "" {
-		sourceID = "mcp-server"
-	}
-	
-	// Send events with bridge support for cross-server synchronization
-	for _, update := range updates {
-		event := wps.WaveEvent{
-			Event:  wps.Event_WaveObjUpdate,
-			Scopes: []string{waveobj.MakeORef(update.OType, update.OID).String()},
-			Data:   update,
-		}
-		wps.Broker.PublishWithBridge(event, sourceID)
-	}
-
-	// Send focused layout state update to ensure the new widget is displayed
-	// This is the minimal event needed to refresh the UI properly
-	layoutStateId, err := wcore.GetLayoutIdForTab(ctx, tabId)
-	if err == nil {
-		layoutEvent := wps.WaveEvent{
-			Event: wps.Event_WaveObjUpdate,
-			Scopes: []string{
-				waveobj.MakeORef(waveobj.OType_LayoutState, layoutStateId).String(),
-			},
-			Data: waveobj.WaveObjUpdate{
-				UpdateType: waveobj.UpdateType_Update,
-				OType:      waveobj.OType_LayoutState,
-				OID:        layoutStateId,
-			},
-		}
-		wps.Broker.PublishWithBridge(layoutEvent, sourceID)
-	}
+	wps.Broker.SendUpdateEvents(updates)
 
 	// Prepare response
 	widgetInfo := &WidgetInfo{
