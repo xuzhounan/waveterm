@@ -100,14 +100,20 @@ func (eb *EventBridge) GetRemoteURLs() []string {
 
 // ForwardEvent forwards an event to all registered remote servers
 func (eb *EventBridge) ForwardEvent(event WaveEvent, sourceID string) {
+	log.Printf("EventBridge: ForwardEvent called for event %s from source %s", event.Event, sourceID)
+	
 	if !eb.IsEnabled() {
+		log.Printf("EventBridge: Bridge is disabled, skipping forward")
 		return
 	}
 	
 	urls := eb.GetRemoteURLs()
 	if len(urls) == 0 {
+		log.Printf("EventBridge: No remote URLs configured, skipping forward")
 		return
 	}
+	
+	log.Printf("EventBridge: Forwarding to %d remote URLs: %v", len(urls), urls)
 	
 	bridgeEvent := BridgeEvent{
 		Event:     event,
@@ -154,16 +160,18 @@ func (eb *EventBridge) sendEventToRemote(url string, bridgeEvent BridgeEvent) {
 		return
 	}
 	
-	// Optionally log successful forwards (disabled by default to reduce noise)
-	// log.Printf("EventBridge: Successfully forwarded event %s to %s", bridgeEvent.Event.Event, url)
+	// Log successful forwards for debugging
+	log.Printf("EventBridge: Successfully forwarded event %s to %s", bridgeEvent.Event.Event, url)
 }
 
 // Enhanced Broker Publish method with event bridging
 func (b *BrokerType) PublishWithBridge(event WaveEvent, sourceID string) {
-	// First publish locally
+	// Always publish locally first
 	b.Publish(event)
 	
-	// Then forward to remote servers if bridge is enabled
+	// Then forward to remote servers if bridge is enabled and has remote URLs
+	// Note: For MCP usage, we primarily need local publishing, 
+	// but remote forwarding is available for distributed setups
 	Bridge.ForwardEvent(event, sourceID)
 }
 

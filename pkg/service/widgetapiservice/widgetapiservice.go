@@ -277,7 +277,7 @@ func (ws *WidgetAPIService) CreateWidget(ctx context.Context, req CreateWidgetAP
 	// Add widget to workspace widget configuration to make it appear in widget bar
 	// Default to true if not explicitly set to false and not ephemeral
 	addToWorkspace := req.AddToWorkspace
-	log.Printf("[DEBUG] WidgetAPI: initial addToWorkspace=%v, Ephemeral=%v", addToWorkspace, req.Ephemeral)
+	log.Printf("[DEBUG] WidgetAPI: *** FIXED VERSION *** initial addToWorkspace=%v, Ephemeral=%v", addToWorkspace, req.Ephemeral)
 	
 	// For non-ephemeral widgets, default to adding to workspace if not explicitly set
 	if !req.Ephemeral && !addToWorkspace {
@@ -325,11 +325,43 @@ func (ws *WidgetAPIService) CreateWidget(ctx context.Context, req CreateWidgetAP
 	}
 
 	// Send database update events to notify frontend
-	// Use the standard method for sending updates to ensure compatibility
+	// Use PublishWithBridge to ensure events are forwarded to other Wave Terminal instances
 	updates := waveobj.ContextGetUpdatesRtn(ctx)
-	log.Printf("[DEBUG] WidgetAPI: sending %d update events to WPS broker", len(updates))
-	wps.Broker.SendUpdateEvents(updates)
-	log.Printf("[DEBUG] WidgetAPI: update events sent successfully")
+	log.Printf("[DEBUG] WidgetAPI: sending %d update events with EventBridge", len(updates))
+	for _, update := range updates {
+		wps.Broker.PublishWithBridge(wps.WaveEvent{
+			Event:  wps.Event_WaveObjUpdate,
+			Scopes: []string{waveobj.MakeORef(update.OType, update.OID).String()},
+			Data:   update,
+		}, "mcp-widget-api")
+	}
+	log.Printf("[DEBUG] WidgetAPI: update events sent successfully with bridge")
+
+	// Force layout state refresh to ensure frontend recognizes the new widget immediately
+	// Get layout state and force a notification
+	layoutStateId, err := wcore.GetLayoutIdForTab(ctx, tabId)
+	if err == nil {
+		// Get the actual layout state to ensure the pending actions are properly set
+		layoutState, err := wstore.DBGet[*waveobj.LayoutState](ctx, layoutStateId)
+		if err == nil && layoutState != nil {
+			// Force an update to the layout state to trigger frontend re-render
+			layoutState.Version++ // Increment version to force update
+			err = wstore.DBUpdate(ctx, layoutState)
+			if err == nil {
+				// Send specific update event for the layout state with bridge
+				wps.Broker.PublishWithBridge(wps.WaveEvent{
+					Event:  wps.Event_WaveObjUpdate,
+					Scopes: []string{waveobj.MakeORef(waveobj.OType_LayoutState, layoutStateId).String()},
+					Data: waveobj.WaveObjUpdate{
+						UpdateType: waveobj.UpdateType_Update,
+						OType:      waveobj.OType_LayoutState,
+						OID:        layoutStateId,
+					},
+				}, "mcp-widget-api")
+				log.Printf("[DEBUG] WidgetAPI: forced layout state update and refresh event for tab %s", tabId)
+			}
+		}
+	}
 
 	// Prepare response
 	widgetInfo := &WidgetInfo{

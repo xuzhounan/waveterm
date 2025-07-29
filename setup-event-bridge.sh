@@ -16,7 +16,10 @@ echo -e "${BLUE}🌉 Setting up Event Bridge for Wave Terminal${NC}"
 
 # Check if development server is running
 DEV_PORT=""
-if lsof -i :50760 >/dev/null 2>&1; then
+if lsof -i :8090 >/dev/null 2>&1; then
+    DEV_PORT="8090"
+    echo -e "${GREEN}✅ Development server detected on port 8090${NC}"
+elif lsof -i :50760 >/dev/null 2>&1; then
     DEV_PORT="50760"
     echo -e "${GREEN}✅ Development server detected on port 50760${NC}"
 elif lsof -i :50761 >/dev/null 2>&1; then
@@ -32,6 +35,9 @@ MCP_PORT=""
 if lsof -i :60289 >/dev/null 2>&1; then
     MCP_PORT="60289"
     echo -e "${GREEN}✅ MCP server detected on port 60289${NC}"
+elif lsof -i :8091 >/dev/null 2>&1; then
+    MCP_PORT="8091"
+    echo -e "${GREEN}✅ MCP server detected on port 8091${NC}"
 else
     echo -e "${YELLOW}⚠️  No MCP server running. Start with './persistent-server.sh start'${NC}"
     exit 1
