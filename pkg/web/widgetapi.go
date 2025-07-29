@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -53,6 +54,12 @@ func handleWidgetAPI(w http.ResponseWriter, r *http.Request) {
 		} else if path == "/mcp/restart" {
 			// POST /api/v1/widgets/mcp/restart - Restart MCP server
 			handleMCPServerRestart(w, r, ctx)
+		} else if path == "/persistent-server/start" {
+			// POST /api/v1/widgets/persistent-server/start - Start persistent server
+			handlePersistentServerStart(w, r, ctx)
+		} else if path == "/persistent-server/stop" {
+			// POST /api/v1/widgets/persistent-server/stop - Stop persistent server
+			handlePersistentServerStop(w, r, ctx)
 		} else if path == "/tabs" {
 			// POST /api/v1/widgets/tabs - Create tab
 			handleCreateTab(w, r, ctx)
@@ -88,6 +95,9 @@ func handleWidgetAPI(w http.ResponseWriter, r *http.Request) {
 		} else if path == "/mcp/status" {
 			// GET /api/v1/widgets/mcp/status - Check MCP server status
 			handleMCPServerStatus(w, r, ctx)
+		} else if path == "/persistent-server/status" {
+			// GET /api/v1/widgets/persistent-server/status - Check persistent server status
+			handlePersistentServerStatus(w, r, ctx)
 		} else if path == "/debug/fix-workspace" {
 			// GET /api/v1/widgets/debug/fix-workspace - Fix workspace data inconsistencies
 			handleFixWorkspaceData(w, r, ctx)
@@ -764,5 +774,114 @@ func writeErrorResponse(w http.ResponseWriter, message string, statusCode int) {
 		"success": false,
 		"error":   message,
 	}
+	json.NewEncoder(w).Encode(response)
+}
+
+// handlePersistentServerStatus checks the status of the persistent server
+func handlePersistentServerStatus(w http.ResponseWriter, r *http.Request, ctx context.Context) {
+	log.Printf("Checking persistent server status")
+
+	// 检查PID文件是否存在
+	pidFile := "waveterm-server.pid"
+	portFile := "waveterm-server.port"
+
+	isRunning := false
+	var pid int
+	var webPort, wsPort int
+
+	// 读取PID文件
+	if _, err := os.Stat(pidFile); err == nil {
+		if pidData, err := os.ReadFile(pidFile); err == nil {
+			if parsedPid, err := strconv.Atoi(strings.TrimSpace(string(pidData))); err == nil {
+				// 检查进程是否实际运行
+				if cmd := exec.Command("ps", "-p", strconv.Itoa(parsedPid)); cmd.Run() == nil {
+					isRunning = true
+					pid = parsedPid
+				}
+			}
+		}
+	}
+
+	// 读取端口文件
+	if isRunning {
+		if portData, err := os.ReadFile(portFile); err == nil {
+			lines := strings.Split(string(portData), "\n")
+			for _, line := range lines {
+				if strings.HasPrefix(line, "web_port=") {
+					if port, err := strconv.Atoi(strings.TrimPrefix(line, "web_port=")); err == nil {
+						webPort = port
+					}
+				} else if strings.HasPrefix(line, "ws_port=") {
+					if port, err := strconv.Atoi(strings.TrimPrefix(line, "ws_port=")); err == nil {
+						wsPort = port
+					}
+				}
+			}
+		}
+	}
+
+	response := map[string]interface{}{
+		"success": true,
+		"status": map[string]interface{}{
+			"running":  isRunning,
+			"pid":      pid,
+			"web_port": webPort,
+			"ws_port":  wsPort,
+		},
+	}
+
+	if isRunning {
+		response["message"] = "Persistent server is running"
+		response["api_url"] = fmt.Sprintf("http://localhost:%d", webPort)
+	} else {
+		response["message"] = "Persistent server is not running"
+	}
+
+	json.NewEncoder(w).Encode(response)
+}
+
+// handlePersistentServerStart starts the persistent server
+func handlePersistentServerStart(w http.ResponseWriter, r *http.Request, ctx context.Context) {
+	log.Printf("Starting persistent server")
+
+	// 执行启动脚本
+	cmd := exec.Command("./persistent-server.sh", "start")
+	output, err := cmd.CombinedOutput()
+
+	response := map[string]interface{}{
+		"success": err == nil,
+		"output":  string(output),
+	}
+
+	if err != nil {
+		response["error"] = err.Error()
+		w.WriteHeader(http.StatusInternalServerError)
+	} else {
+		response["message"] = "Persistent server start command executed"
+	}
+
+	json.NewEncoder(w).Encode(response)
+}
+
+// handlePersistentServerStop stops the persistent server
+func handlePersistentServerStop(w http.ResponseWriter, r *http.Request, ctx context.Context) {
+	log.Printf("Stopping persistent server")
+
+	// 执行停止脚本
+	cmd := exec.Command("./persistent-server.sh", "stop")
+	output, err := cmd.CombinedOutput()
+
+	response := map[string]interface{}{
+		"success": err == nil,
+		"output":  string(output),
+	}
+
+	if err != nil {
+		response["error"] = err.Error()
+		w.WriteHeader(http.StatusInternalServerError)
+	} else {
+		response["message"] = "Persistent server stop command executed"
+	}
+
 	json.NewEncoder(w).Encode(response)
 }
