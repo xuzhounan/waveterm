@@ -184,6 +184,21 @@ class ServerStatusViewModel implements ViewModel {
                 if (!response.ok) {
                     throw new Error(`Current environment response not ok: ${response.status}`);
                 }
+                
+                // 检查响应内容，如果当前环境报告持久化服务器未运行，则尝试持久化服务器端口
+                const tempResponseData = await response.json();
+                if (!tempResponseData.status?.running) {
+                    console.log(`当前环境报告持久化服务器未运行，尝试持久化服务器端口 ${persistentBaseUrl}`);
+                    throw new Error('Current environment reports persistent server not running');
+                }
+                
+                // 如果当前环境报告服务器正在运行，直接使用这个响应
+                // 重新构造响应对象，因为我们已经读取了JSON
+                response = new Response(JSON.stringify(tempResponseData), {
+                    status: response.status,
+                    statusText: response.statusText,
+                    headers: response.headers
+                });
             } catch (error) {
                 console.log(`当前环境失败，尝试持久化服务器端口 ${persistentBaseUrl}`);
                 baseUrl = persistentBaseUrl;
@@ -253,6 +268,9 @@ class ServerStatusViewModel implements ViewModel {
                 if (!response.ok) {
                     throw new Error(`Current environment response not ok: ${response.status}`);
                 }
+                
+                // 对于启动请求，如果当前环境支持，就直接使用它
+                // 不需要像状态检查那样验证结果，因为启动是操作而不是查询
             } catch (error) {
                 console.log(`当前环境失败，尝试持久化服务器端口 ${persistentBaseUrl}`);
                 baseUrl = persistentBaseUrl;
@@ -310,6 +328,9 @@ class ServerStatusViewModel implements ViewModel {
                 if (!response.ok) {
                     throw new Error(`Current environment response not ok: ${response.status}`);
                 }
+                
+                // 对于停止请求，如果当前环境支持，就直接使用它
+                // 不需要验证结果，因为停止是操作而不是查询
             } catch (error) {
                 console.log(`当前环境失败，尝试持久化服务器端口 ${persistentBaseUrl}`);
                 baseUrl = persistentBaseUrl;
