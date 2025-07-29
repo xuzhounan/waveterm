@@ -125,12 +125,16 @@ func (w *Watcher) handleEvent(event fsnotify.Event) {
 	defer w.mutex.Unlock()
 
 	fileName := filepath.ToSlash(event.Name)
+	log.Printf("[DEBUG] FileWatcher: received event %s for file %s", event.Op.String(), fileName)
 	if event.Op == fsnotify.Chmod {
+		log.Printf("[DEBUG] FileWatcher: ignoring chmod event for %s", fileName)
 		return
 	}
 	if !isValidSubSettingsFileName(fileName) {
+		log.Printf("[DEBUG] FileWatcher: ignoring invalid file %s", fileName)
 		return
 	}
+	log.Printf("[DEBUG] FileWatcher: processing valid settings file event for %s", fileName)
 	w.handleSettingsFileEvent(event, fileName)
 }
 
@@ -145,22 +149,29 @@ func isValidSubSettingsFileName(fileName string) bool {
 }
 
 func (w *Watcher) handleSettingsFileEvent(event fsnotify.Event, fileName string) {
+	log.Printf("[DEBUG] FileWatcher: handleSettingsFileEvent for %s", fileName)
+	
 	// Check if this is a new workspace directory creation
 	if event.Op&fsnotify.Create != 0 && strings.Contains(fileName, "/workspaces/") && filepath.Ext(fileName) == ".json" {
+		log.Printf("[DEBUG] FileWatcher: detected workspace config file creation: %s", fileName)
 		// Extract workspace ID from path
 		pathParts := strings.Split(fileName, "/")
 		for i, part := range pathParts {
 			if part == "workspaces" && i+1 < len(pathParts) {
 				workspaceId := pathParts[i+1]
+				log.Printf("[DEBUG] FileWatcher: adding workspace %s to watcher", workspaceId)
 				w.addWorkspaceWatcher(workspaceId)
 				break
 			}
 		}
 	}
 	
+	log.Printf("[DEBUG] FileWatcher: reloading full configuration due to file change")
 	fullConfig := ReadFullConfig()
 	w.fullConfig = fullConfig
+	log.Printf("[DEBUG] FileWatcher: broadcasting configuration update to %d listeners", len(w.fullConfig.WorkspaceWidgets))
 	w.broadcast(WatcherUpdate{FullConfig: w.fullConfig})
+	log.Printf("[DEBUG] FileWatcher: configuration update broadcast complete")
 }
 
 // addWorkspaceWatcher adds a new workspace directory to the file watcher
@@ -178,7 +189,9 @@ func (w *Watcher) addWorkspaceWatcher(workspaceId string) {
 
 // AddWorkspaceWatcher adds a new workspace directory to the file watcher (public method)
 func (w *Watcher) AddWorkspaceWatcher(workspaceId string) {
+	log.Printf("[DEBUG] AddWorkspaceWatcher: requested for workspace %s", workspaceId)
 	if w == nil || w.watcher == nil {
+		log.Printf("[WARNING] AddWorkspaceWatcher: watcher is nil!")
 		return
 	}
 	w.mutex.Lock()

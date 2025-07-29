@@ -454,7 +454,7 @@ console.log("Created widget:", newWidget);
 curl -f http://localhost:8090/api/v1/widgets/workspaces || exit 1
 
 # 检查WebSocket连接
-wscat -c ws://localhost:61270
+wscat -c ws://localhost:8091
 ```
 
 ### 2. 日志管理
@@ -544,7 +544,7 @@ curl -H "X-AuthKey: $WAVETERM_AUTH_KEY" \
 如果遇到部署问题，请检查：
 
 1. **日志文件**: `waveterm-server.log`
-2. **端口占用**: `netstat -tulpn | grep 6126`
+2. **端口占用**: `netstat -tulpn | grep 809`
 3. **权限问题**: 确保有数据目录写入权限
 4. **依赖版本**: 确认Node.js和Go版本符合要求
 

@@ -146,7 +146,7 @@ start_wave_terminal() {
     local attempt=1
     
     while [ $attempt -le $max_attempts ]; do
-        if curl -s http://localhost:61269/api/v1/widgets/workspaces > /dev/null; then
+        if curl -s http://localhost:8090/api/v1/widgets/workspaces > /dev/null; then
             log_success "Wave Terminal 服务器启动成功"
             return
         fi
@@ -182,7 +182,7 @@ configure_claude_code() {
       "command": "node",
       "args": ["$current_dir/mcp-bridge.js"],
       "env": {
-        "WAVE_TERMINAL_URL": "http://localhost:61269",
+        "WAVE_TERMINAL_URL": "http://localhost:8090",
         "WAVE_TERMINAL_AUTH_KEY": "$WAVETERM_AUTH_KEY"
       }
     }
@@ -198,11 +198,11 @@ test_mcp_connection() {
     log_info "测试 MCP 连接..."
     
     # 测试MCP桥接脚本
-    export WAVE_TERMINAL_URL="http://localhost:61269"
+    export WAVE_TERMINAL_URL="http://localhost:8090"
     export WAVE_TERMINAL_AUTH_KEY="$WAVETERM_AUTH_KEY"
     
     log_info "测试 Wave Terminal API..."
-    if curl -s -H "X-AuthKey: $WAVETERM_AUTH_KEY" http://localhost:61269/api/v1/widgets/workspaces > /dev/null; then
+    if curl -s -H "X-AuthKey: $WAVETERM_AUTH_KEY" http://localhost:8090/api/v1/widgets/workspaces > /dev/null; then
         log_success "Wave Terminal API 连接正常"
     else
         log_warning "Wave Terminal API 连接失败，检查认证配置"
@@ -223,8 +223,8 @@ show_deployment_info() {
     log_success "🎉 Wave Terminal Claude Code 部署完成！"
     echo ""
     echo "📋 部署信息:"
-    echo "  Wave Terminal URL: http://localhost:61269"
-    echo "  WebSocket URL: ws://localhost:61270"
+    echo "  Wave Terminal URL: http://localhost:8090"
+    echo "  WebSocket URL: ws://localhost:8091"
     echo "  认证密钥: $WAVETERM_AUTH_KEY"
     echo ""
     echo "🔧 Claude Code 配置:"
@@ -299,7 +299,7 @@ case "${1:-}" in
         echo "  clean               清理部署环境"
         echo ""
         echo "环境变量:"
-        echo "  WAVE_TERMINAL_URL   Wave Terminal URL (默认: http://localhost:61269)"
+        echo "  WAVE_TERMINAL_URL   Wave Terminal URL (默认: http://localhost:8090)"
         echo "  WAVETERM_AUTH_KEY   认证密钥 (自动生成)"
         exit 0
         ;;
@@ -314,7 +314,7 @@ case "${1:-}" in
         fi
         
         # 检查API
-        if curl -s http://localhost:61269/api/v1/widgets/workspaces > /dev/null; then
+        if curl -s http://localhost:8090/api/v1/widgets/workspaces > /dev/null; then
             log_success "Wave Terminal API 响应正常"
         else
             log_warning "Wave Terminal API 无响应"

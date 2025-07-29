@@ -277,11 +277,15 @@ func (ws *WidgetAPIService) CreateWidget(ctx context.Context, req CreateWidgetAP
 	// Add widget to workspace widget configuration to make it appear in widget bar
 	// Default to true if not explicitly set to false
 	addToWorkspace := req.AddToWorkspace
+	log.Printf("[DEBUG] WidgetAPI: initial addToWorkspace=%v, Ephemeral=%v", addToWorkspace, req.Ephemeral)
 	if !req.Ephemeral { // Don't add ephemeral widgets to workspace
 		addToWorkspace = true
+		log.Printf("[DEBUG] WidgetAPI: setting addToWorkspace=true because not ephemeral")
 	}
 	
+	log.Printf("[DEBUG] WidgetAPI: final addToWorkspace=%v", addToWorkspace)
 	if addToWorkspace {
+		log.Printf("[DEBUG] WidgetAPI: proceeding to add widget to workspace configuration")
 		widgetKey := fmt.Sprintf("mcp-%s-%d", req.WidgetType, time.Now().Unix())
 		widgetConfig := wconfig.WidgetConfigType{
 			Icon:  req.Icon,
@@ -312,12 +316,16 @@ func (ws *WidgetAPIService) CreateWidget(ctx context.Context, req CreateWidgetAP
 		} else {
 			log.Printf("Added widget %s to workspace %s configuration", widgetKey, req.WorkspaceId)
 		}
+	} else {
+		log.Printf("[DEBUG] WidgetAPI: skipping workspace configuration because addToWorkspace=false")
 	}
 
 	// Send database update events to notify frontend
 	// Use the standard method for sending updates to ensure compatibility
 	updates := waveobj.ContextGetUpdatesRtn(ctx)
+	log.Printf("[DEBUG] WidgetAPI: sending %d update events to WPS broker", len(updates))
 	wps.Broker.SendUpdateEvents(updates)
+	log.Printf("[DEBUG] WidgetAPI: update events sent successfully")
 
 	// Prepare response
 	widgetInfo := &WidgetInfo{

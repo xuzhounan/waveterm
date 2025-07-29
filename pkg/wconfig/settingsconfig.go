@@ -695,8 +695,10 @@ func SetConnectionsConfigValue(connName string, toMerge waveobj.MetaMapType) err
 
 // SetWorkspaceWidgetConfig sets widget configuration for a specific workspace
 func SetWorkspaceWidgetConfig(workspaceId string, widgetKey string, config WidgetConfigType) error {
+	log.Printf("[DEBUG] SetWorkspaceWidgetConfig: workspaceId=%s, widgetKey=%s", workspaceId, widgetKey)
 	configDirAbsPath := wavebase.GetWaveConfigDir()
 	workspaceConfigDir := filepath.Join(configDirAbsPath, "workspaces", workspaceId)
+	log.Printf("[DEBUG] SetWorkspaceWidgetConfig: configDir=%s", workspaceConfigDir)
 	
 	// Create workspace config directory if it doesn't exist
 	if err := os.MkdirAll(workspaceConfigDir, 0755); err != nil {
@@ -725,7 +727,24 @@ func SetWorkspaceWidgetConfig(workspaceId string, widgetKey string, config Widge
 	}
 	
 	m[widgetKey] = configMap
-	return WriteWaveHomeConfigFile(configPath, m)
+	log.Printf("[DEBUG] SetWorkspaceWidgetConfig: about to write config file %s", configPath)
+	
+	// Add the workspace directory to the file watcher if it's not already being watched
+	watcher := GetWatcher()
+	if watcher != nil {
+		log.Printf("[DEBUG] SetWorkspaceWidgetConfig: adding workspace %s to file watcher", workspaceId)
+		watcher.AddWorkspaceWatcher(workspaceId)
+	} else {
+		log.Printf("[WARNING] SetWorkspaceWidgetConfig: file watcher is nil!")
+	}
+	
+	err = WriteWaveHomeConfigFile(configPath, m)
+	if err != nil {
+		log.Printf("[ERROR] SetWorkspaceWidgetConfig: failed to write config file: %v", err)
+		return err
+	}
+	log.Printf("[DEBUG] SetWorkspaceWidgetConfig: successfully wrote config file %s", configPath)
+	return nil
 }
 
 // EnsureWorkspaceWidgetConfig ensures that a workspace has a widgets.json file

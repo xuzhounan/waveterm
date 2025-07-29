@@ -6,8 +6,8 @@
 set -e
 
 # 固定端口配置
-export WAVETERM_WEB_PORT="61269"
-export WAVETERM_WS_PORT="61270"
+export WAVETERM_WEB_PORT="8090"
+export WAVETERM_WS_PORT="8091"
 
 echo "🚀 启动Wave Terminal，使用固定端口配置:"
 echo "   Web端口: $WAVETERM_WEB_PORT"

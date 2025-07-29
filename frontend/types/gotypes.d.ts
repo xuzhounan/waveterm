@@ -418,6 +418,7 @@ declare global {
         position?: WidgetPosition;
         magnified?: boolean;
         ephemeral?: boolean;
+        add_to_workspace?: boolean;
     };
 
     // widgetapiservice.CreateWidgetAPIResponse
