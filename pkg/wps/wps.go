@@ -5,11 +5,8 @@
 package wps
 
 import (
-	"fmt"
-	"os"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/wavetermdev/waveterm/pkg/util/utilfn"
 	"github.com/wavetermdev/waveterm/pkg/waveobj"
@@ -18,17 +15,6 @@ import (
 // this broker interface is mostly generic
 // strong typing and event types can be defined elsewhere
 
-func writeTraceLog(message string) {
-	timestamp := time.Now().Format("2006-01-02 15:04:05.000")
-	logLine := fmt.Sprintf("[%s] %s\n", timestamp, message)
-	
-	file, err := os.OpenFile("/tmp/mcp-trace.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
-	if err != nil {
-		return
-	}
-	defer file.Close()
-	file.WriteString(logLine)
-}
 
 const MaxPersist = 4096
 const ReMakeArrThreshold = 10 * 1024
@@ -253,26 +239,20 @@ func (b *BrokerType) Publish(event WaveEvent) {
 		return
 	}
 	routeIds := b.getMatchingRouteIds(event)
-	traceMsg := fmt.Sprintf("Broker: Publishing event %s to %d routes, scopes: %v", event.Event, len(routeIds), event.Scopes)
-	writeTraceLog(traceMsg)
 	for _, routeId := range routeIds {
-		writeTraceLog(fmt.Sprintf("Broker: Sending event to route %s", routeId))
 		client.SendEvent(routeId, event)
 	}
 }
 
 func (b *BrokerType) SendUpdateEvents(updates waveobj.UpdatesRtnType) {
-	writeTraceLog(fmt.Sprintf("Broker: SendUpdateEvents called with %d updates", len(updates)))
-	for i, update := range updates {
+	for _, update := range updates {
 		oref := waveobj.MakeORef(update.OType, update.OID).String()
-		writeTraceLog(fmt.Sprintf("Broker: Publishing update %d - ORef:%s Type:%s", i, oref, update.UpdateType))
 		b.Publish(WaveEvent{
 			Event:  Event_WaveObjUpdate,
 			Scopes: []string{oref},
 			Data:   update,
 		})
 	}
-	writeTraceLog(fmt.Sprintf("Broker: All %d updates published", len(updates)))
 }
 
 func (b *BrokerType) getMatchingRouteIds(event WaveEvent) []string {

@@ -8,7 +8,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"os"
 	"strings"
 	"time"
 
@@ -28,17 +27,6 @@ type WidgetAPIService struct{}
 
 var WidgetAPIServiceInstance = &WidgetAPIService{}
 
-func writeTraceLog(message string) {
-	timestamp := time.Now().Format("2006-01-02 15:04:05.000")
-	logLine := fmt.Sprintf("[%s] %s\n", timestamp, message)
-	
-	file, err := os.OpenFile("/tmp/mcp-trace.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
-	if err != nil {
-		return
-	}
-	defer file.Close()
-	file.WriteString(logLine)
-}
 
 // CreateWidgetAPIRequest represents the REST API request for creating a widget
 type CreateWidgetAPIRequest struct {
@@ -250,28 +238,23 @@ func (ws *WidgetAPIService) CreateWidget(ctx context.Context, req CreateWidgetAP
 
 	block, err := wcore.CreateBlock(ctx, tabId, createData.BlockDef, rtOpts)
 	if err != nil {
-		writeTraceLog(fmt.Sprintf("WidgetAPI: CreateBlock failed: %v", err))
 		return &CreateWidgetAPIResponse{
 			Success: false,
 			Error:   fmt.Sprintf("failed to create block: %s", err.Error()),
 		}, nil
 	}
 	
-	writeTraceLog(fmt.Sprintf("WidgetAPI: Block created successfully: %s", block.OID))
 	
 	// Verify that the block was actually added to the tab
 	tab, err := wstore.DBGet[*waveobj.Tab](ctx, tabId)
 	if err != nil {
-		writeTraceLog(fmt.Sprintf("WidgetAPI: Failed to verify tab after block creation: %v", err))
 	} else {
-		blockInTab := false
+		// Verify block was added to tab
 		for _, bid := range tab.BlockIds {
 			if bid == block.OID {
-				blockInTab = true
 				break
 			}
 		}
-		writeTraceLog(fmt.Sprintf("WidgetAPI: Block %s in tab blockids: %v (total blocks: %d)", block.OID, blockInTab, len(tab.BlockIds)))
 	}
 
 	// Create layout action to make the block visible in the UI
@@ -284,16 +267,13 @@ func (ws *WidgetAPIService) CreateWidget(ctx context.Context, req CreateWidgetAP
 	}
 
 	// Queue the layout action so the frontend knows how to display the block
-	writeTraceLog(fmt.Sprintf("WidgetAPI: Queueing layout action for block %s", block.OID))
 	err = wcore.QueueLayoutActionForTab(ctx, tabId, *layoutAction)
 	if err != nil {
-		writeTraceLog(fmt.Sprintf("WidgetAPI: QueueLayoutActionForTab failed: %v", err))
 		return &CreateWidgetAPIResponse{
 			Success: false,
 			Error:   fmt.Sprintf("failed to queue layout action: %s", err.Error()),
 		}, nil
 	}
-	writeTraceLog(fmt.Sprintf("WidgetAPI: Layout action queued successfully for block %s", block.OID))
 
 	// Start the block controller if it's a terminal/shell block
 	controllerType := getStringFromMeta(block.Meta, "controller")
@@ -330,12 +310,7 @@ func (ws *WidgetAPIService) CreateWidget(ctx context.Context, req CreateWidgetAP
 
 	// Send database update events to notify frontend
 	updates := waveobj.ContextGetUpdatesRtn(ctx)
-	writeTraceLog(fmt.Sprintf("WidgetAPI: About to send %d updates for block %s", len(updates), block.OID))
-	for i, update := range updates {
-		writeTraceLog(fmt.Sprintf("WidgetAPI: Update %d - Type:%s OType:%s OID:%s", i, update.UpdateType, update.OType, update.OID))
-	}
 	wps.Broker.SendUpdateEvents(updates)
-	writeTraceLog(fmt.Sprintf("WidgetAPI: SendUpdateEvents completed for block %s", block.OID))
 
 	// Prepare response
 	widgetInfo := &WidgetInfo{

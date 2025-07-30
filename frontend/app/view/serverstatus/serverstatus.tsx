@@ -183,7 +183,9 @@ class ServerStatusViewModel implements ViewModel {
             // 获取当前服务器端点，优先检查当前环境
             const { getWebServerEndpoint } = await import("@/util/endpoints");
             const currentBaseUrl = getWebServerEndpoint().replace('localhost', '127.0.0.1');
-            const persistentBaseUrl = 'http://127.0.0.1:60289';
+            // 尝试从环境变量获取MCP服务器端口，默认60289
+            const mcpWebPort = process.env.WAVETERM_MCP_WEB_PORT || '60289';
+            const persistentBaseUrl = `http://127.0.0.1:${mcpWebPort}`;
             
             // 如果当前环境不是持久化服务器端口，先检查当前环境是否支持持久化服务器API
             let response;
@@ -282,7 +284,9 @@ class ServerStatusViewModel implements ViewModel {
             // 获取当前服务器端点，优先使用当前环境
             const { getWebServerEndpoint } = await import("@/util/endpoints");
             const currentBaseUrl = getWebServerEndpoint().replace('localhost', '127.0.0.1');
-            const persistentBaseUrl = 'http://127.0.0.1:60289';
+            // 尝试从环境变量获取MCP服务器端口，默认60289
+            const mcpWebPort = process.env.WAVETERM_MCP_WEB_PORT || '60289';
+            const persistentBaseUrl = `http://127.0.0.1:${mcpWebPort}`;
             
             // 如果当前环境不是持久化服务器端口，先尝试当前环境
             let response;
@@ -344,7 +348,9 @@ class ServerStatusViewModel implements ViewModel {
             // 获取当前服务器端点，优先使用当前环境
             const { getWebServerEndpoint } = await import("@/util/endpoints");
             const currentBaseUrl = getWebServerEndpoint().replace('localhost', '127.0.0.1');
-            const persistentBaseUrl = 'http://127.0.0.1:60289';
+            // 尝试从环境变量获取MCP服务器端口，默认60289
+            const mcpWebPort = process.env.WAVETERM_MCP_WEB_PORT || '60289';
+            const persistentBaseUrl = `http://127.0.0.1:${mcpWebPort}`;
             
             // 如果当前环境不是持久化服务器端口，先尝试当前环境
             let response;

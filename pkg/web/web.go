@@ -36,22 +36,10 @@ import (
 	"github.com/wavetermdev/waveterm/pkg/wshutil"
 )
 
-func writeWebTraceLog(message string) {
-	timestamp := time.Now().Format("2006-01-02 15:04:05.000")
-	logLine := fmt.Sprintf("[%s] %s\n", timestamp, message)
-	
-	file, err := os.OpenFile("/tmp/mcp-trace.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
-	if err != nil {
-		return
-	}
-	defer file.Close()
-	file.WriteString(logLine)
-}
 
 // loggingMiddleware logs all HTTP requests
 func loggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		writeWebTraceLog(fmt.Sprintf("WEB SERVER: %s %s from %s", r.Method, r.URL.Path, r.RemoteAddr))
 		next.ServeHTTP(w, r)
 	})
 }

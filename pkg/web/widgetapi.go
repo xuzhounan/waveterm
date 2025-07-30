@@ -18,27 +18,16 @@ import (
 	"time"
 
 	"github.com/wavetermdev/waveterm/pkg/service/widgetapiservice"
-	"github.com/wavetermdev/waveterm/pkg/waveobj"
-	"github.com/wavetermdev/waveterm/pkg/wcore"
 	"github.com/wavetermdev/waveterm/pkg/wps"
-	"github.com/wavetermdev/waveterm/pkg/wstore"
 )
 
-func writeTraceLog(message string) {
-	timestamp := time.Now().Format("2006-01-02 15:04:05.000")
-	logLine := fmt.Sprintf("[%s] %s\n", timestamp, message)
-	
-	file, err := os.OpenFile("/tmp/mcp-trace.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
-	if err != nil {
-		return
-	}
-	defer file.Close()
-	file.WriteString(logLine)
+// isDebugMode 检查是否处于调试模式
+func isDebugMode() bool {
+	return os.Getenv("WAVETERM_DEV") != ""
 }
 
 // handleWidgetAPI routes widget API requests to appropriate handlers
 func handleWidgetAPI(w http.ResponseWriter, r *http.Request) {
-	writeTraceLog(fmt.Sprintf("HTTP API: Received request %s %s", r.Method, r.URL.Path))
 	
 	// TODO: Enable authentication in production
 	// if err := authkey.ValidateIncomingRequest(r); err != nil {
@@ -60,7 +49,6 @@ func handleWidgetAPI(w http.ResponseWriter, r *http.Request) {
 	path := strings.TrimPrefix(r.URL.Path, "/api/v1/widgets")
 	pathParts := strings.Split(strings.Trim(path, "/"), "/")
 	
-	writeTraceLog(fmt.Sprintf("HTTP API: Parsed path='%s', pathParts=%v", path, pathParts))
 
 	ctx := r.Context()
 
@@ -68,7 +56,6 @@ func handleWidgetAPI(w http.ResponseWriter, r *http.Request) {
 	case "POST":
 		if path == "" || path == "/" {
 			// POST /api/v1/widgets - Create widget
-			writeTraceLog("HTTP API: Routing to handleCreateWidget")
 			handleCreateWidget(w, r, ctx)
 		} else if path == "/mcp/restart" {
 			// POST /api/v1/widgets/mcp/restart - Restart MCP server
@@ -117,12 +104,13 @@ func handleWidgetAPI(w http.ResponseWriter, r *http.Request) {
 		} else if path == "/persistent-server/status" {
 			// GET /api/v1/widgets/persistent-server/status - Check persistent server status
 			handlePersistentServerStatus(w, r, ctx)
-		} else if path == "/debug/fix-workspace" {
-			// GET /api/v1/widgets/debug/fix-workspace - Fix workspace data inconsistencies
-			handleFixWorkspaceData(w, r, ctx)
-		} else if path == "/debug/recent-events" {
-			// GET /api/v1/widgets/debug/recent-events - Show recent cached events for debugging
-			handleGetRecentEvents(w, r, ctx)
+		} else if path == "/debug/recent-events" && r.Method == "GET" {
+			// 内部调试端点：显示最近事件（仅在开发环境启用）
+			if isDebugMode() {
+				handleGetRecentEvents(w, r, ctx)
+			} else {
+				http.Error(w, "Debug endpoints disabled in production", http.StatusNotFound)
+			}
 		} else if len(pathParts) == 3 && pathParts[0] == "workspace" && pathParts[2] == "tabs" {
 			// GET /api/v1/widgets/workspace/{workspace_id}/tabs - List tabs in workspace
 			workspaceId := pathParts[1]
@@ -148,45 +136,37 @@ func handleWidgetAPI(w http.ResponseWriter, r *http.Request) {
 
 // handleCreateWidget creates a new widget in a workspace
 func handleCreateWidget(w http.ResponseWriter, r *http.Request, ctx context.Context) {
-	writeTraceLog("HTTP API: handleCreateWidget called")
 	
 	var req widgetapiservice.CreateWidgetAPIRequest
 
 	decoder := json.NewDecoder(r.Body)
 	if err := decoder.Decode(&req); err != nil {
-		writeTraceLog(fmt.Sprintf("HTTP API: Error decoding request: %v", err))
 		log.Printf("Error decoding create widget request: %v", err)
 		writeErrorResponse(w, "Invalid JSON request body", http.StatusBadRequest)
 		return
 	}
 
-	writeTraceLog(fmt.Sprintf("HTTP API: Decoded request - WorkspaceId=%s, WidgetType=%s", req.WorkspaceId, req.WidgetType))
 
 	// Validate required fields
 	if req.WorkspaceId == "" {
-		writeTraceLog("HTTP API: Missing workspace_id")
 		writeErrorResponse(w, "workspace_id is required", http.StatusBadRequest)
 		return
 	}
 	if req.WidgetType == "" {
-		writeTraceLog("HTTP API: Missing widget_type")
 		writeErrorResponse(w, "widget_type is required", http.StatusBadRequest)
 		return
 	}
 
 	log.Printf("Creating widget: type=%s, workspace=%s", req.WidgetType, req.WorkspaceId)
-	writeTraceLog(fmt.Sprintf("HTTP API: Calling WidgetAPIServiceInstance.CreateWidget"))
 
 	// Call the service to create the widget
 	response, err := widgetapiservice.WidgetAPIServiceInstance.CreateWidget(ctx, req)
 	if err != nil {
-		writeTraceLog(fmt.Sprintf("HTTP API: Service error: %v", err))
 		log.Printf("Error creating widget: %v", err)
 		writeErrorResponse(w, fmt.Sprintf("Internal server error: %s", err.Error()), http.StatusInternalServerError)
 		return
 	}
 
-	writeTraceLog(fmt.Sprintf("HTTP API: Successfully created widget, returning response"))
 	
 	// Return the response
 	w.WriteHeader(http.StatusCreated)
@@ -511,76 +491,6 @@ func getCurrentTimestamp() int64 {
 	return time.Now().UnixNano() / int64(time.Millisecond)
 }
 
-// handleFixWorkspaceData fixes workspace data inconsistencies
-func handleFixWorkspaceData(w http.ResponseWriter, r *http.Request, ctx context.Context) {
-	log.Printf("Fixing workspace data inconsistencies")
-
-	ctx = waveobj.ContextWithUpdates(ctx)
-
-	// Target workspace: waveterm
-	workspaceId := "39720a34-6d5b-477c-bc5f-4ac6f8eb1abf"
-	activeTabId := "3c1f7d5e-f971-4812-a688-4e1b2310411f"
-
-	// Get workspace
-	workspace, err := wcore.GetWorkspace(ctx, workspaceId)
-	if err != nil {
-		writeErrorResponse(w, fmt.Sprintf("Failed to get workspace: %s", err.Error()), http.StatusInternalServerError)
-		return
-	}
-
-	// Check if active tab exists
-	tab, err := wstore.DBGet[*waveobj.Tab](ctx, activeTabId)
-	if err != nil || tab == nil {
-		writeErrorResponse(w, fmt.Sprintf("Active tab not found: %s", activeTabId), http.StatusInternalServerError)
-		return
-	}
-
-	// Check if active_tab_id is in tab_ids
-	found := false
-	for _, tabId := range workspace.TabIds {
-		if tabId == activeTabId {
-			found = true
-			break
-		}
-	}
-
-	result := map[string]interface{}{
-		"success":                  true,
-		"workspace_id":             workspaceId,
-		"active_tab_id":            activeTabId,
-		"tab_name":                 tab.Name,
-		"tab_blocks_count":         len(tab.BlockIds),
-		"tab_blocks":               tab.BlockIds,
-		"workspace_tab_ids_before": workspace.TabIds,
-	}
-
-	if !found {
-		log.Printf("Adding active tab %s to workspace %s tab_ids", activeTabId, workspaceId)
-
-		// Add active tab to tab_ids
-		workspace.TabIds = append(workspace.TabIds, activeTabId)
-
-		// Update workspace
-		err = wstore.WithTx(ctx, func(tx *wstore.TxWrap) error {
-			return wstore.DBUpdate(tx.Context(), workspace)
-		})
-		if err != nil {
-			writeErrorResponse(w, fmt.Sprintf("Failed to update workspace: %s", err.Error()), http.StatusInternalServerError)
-			return
-		}
-
-		result["fixed"] = true
-		result["workspace_tab_ids_after"] = workspace.TabIds
-		result["message"] = "Active tab added to workspace tab_ids"
-
-		log.Printf("Workspace data fixed successfully")
-	} else {
-		result["fixed"] = false
-		result["message"] = "No fix needed, active tab already in tab_ids"
-	}
-
-	json.NewEncoder(w).Encode(result)
-}
 
 // handleCreateTab creates a new tab in a workspace
 func handleCreateTab(w http.ResponseWriter, r *http.Request, ctx context.Context) {
