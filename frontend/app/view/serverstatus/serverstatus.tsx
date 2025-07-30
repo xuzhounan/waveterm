@@ -117,7 +117,6 @@ class ServerStatusViewModel implements ViewModel {
             const { getWebServerEndpoint } = await import("@/util/endpoints");
             const baseUrl = getWebServerEndpoint().replace('localhost', '127.0.0.1');
             
-            console.log(`检查MCP服务器状态: ${baseUrl}`);
             const response = await fetch(`${baseUrl}/api/v1/widgets/mcp/status`, {
                 method: 'GET',
                 headers: {
@@ -128,7 +127,6 @@ class ServerStatusViewModel implements ViewModel {
             
             if (response.ok) {
                 const responseData = await response.json();
-                console.log(`MCP服务器连接成功`, responseData);
                 
                 const isRunning = responseData.success && responseData.status?.running;
                 
@@ -175,7 +173,6 @@ class ServerStatusViewModel implements ViewModel {
             let response;
             let baseUrl = currentBaseUrl;
             
-            console.log(`检查持久化服务器状态: 尝试当前环境 ${currentBaseUrl}`);
             try {
                 response = await fetch(`${currentBaseUrl}/api/v1/widgets/persistent-server/status`, {
                     method: 'GET',
@@ -192,7 +189,6 @@ class ServerStatusViewModel implements ViewModel {
                 // 检查响应内容，如果当前环境报告持久化服务器未运行，则尝试持久化服务器端口
                 const tempResponseData = await response.json();
                 if (!tempResponseData.status?.running) {
-                    console.log(`当前环境报告持久化服务器未运行，尝试持久化服务器端口 ${persistentBaseUrl}`);
                     throw new Error('Current environment reports persistent server not running');
                 }
                 
@@ -204,7 +200,6 @@ class ServerStatusViewModel implements ViewModel {
                     headers: response.headers
                 });
             } catch (error) {
-                console.log(`当前环境失败，尝试持久化服务器端口 ${persistentBaseUrl}`);
                 baseUrl = persistentBaseUrl;
                 response = await fetch(`${persistentBaseUrl}/api/v1/widgets/persistent-server/status`, {
                     method: 'GET',
@@ -217,7 +212,6 @@ class ServerStatusViewModel implements ViewModel {
             
             if (response.ok) {
                 const responseData = await response.json();
-                console.log(`持久化服务器状态`, responseData);
                 
                 const isRunning = responseData.success && responseData.status?.running;
                 
@@ -259,7 +253,6 @@ class ServerStatusViewModel implements ViewModel {
             let response;
             let baseUrl = currentBaseUrl;
             
-            console.log(`启动持久化服务器: 尝试当前环境 ${currentBaseUrl}`);
             try {
                 response = await fetch(`${currentBaseUrl}/api/v1/widgets/persistent-server/start`, {
                     method: 'POST',
@@ -276,7 +269,6 @@ class ServerStatusViewModel implements ViewModel {
                 // 对于启动请求，如果当前环境支持，就直接使用它
                 // 不需要像状态检查那样验证结果，因为启动是操作而不是查询
             } catch (error) {
-                console.log(`当前环境失败，尝试持久化服务器端口 ${persistentBaseUrl}`);
                 baseUrl = persistentBaseUrl;
                 response = await fetch(`${persistentBaseUrl}/api/v1/widgets/persistent-server/start`, {
                     method: 'POST',
@@ -319,7 +311,6 @@ class ServerStatusViewModel implements ViewModel {
             let response;
             let baseUrl = currentBaseUrl;
             
-            console.log(`停止持久化服务器: 尝试当前环境 ${currentBaseUrl}`);
             try {
                 response = await fetch(`${currentBaseUrl}/api/v1/widgets/persistent-server/stop`, {
                     method: 'POST',
@@ -336,7 +327,6 @@ class ServerStatusViewModel implements ViewModel {
                 // 对于停止请求，如果当前环境支持，就直接使用它
                 // 不需要验证结果，因为停止是操作而不是查询
             } catch (error) {
-                console.log(`当前环境失败，尝试持久化服务器端口 ${persistentBaseUrl}`);
                 baseUrl = persistentBaseUrl;
                 response = await fetch(`${persistentBaseUrl}/api/v1/widgets/persistent-server/stop`, {
                     method: 'POST',

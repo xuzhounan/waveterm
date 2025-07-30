@@ -64,7 +64,6 @@ function GetObject<T>(oref: string): Promise<T> {
 function debugLogBackendCall(methodName: string, durationStr: string, args: any[]) {
     durationStr = "| " + durationStr;
     if (methodName == "object.UpdateObject" && args.length > 0) {
-        console.log("[service] object.UpdateObject", args[0].otype, args[0].oid, durationStr, args[0]);
         return;
     }
     if (methodName == "object.GetObject" && args.length > 0) {

@@ -36,7 +36,6 @@ async function checkMCPServerStatus(): Promise<MCPServerStatus> {
     const endpoints = getMCPServerEndpoints();
     for (const endpoint of endpoints) {
         try {
-            console.log(`尝试连接MCP服务器: ${endpoint}`);
             const response = await fetch(`${endpoint}/api/v1/widgets/mcp/status`, {
                 method: 'GET',
                 headers: {
@@ -50,7 +49,6 @@ async function checkMCPServerStatus(): Promise<MCPServerStatus> {
             if (response.ok) {
                 const data = await response.json();
                 if (data.success) {
-                    console.log(`MCP服务器连接成功: ${endpoint}`);
                     const portMatch = endpoint.match(/:(\d+)/);
                     const port = portMatch ? parseInt(portMatch[1]) : undefined;
                     return {
@@ -84,7 +82,6 @@ async function startMCPServer(): Promise<boolean> {
     const endpoints = getMCPServerEndpoints();
     for (const endpoint of endpoints) {
         try {
-            console.log(`尝试启动MCP服务器: ${endpoint}`);
             const response = await fetch(`${endpoint}/api/v1/widgets/mcp/restart`, {
                 method: 'POST',
                 headers: {
@@ -99,7 +96,6 @@ async function startMCPServer(): Promise<boolean> {
             if (response.ok) {
                 const data = await response.json();
                 if (data.success) {
-                    console.log(`MCP服务器启动请求成功: ${endpoint}`);
                     // Wait a bit for server to start
                     await new Promise(resolve => setTimeout(resolve, 3000));
                     const status = await checkMCPServerStatus();
@@ -207,7 +203,6 @@ export function MCPServerControl({ className }: { className?: string }) {
                         onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
-                            console.log("MCP Server start button clicked");
                             handleStartServer();
                         }}
                         disabled={isStarting}

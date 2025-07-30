@@ -27,7 +27,6 @@ let webviewPreloadUrl = null;
 function getWebviewPreloadUrl() {
     if (webviewPreloadUrl == null) {
         webviewPreloadUrl = getApi().getWebviewPreload();
-        console.log("webviewPreloadUrl", webviewPreloadUrl);
     }
     if (webviewPreloadUrl == null) {
         return null;
@@ -165,7 +164,6 @@ export class WebViewModel implements ViewModel {
                     icon: "arrow-up-right-from-square",
                     title: "Open in External Browser",
                     click: () => {
-                        console.log("open external", url);
                         if (url != null && url != "") {
                             const externalUrl = this.modifyExternalUrl?.(url) ?? url;
                             return getApi().openExternal(externalUrl);
@@ -386,11 +384,17 @@ export class WebViewModel implements ViewModel {
         const defaultSearchAtom = getSettingsKeyAtom("web:defaultsearch");
         const searchTemplate = globalStore.get(defaultSearchAtom);
         const nextUrl = this.ensureUrlScheme(newUrl, searchTemplate);
-        console.log("webview loadUrl", reason, nextUrl, "cur=", this.webviewRef.current.getURL());
         if (!this.webviewRef.current) {
             return;
         }
-        if (this.webviewRef.current.getURL() != nextUrl) {
+        
+        try {
+            const currentUrl = this.webviewRef.current.getURL();
+            if (currentUrl != nextUrl) {
+                fireAndForget(() => this.webviewRef.current.loadURL(nextUrl));
+            }
+        } catch (e) {
+            console.warn("WebView not ready for getURL, loading anyway", e);
             fireAndForget(() => this.webviewRef.current.loadURL(nextUrl));
         }
         if (newUrl != nextUrl) {
@@ -435,9 +439,7 @@ export class WebViewModel implements ViewModel {
     }
 
     giveFocus(): boolean {
-        console.log("webview giveFocus");
         if (this.searchAtoms && globalStore.get(this.searchAtoms.isOpen)) {
-            console.log("search is open, not giving focus");
             return true;
         }
         const ctrlShiftState = globalStore.get(getSimpleControlShiftAtom());
@@ -673,6 +675,7 @@ const WebView = memo(({ model, onFailLoad, blockRef }: WebViewProps) => {
     const metaUrlRef = useRef(metaUrl);
     const zoomFactor = useAtomValue(getBlockMetaKeyAtom(model.blockId, "web:zoom")) || 1;
     const webPartition = useAtomValue(getBlockMetaKeyAtom(model.blockId, "web:partition")) || undefined;
+    const domReady = useAtomValue(model.domReady);
 
     // Search
     const searchProps = useSearch({ anchorRef: model.webviewRef, viewModel: model });
@@ -681,34 +684,40 @@ const WebView = memo(({ model, onFailLoad, blockRef }: WebViewProps) => {
     const setNumSearchResults = useSetAtom(searchProps.resultsCount);
     searchProps.onSearch = useCallback((search: string) => {
         try {
-            if (search) {
-                model.webviewRef.current?.findInPage(search, { findNext: true });
-            } else {
-                model.webviewRef.current?.stopFindInPage("clearSelection");
+            const webview = model.webviewRef.current;
+            if (webview && domReady) {
+                if (search) {
+                    webview.findInPage(search, { findNext: true });
+                } else {
+                    webview.stopFindInPage("clearSelection");
+                }
             }
         } catch (e) {
             console.error("Failed to search", e);
         }
-    }, []);
+    }, [domReady]);
     searchProps.onNext = useCallback(() => {
         try {
-            console.log("search next", searchVal);
-            model.webviewRef.current?.findInPage(searchVal, { findNext: false, forward: true });
+            const webview = model.webviewRef.current;
+            if (webview && domReady) {
+                webview.findInPage(searchVal, { findNext: false, forward: true });
+            }
         } catch (e) {
             console.error("Failed to search next", e);
         }
-    }, [searchVal]);
+    }, [searchVal, domReady]);
     searchProps.onPrev = useCallback(() => {
         try {
-            console.log("search prev", searchVal);
-            model.webviewRef.current?.findInPage(searchVal, { findNext: false, forward: false });
+            const webview = model.webviewRef.current;
+            if (webview && domReady) {
+                webview.findInPage(searchVal, { findNext: false, forward: false });
+            }
         } catch (e) {
             console.error("Failed to search prev", e);
         }
-    }, [searchVal]);
+    }, [searchVal, domReady]);
     const onFoundInPage = useCallback((event: any) => {
         const result = event.result;
-        console.log("found in page", result);
         if (!result) {
             return;
         }
@@ -721,8 +730,6 @@ const WebView = memo(({ model, onFailLoad, blockRef }: WebViewProps) => {
     const [metaUrlInitial] = useState(metaUrl);
 
     const [webContentsId, setWebContentsId] = useState(null);
-    const domReady = useAtomValue(model.domReady);
-
     const [errorText, setErrorText] = useState("");
 
     function setBgColor() {
@@ -760,13 +767,29 @@ const WebView = memo(({ model, onFailLoad, blockRef }: WebViewProps) => {
             return;
         }
         try {
-            const wcId = model.webviewRef.current.getWebContentsId?.();
-            if (wcId) {
-                setWebContentsId(wcId);
-                if (model.webviewRef.current.getZoomFactor() != zoomFactor) {
-                    model.webviewRef.current.setZoomFactor(zoomFactor);
+            // Add a small delay to ensure webview is fully attached to DOM
+            const checkWebContents = () => {
+                const webview = model.webviewRef.current;
+                if (webview && typeof webview.getWebContentsId === 'function') {
+                    try {
+                        const wcId = webview.getWebContentsId();
+                        if (wcId) {
+                            setWebContentsId(wcId);
+                            if (webview.getZoomFactor() != zoomFactor) {
+                                webview.setZoomFactor(zoomFactor);
+                            }
+                        }
+                    } catch (innerError) {
+                        // WebView might not be ready yet, retry
+                        setTimeout(checkWebContents, 100);
+                    }
+                } else {
+                    // Retry after a short delay if webview is not ready
+                    setTimeout(checkWebContents, 100);
                 }
-            }
+            };
+            // Initial delay to ensure DOM attachment
+            setTimeout(checkWebContents, 50);
         } catch (e) {
             console.error("Failed to get webcontentsid / setzoomlevel (webview)", e);
         }
@@ -814,14 +837,28 @@ const WebView = memo(({ model, onFailLoad, blockRef }: WebViewProps) => {
                 console.error(errorMessage);
                 setErrorText(errorMessage);
                 if (onFailLoad) {
-                    const curUrl = model.webviewRef.current.getURL();
-                    onFailLoad(curUrl);
+                    try {
+                        const webview = model.webviewRef.current;
+                        if (webview && typeof webview.getURL === 'function') {
+                            const curUrl = webview.getURL();
+                            onFailLoad(curUrl);
+                        }
+                    } catch (urlError) {
+                        console.warn("Failed to get URL on fail load", urlError);
+                        onFailLoad(e.validatedURL || 'unknown');
+                    }
                 }
             }
         };
         const webviewFocus = () => {
-            getApi().setWebviewFocus(webview.getWebContentsId());
-            model.nodeModel.focusNode();
+            try {
+                if (webview && typeof webview.getWebContentsId === 'function') {
+                    getApi().setWebviewFocus(webview.getWebContentsId());
+                    model.nodeModel.focusNode();
+                }
+            } catch (e) {
+                console.warn("Failed to get webContentsId on focus", e);
+            }
         };
         const webviewBlur = () => {
             getApi().setWebviewFocus(null);

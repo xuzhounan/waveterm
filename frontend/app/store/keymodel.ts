@@ -319,12 +319,10 @@ function checkKeyMap<T>(waveEvent: WaveKeyboardEvent, keyMap: Map<string, T>): [
 function appHandleKeyDown(waveEvent: WaveKeyboardEvent): boolean {
     const nativeEvent = (waveEvent as any).nativeEvent;
     if (lastHandledEvent != null && nativeEvent != null && lastHandledEvent === nativeEvent) {
-        console.log("lastHandledEvent return false");
         return false;
     }
     lastHandledEvent = nativeEvent;
     if (activeChord) {
-        console.log("handle activeChord", activeChord);
         // If we're in chord mode, look for the second key.
         const chordBindings = globalChordMap.get(activeChord);
         const [, handler] = checkKeyMap(waveEvent, chordBindings);

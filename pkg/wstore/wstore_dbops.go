@@ -222,13 +222,10 @@ func DBGetAllObjsByType[T waveobj.WaveObj](ctx context.Context, otype string) ([
 	return WithTxRtn(ctx, func(tx *TxWrap) ([]T, error) {
 		rtn := make([]T, 0)
 		table := tableNameFromOType(otype)
-		log.Printf("[DEBUG] DBGetAllObjsByType table: %s\n", table)
 		query := fmt.Sprintf("SELECT oid, version, data FROM %s", table)
 		var rows []idDataType
 		tx.Select(&rows, query)
-		log.Printf("[DEBUG] DBGetAllObjsByType found %d rows for type: %s\n", len(rows), otype)
-		for i, row := range rows {
-			log.Printf("[DEBUG] Row %d: OID=%s\n", i, row.OId)
+		for _, row := range rows {
 			waveObj, err := waveobj.FromJson(row.Data)
 			if err != nil {
 				return nil, err
@@ -370,7 +367,6 @@ func DBFindTabForBlockId(ctx context.Context, blockId string) (string, error) {
 }
 
 func DBFindWorkspaceForTabId(ctx context.Context, tabId string) (string, error) {
-	log.Printf("DBFindWorkspaceForTabId tabId: %s\n", tabId)
 	return WithTxRtn(ctx, func(tx *TxWrap) (string, error) {
 		query := `
 			WITH variable(value) AS (
@@ -390,7 +386,6 @@ func DBFindWorkspaceForTabId(ctx context.Context, tabId string) (string, error) 
 			);
 			`
 		wsId := tx.GetString(query, tabId)
-		log.Printf("DBFindWorkspaceForTabId wsId: %s\n", wsId)
 		return wsId, nil
 	})
 }

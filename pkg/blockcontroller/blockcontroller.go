@@ -134,7 +134,6 @@ func (bc *BlockController) UpdateControllerAndSendUpdate(updateFn func() bool) {
 	})
 	if sendUpdate {
 		rtStatus := bc.GetRuntimeStatus()
-		log.Printf("sending blockcontroller update %#v\n", rtStatus)
 		wps.Broker.Publish(wps.WaveEvent{
 			Event: wps.Event_ControllerStatus,
 			Scopes: []string{
@@ -857,14 +856,12 @@ func setTermSizeInDB(blockId string, termSize waveobj.TermSize) error {
 func (bc *BlockController) LockRunLock() bool {
 	rtn := bc.RunLock.CompareAndSwap(false, true)
 	if rtn {
-		log.Printf("block %q run() lock\n", bc.BlockId)
 	}
 	return rtn
 }
 
 func (bc *BlockController) UnlockRunLock() {
 	bc.RunLock.Store(false)
-	log.Printf("block %q run() unlock\n", bc.BlockId)
 }
 
 func (bc *BlockController) run(logCtx context.Context, bdata *waveobj.Block, blockMeta map[string]any, rtOpts *waveobj.RuntimeOpts, force bool) {
@@ -872,7 +869,6 @@ func (bc *BlockController) run(logCtx context.Context, bdata *waveobj.Block, blo
 	runningShellCommand := false
 	ok := bc.LockRunLock()
 	if !ok {
-		log.Printf("block %q is already executing run()\n", bc.BlockId)
 		return
 	}
 	defer func() {
@@ -1043,7 +1039,6 @@ func ResyncController(ctx context.Context, tabId string, blockId string, rtOpts 
 		}
 		return nil
 	}
-	log.Printf("resync controller %s %q (%q) (force %v)\n", blockId, controllerName, connName, force)
 	// check if conn is different, if so, stop the current controller, and set status back to init
 	if curBc != nil {
 		bcStatus := curBc.GetRuntimeStatus()

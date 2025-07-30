@@ -300,7 +300,6 @@ func (router *WshRouter) RegisterRoute(routeId string, rpc AbstractRpcClient, sh
 		log.Printf("error: WshRouter cannot register %s route\n", routeId)
 		return
 	}
-	log.Printf("[router] registering wsh route %q\n", routeId)
 	router.Lock.Lock()
 	defer router.Lock.Unlock()
 	alreadyExists := router.RouteMap[routeId] != nil
@@ -346,7 +345,6 @@ func (router *WshRouter) RegisterRoute(routeId string, rpc AbstractRpcClient, sh
 }
 
 func (router *WshRouter) UnregisterRoute(routeId string) {
-	log.Printf("[router] unregistering wsh route %q\n", routeId)
 	router.Lock.Lock()
 	defer router.Lock.Unlock()
 	delete(router.RouteMap, routeId)

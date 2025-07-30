@@ -199,9 +199,7 @@ const BlockFull = memo(({ nodeModel, viewModel }: FullBlockProps) => {
 
     const handleChildFocus = useCallback(
         (event: React.FocusEvent<HTMLDivElement, Element>) => {
-            console.log("setFocusedChild", nodeModel.blockId, getElemAsStr(event.target));
             if (!isFocused) {
-                console.log("focusedChild focus", nodeModel.blockId);
                 nodeModel.focusNode();
             }
         },

@@ -106,27 +106,20 @@ function waveEventUnsubscribe(...unsubscribes: WaveEventUnsubscribe[]) {
 
 function getFileSubject(zoneId: string, fileName: string): SubjectWithRef<WSFileEventData> {
     const subjectKey = zoneId + "|" + fileName;
-    console.log("🔍 getFileSubject called:", { zoneId, fileName, subjectKey });
     let subject = fileSubjects.get(subjectKey);
     if (subject == null) {
-        console.log("📝 Creating new file subject for:", subjectKey);
         subject = new Subject<any>() as any;
         subject.refCount = 0;
         subject.release = () => {
             subject.refCount--;
-            console.log("📉 File subject refCount decreased:", subject.refCount, "for:", subjectKey);
             if (subject.refCount === 0) {
-                console.log("🗑️ Deleting file subject:", subjectKey);
                 subject.complete();
                 fileSubjects.delete(subjectKey);
             }
         };
         fileSubjects.set(subjectKey, subject);
-    } else {
-        console.log("♻️ Reusing existing file subject for:", subjectKey);
     }
     subject.refCount++;
-    console.log("📈 File subject refCount increased:", subject.refCount, "for:", subjectKey);
     return subject;
 }
 

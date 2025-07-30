@@ -708,7 +708,7 @@ const TableRow = React.forwardRef(function ({
     setSearch,
     idx,
     handleFileContextMenu,
-}: TableRowProps) {
+}: TableRowProps, ref: React.Ref<HTMLDivElement>) {
     const dirPath = useAtomValue(model.statFilePath);
     const connection = useAtomValue(model.connection);
 
@@ -727,6 +727,16 @@ const TableRow = React.forwardRef(function ({
         [dragItem]
     );
 
+    // Combine refs
+    const combinedRef = React.useCallback((node: HTMLDivElement) => {
+        drag(node);
+        if (typeof ref === 'function') {
+            ref(node);
+        } else if (ref) {
+            ref.current = node;
+        }
+    }, [drag, ref]);
+
     return (
         <div
             className={clsx("dir-table-body-row", { focused: focusIndex === idx })}
@@ -737,7 +747,7 @@ const TableRow = React.forwardRef(function ({
             }}
             onClick={() => setFocusIndex(idx)}
             onContextMenu={(e) => handleFileContextMenu(e, row.original)}
-            ref={drag}
+            ref={combinedRef}
         >
             {row.getVisibleCells().map((cell) => (
                 <div
