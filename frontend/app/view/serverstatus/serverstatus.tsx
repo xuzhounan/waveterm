@@ -47,12 +47,15 @@ class ServerStatusViewModel implements ViewModel {
     loadingAtom: jotai.PrimitiveAtom<boolean>;
     persistentLoadingAtom: jotai.PrimitiveAtom<boolean>;
     refreshIntervalRef: React.MutableRefObject<NodeJS.Timeout | null>;
+    persistentIntervalRef: React.MutableRefObject<NodeJS.Timeout | null>;
+    persistentFailureCount: number;
 
     constructor(blockId: string, viewType: string) {
         this.viewType = viewType;
         this.blockId = blockId;
         this.blockAtom = WOS.getWaveObjectAtom<Block>(`block:${blockId}`);
         this.refreshIntervalRef = { current: null };
+        this.persistentIntervalRef = { current: null };
         
         this.statusDataAtom = jotai.atom<ServerStatusData>({
             isRunning: false,
@@ -66,6 +69,7 @@ class ServerStatusViewModel implements ViewModel {
         
         this.loadingAtom = jotai.atom(false);
         this.persistentLoadingAtom = jotai.atom(false);
+        this.persistentFailureCount = 0;
         
         this.viewIcon = jotai.atom((get) => {
             const statusData = get(this.statusDataAtom);
@@ -103,10 +107,22 @@ class ServerStatusViewModel implements ViewModel {
 
     startPersistentStatusChecking() {
         this.checkPersistentServerStatus();
-        // 持久化服务器状态检查使用稍低的频率
-        setInterval(() => {
+        this.schedulePersistentStatusCheck();
+    }
+
+    schedulePersistentStatusCheck() {
+        // 根据失败次数调整检查间隔
+        let interval = 10000; // 基础间隔10秒
+        if (this.persistentFailureCount > 3) {
+            interval = 60000; // 连续失败3次后，改为60秒检查一次
+        } else if (this.persistentFailureCount > 1) {
+            interval = 30000; // 连续失败1次后，改为30秒检查一次
+        }
+
+        this.persistentIntervalRef.current = setTimeout(() => {
             this.checkPersistentServerStatus();
-        }, 10000); // 每10秒检查一次
+            this.schedulePersistentStatusCheck();
+        }, interval);
     }
 
     async checkServerStatus() {
@@ -210,7 +226,8 @@ class ServerStatusViewModel implements ViewModel {
                         signal: AbortSignal.timeout(3000),
                     });
                 } catch (fallbackError) {
-                    // 如果两个端点都失败，返回默认的离线状态
+                    // 如果两个端点都失败，增加失败计数并返回默认的离线状态
+                    this.persistentFailureCount++;
                     const statusData: PersistentServerStatusData = {
                         isRunning: false,
                         pid: undefined,
@@ -220,12 +237,16 @@ class ServerStatusViewModel implements ViewModel {
                         lastUpdated: Date.now(),
                     };
                     globalStore.set(this.persistentStatusDataAtom, statusData);
+                    globalStore.set(this.persistentLoadingAtom, false);
                     return;
                 }
             }
             
             if (response.ok) {
                 const responseData = await response.json();
+                
+                // 成功获取状态，重置失败计数器
+                this.persistentFailureCount = 0;
                 
                 const isRunning = responseData.success && responseData.status?.running;
                 
@@ -428,6 +449,10 @@ class ServerStatusViewModel implements ViewModel {
         if (this.refreshIntervalRef.current) {
             clearInterval(this.refreshIntervalRef.current);
             this.refreshIntervalRef.current = null;
+        }
+        if (this.persistentIntervalRef.current) {
+            clearTimeout(this.persistentIntervalRef.current);
+            this.persistentIntervalRef.current = null;
         }
     }
 }
