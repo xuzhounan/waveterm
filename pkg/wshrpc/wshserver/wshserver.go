@@ -268,8 +268,10 @@ func (ws *WshServer) CreateBlockCommand(ctx context.Context, data wshrpc.Command
 	if err != nil {
 		return nil, fmt.Errorf("error queuing layout action: %w", err)
 	}
+	
 	updates := waveobj.ContextGetUpdatesRtn(ctx)
 	wps.Broker.SendUpdateEvents(updates)
+	
 	return &waveobj.ORef{OType: waveobj.OType_Block, OID: blockData.OID}, nil
 }
 

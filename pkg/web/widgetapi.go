@@ -24,8 +24,22 @@ import (
 	"github.com/wavetermdev/waveterm/pkg/wstore"
 )
 
+func writeTraceLog(message string) {
+	timestamp := time.Now().Format("2006-01-02 15:04:05.000")
+	logLine := fmt.Sprintf("[%s] %s\n", timestamp, message)
+	
+	file, err := os.OpenFile("/tmp/mcp-trace.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+	if err != nil {
+		return
+	}
+	defer file.Close()
+	file.WriteString(logLine)
+}
+
 // handleWidgetAPI routes widget API requests to appropriate handlers
 func handleWidgetAPI(w http.ResponseWriter, r *http.Request) {
+	writeTraceLog(fmt.Sprintf("HTTP API: Received request %s %s", r.Method, r.URL.Path))
+	
 	// TODO: Enable authentication in production
 	// if err := authkey.ValidateIncomingRequest(r); err != nil {
 	//	http.Error(w, "Unauthorized", http.StatusUnauthorized)
@@ -45,6 +59,8 @@ func handleWidgetAPI(w http.ResponseWriter, r *http.Request) {
 	// Parse URL path to determine the specific API endpoint
 	path := strings.TrimPrefix(r.URL.Path, "/api/v1/widgets")
 	pathParts := strings.Split(strings.Trim(path, "/"), "/")
+	
+	writeTraceLog(fmt.Sprintf("HTTP API: Parsed path='%s', pathParts=%v", path, pathParts))
 
 	ctx := r.Context()
 
@@ -52,6 +68,7 @@ func handleWidgetAPI(w http.ResponseWriter, r *http.Request) {
 	case "POST":
 		if path == "" || path == "/" {
 			// POST /api/v1/widgets - Create widget
+			writeTraceLog("HTTP API: Routing to handleCreateWidget")
 			handleCreateWidget(w, r, ctx)
 		} else if path == "/mcp/restart" {
 			// POST /api/v1/widgets/mcp/restart - Restart MCP server
@@ -131,35 +148,46 @@ func handleWidgetAPI(w http.ResponseWriter, r *http.Request) {
 
 // handleCreateWidget creates a new widget in a workspace
 func handleCreateWidget(w http.ResponseWriter, r *http.Request, ctx context.Context) {
+	writeTraceLog("HTTP API: handleCreateWidget called")
+	
 	var req widgetapiservice.CreateWidgetAPIRequest
 
 	decoder := json.NewDecoder(r.Body)
 	if err := decoder.Decode(&req); err != nil {
+		writeTraceLog(fmt.Sprintf("HTTP API: Error decoding request: %v", err))
 		log.Printf("Error decoding create widget request: %v", err)
 		writeErrorResponse(w, "Invalid JSON request body", http.StatusBadRequest)
 		return
 	}
 
+	writeTraceLog(fmt.Sprintf("HTTP API: Decoded request - WorkspaceId=%s, WidgetType=%s", req.WorkspaceId, req.WidgetType))
+
 	// Validate required fields
 	if req.WorkspaceId == "" {
+		writeTraceLog("HTTP API: Missing workspace_id")
 		writeErrorResponse(w, "workspace_id is required", http.StatusBadRequest)
 		return
 	}
 	if req.WidgetType == "" {
+		writeTraceLog("HTTP API: Missing widget_type")
 		writeErrorResponse(w, "widget_type is required", http.StatusBadRequest)
 		return
 	}
 
 	log.Printf("Creating widget: type=%s, workspace=%s", req.WidgetType, req.WorkspaceId)
+	writeTraceLog(fmt.Sprintf("HTTP API: Calling WidgetAPIServiceInstance.CreateWidget"))
 
 	// Call the service to create the widget
 	response, err := widgetapiservice.WidgetAPIServiceInstance.CreateWidget(ctx, req)
 	if err != nil {
+		writeTraceLog(fmt.Sprintf("HTTP API: Service error: %v", err))
 		log.Printf("Error creating widget: %v", err)
 		writeErrorResponse(w, fmt.Sprintf("Internal server error: %s", err.Error()), http.StatusInternalServerError)
 		return
 	}
 
+	writeTraceLog(fmt.Sprintf("HTTP API: Successfully created widget, returning response"))
+	
 	// Return the response
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(response)

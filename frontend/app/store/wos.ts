@@ -240,9 +240,10 @@ function updateWaveObject(update: WaveObjUpdate) {
         return;
     }
     const oref = makeORef(update.otype, update.oid);
+    console.log("[MCP-TRACE] WOS: updateWaveObject called for", oref, "type:", update.updatetype);
     const wov = getWaveObjectValue(oref);
     if (update.updatetype == "delete") {
-        console.log("WaveObj deleted", oref);
+        console.log("[MCP-TRACE] WOS: WaveObj deleted", oref);
         globalStore.set(wov.dataAtom, { value: null, loading: false });
     } else {
         if (!isValidWaveObj(update.obj)) {

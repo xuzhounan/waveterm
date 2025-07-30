@@ -124,13 +124,16 @@ function getFileSubject(zoneId: string, fileName: string): SubjectWithRef<WSFile
 }
 
 function handleWaveEvent(event: WaveEvent) {
-    // console.log("handleWaveEvent", event);
+    console.log("[MCP-TRACE] Frontend: Received WebSocket event", event.event, "scopes:", event.scopes, "data:", event.data);
     const subjects = waveEventSubjects.get(event.event);
     if (subjects == null) {
+        console.log("[MCP-TRACE] Frontend: No subjects found for event", event.event);
         return;
     }
+    console.log("[MCP-TRACE] Frontend: Found", subjects.length, "subjects for event", event.event);
     for (const scont of subjects) {
         if (isBlank(scont.scope)) {
+            console.log("[MCP-TRACE] Frontend: Calling handler for blank scope");
             scont.handler(event);
             continue;
         }
@@ -138,7 +141,10 @@ function handleWaveEvent(event: WaveEvent) {
             continue;
         }
         if (event.scopes.includes(scont.scope)) {
+            console.log("[MCP-TRACE] Frontend: Calling handler for matching scope", scont.scope);
             scont.handler(event);
+        } else {
+            console.log("[MCP-TRACE] Frontend: Skipping handler for non-matching scope", scont.scope);
         }
     }
 }

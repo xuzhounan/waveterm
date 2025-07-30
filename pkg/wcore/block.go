@@ -130,9 +130,37 @@ func createBlockObj(ctx context.Context, tabId string, blockDef *waveobj.BlockDe
 			RuntimeOpts: rtOpts,
 			Meta:        blockDef.Meta,
 		}
-		wstore.DBInsert(tx.Context(), blockData)
+		err := wstore.DBInsert(tx.Context(), blockData)
+		if err != nil {
+			return nil, fmt.Errorf("failed to insert block: %w", err)
+		}
+		
+		// Update tab with new block ID
 		tab.BlockIds = append(tab.BlockIds, blockId)
-		wstore.DBUpdate(tx.Context(), tab)
+		err = wstore.DBUpdate(tx.Context(), tab)
+		if err != nil {
+			return nil, fmt.Errorf("failed to update tab with new block: %w", err)
+		}
+		
+		// Verify the update was successful within the transaction
+		updatedTab, err := wstore.DBGet[*waveobj.Tab](tx.Context(), tabId)
+		if err != nil {
+			return nil, fmt.Errorf("failed to verify tab update: %w", err)
+		}
+		
+		// Check if the block was actually added
+		blockFound := false
+		for _, bid := range updatedTab.BlockIds {
+			if bid == blockId {
+				blockFound = true
+				break
+			}
+		}
+		
+		if !blockFound {
+			return nil, fmt.Errorf("block %s was not successfully added to tab %s blockids", blockId, tabId)
+		}
+		
 		return blockData, nil
 	})
 }

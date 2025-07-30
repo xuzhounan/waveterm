@@ -36,6 +36,26 @@ import (
 	"github.com/wavetermdev/waveterm/pkg/wshutil"
 )
 
+func writeWebTraceLog(message string) {
+	timestamp := time.Now().Format("2006-01-02 15:04:05.000")
+	logLine := fmt.Sprintf("[%s] %s\n", timestamp, message)
+	
+	file, err := os.OpenFile("/tmp/mcp-trace.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+	if err != nil {
+		return
+	}
+	defer file.Close()
+	file.WriteString(logLine)
+}
+
+// loggingMiddleware logs all HTTP requests
+func loggingMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		writeWebTraceLog(fmt.Sprintf("WEB SERVER: %s %s from %s", r.Method, r.URL.Path, r.RemoteAddr))
+		next.ServeHTTP(w, r)
+	})
+}
+
 type WebFnType = func(http.ResponseWriter, *http.Request)
 
 const TransparentGif64 = "R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
@@ -484,6 +504,9 @@ func RunWebServer(listener net.Listener) {
 	gr.PathPrefix(docsitePrefix).Handler(http.StripPrefix(docsitePrefix, docsite.GetDocsiteHandler()))
 	gr.PathPrefix(schemaPrefix).Handler(http.StripPrefix(schemaPrefix, schema.GetSchemaHandler()))
 	handler := http.TimeoutHandler(gr, HttpTimeoutDuration, "Timeout")
+	
+	// Apply logging middleware first
+	handler = loggingMiddleware(handler)
 	
 	// Apply Gorilla CORS handler for MCP API access (always enabled for API endpoints)
 	if true { // Force enable CORS for MCP compatibility

@@ -8,13 +8,13 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
 	"strings"
 	"time"
 
 	"github.com/wavetermdev/waveterm/pkg/blockcontroller"
 	"github.com/wavetermdev/waveterm/pkg/filestore"
 	"github.com/wavetermdev/waveterm/pkg/service/workspaceservice"
-	"github.com/wavetermdev/waveterm/pkg/util/utilfn"
 	"github.com/wavetermdev/waveterm/pkg/wavebase"
 	"github.com/wavetermdev/waveterm/pkg/waveobj"
 	"github.com/wavetermdev/waveterm/pkg/wconfig"
@@ -27,6 +27,18 @@ import (
 type WidgetAPIService struct{}
 
 var WidgetAPIServiceInstance = &WidgetAPIService{}
+
+func writeTraceLog(message string) {
+	timestamp := time.Now().Format("2006-01-02 15:04:05.000")
+	logLine := fmt.Sprintf("[%s] %s\n", timestamp, message)
+	
+	file, err := os.OpenFile("/tmp/mcp-trace.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+	if err != nil {
+		return
+	}
+	defer file.Close()
+	file.WriteString(logLine)
+}
 
 // CreateWidgetAPIRequest represents the REST API request for creating a widget
 type CreateWidgetAPIRequest struct {
@@ -238,10 +250,28 @@ func (ws *WidgetAPIService) CreateWidget(ctx context.Context, req CreateWidgetAP
 
 	block, err := wcore.CreateBlock(ctx, tabId, createData.BlockDef, rtOpts)
 	if err != nil {
+		writeTraceLog(fmt.Sprintf("WidgetAPI: CreateBlock failed: %v", err))
 		return &CreateWidgetAPIResponse{
 			Success: false,
 			Error:   fmt.Sprintf("failed to create block: %s", err.Error()),
 		}, nil
+	}
+	
+	writeTraceLog(fmt.Sprintf("WidgetAPI: Block created successfully: %s", block.OID))
+	
+	// Verify that the block was actually added to the tab
+	tab, err := wstore.DBGet[*waveobj.Tab](ctx, tabId)
+	if err != nil {
+		writeTraceLog(fmt.Sprintf("WidgetAPI: Failed to verify tab after block creation: %v", err))
+	} else {
+		blockInTab := false
+		for _, bid := range tab.BlockIds {
+			if bid == block.OID {
+				blockInTab = true
+				break
+			}
+		}
+		writeTraceLog(fmt.Sprintf("WidgetAPI: Block %s in tab blockids: %v (total blocks: %d)", block.OID, blockInTab, len(tab.BlockIds)))
 	}
 
 	// Create layout action to make the block visible in the UI
@@ -254,16 +284,16 @@ func (ws *WidgetAPIService) CreateWidget(ctx context.Context, req CreateWidgetAP
 	}
 
 	// Queue the layout action so the frontend knows how to display the block
-	log.Printf("WidgetAPI: About to call QueueLayoutActionForTab for tabId=%s, blockId=%s", tabId, block.OID)
+	writeTraceLog(fmt.Sprintf("WidgetAPI: Queueing layout action for block %s", block.OID))
 	err = wcore.QueueLayoutActionForTab(ctx, tabId, *layoutAction)
 	if err != nil {
-		log.Printf("WidgetAPI: QueueLayoutActionForTab failed: %v", err)
+		writeTraceLog(fmt.Sprintf("WidgetAPI: QueueLayoutActionForTab failed: %v", err))
 		return &CreateWidgetAPIResponse{
 			Success: false,
 			Error:   fmt.Sprintf("failed to queue layout action: %s", err.Error()),
 		}, nil
 	}
-	log.Printf("WidgetAPI: QueueLayoutActionForTab completed successfully")
+	writeTraceLog(fmt.Sprintf("WidgetAPI: Layout action queued successfully for block %s", block.OID))
 
 	// Start the block controller if it's a terminal/shell block
 	controllerType := getStringFromMeta(block.Meta, "controller")
@@ -277,21 +307,8 @@ func (ws *WidgetAPIService) CreateWidget(ctx context.Context, req CreateWidgetAP
 	}
 
 	// Add widget to workspace widget configuration to make it appear in widget bar
-	// Default to true if not explicitly set to false and not ephemeral
-	addToWorkspace := req.AddToWorkspace
-	log.Printf("[DEBUG] WidgetAPI: *** FIXED VERSION *** initial addToWorkspace=%v, Ephemeral=%v", addToWorkspace, req.Ephemeral)
-	
-	// For non-ephemeral widgets, default to adding to workspace if not explicitly set
-	if !req.Ephemeral && !addToWorkspace {
-		// Check if AddToWorkspace was explicitly set to false in the request
-		// If it wasn't provided in JSON, it defaults to false, so we set it to true
-		addToWorkspace = true
-		log.Printf("[DEBUG] WidgetAPI: setting addToWorkspace=true because not ephemeral and not explicitly disabled")
-	}
-	
-	log.Printf("[DEBUG] WidgetAPI: final addToWorkspace=%v", addToWorkspace)
-	if addToWorkspace {
-		log.Printf("[DEBUG] WidgetAPI: proceeding to add widget to workspace configuration")
+	// Add widget to workspace configuration if not ephemeral
+	if !req.Ephemeral && req.AddToWorkspace {
 		widgetKey := fmt.Sprintf("mcp-%s-%d", req.WidgetType, time.Now().Unix())
 		widgetConfig := wconfig.WidgetConfigType{
 			Icon:  req.Icon,
@@ -301,122 +318,24 @@ func (ws *WidgetAPIService) CreateWidget(ctx context.Context, req CreateWidgetAP
 			},
 		}
 		
-		// Set default icon if not provided
 		if widgetConfig.Icon == "" {
-			widgetConfig.Icon = "square-terminal" // Default icon
+			widgetConfig.Icon = "square-terminal"
 		}
 		
-		// Convert to map to set display order
-		widgetConfigMap := make(map[string]any)
-		utilfn.ReUnmarshal(&widgetConfigMap, widgetConfig)
-		widgetConfigMap["display:order"] = 0
-		
-		// Convert back to WidgetConfigType
-		var finalWidgetConfig wconfig.WidgetConfigType
-		utilfn.ReUnmarshal(&finalWidgetConfig, widgetConfigMap)
-		
-		err = wconfig.SetWorkspaceWidgetConfig(req.WorkspaceId, widgetKey, finalWidgetConfig)
+		err = wconfig.SetWorkspaceWidgetConfig(req.WorkspaceId, widgetKey, widgetConfig)
 		if err != nil {
 			log.Printf("Warning: Failed to add widget to workspace config: %v", err)
-			// Don't fail the widget creation, just log the warning
-		} else {
-			log.Printf("Added widget %s to workspace %s configuration", widgetKey, req.WorkspaceId)
 		}
-	} else {
-		log.Printf("[DEBUG] WidgetAPI: skipping workspace configuration because addToWorkspace=false")
 	}
 
 	// Send database update events to notify frontend
-	// Use both the standard method and PublishWithBridge for maximum compatibility
 	updates := waveobj.ContextGetUpdatesRtn(ctx)
-	log.Printf("[DEBUG] WidgetAPI: sending %d update events with EventBridge", len(updates))
-	
-	// First, send via standard method to ensure local frontend gets notified
+	writeTraceLog(fmt.Sprintf("WidgetAPI: About to send %d updates for block %s", len(updates), block.OID))
+	for i, update := range updates {
+		writeTraceLog(fmt.Sprintf("WidgetAPI: Update %d - Type:%s OType:%s OID:%s", i, update.UpdateType, update.OType, update.OID))
+	}
 	wps.Broker.SendUpdateEvents(updates)
-	log.Printf("[DEBUG] WidgetAPI: standard update events sent")
-	
-	// Also use PublishWithBridge for any remote instances
-	for _, update := range updates {
-		wps.Broker.PublishWithBridge(wps.WaveEvent{
-			Event:  wps.Event_WaveObjUpdate,
-			Scopes: []string{waveobj.MakeORef(update.OType, update.OID).String()},
-			Data:   update,
-		}, "mcp-widget-api")
-	}
-	log.Printf("[DEBUG] WidgetAPI: update events sent successfully with bridge")
-	
-	// Add delayed event publishing to ensure frontend WebSocket connection is ready for MCP calls
-	// This addresses the issue where MCP tools create widgets that require manual refresh
-	go func() {
-		time.Sleep(100 * time.Millisecond) // Allow WebSocket connection to stabilize
-		
-		log.Printf("[DEBUG] WidgetAPI: sending delayed update events for MCP compatibility")
-		
-		// Send delayed standard updates
-		wps.Broker.SendUpdateEvents(updates)
-		
-		// Send delayed bridge updates with retry mechanism
-		for _, update := range updates {
-			wps.Broker.PublishWithBridge(wps.WaveEvent{
-				Event:  wps.Event_WaveObjUpdate,
-				Scopes: []string{waveobj.MakeORef(update.OType, update.OID).String()},
-				Data:   update,
-			}, "mcp-widget-api-delayed")
-		}
-		
-		log.Printf("[DEBUG] WidgetAPI: delayed update events sent for block %s", block.OID)
-	}()
-
-	// Force layout state refresh to ensure frontend recognizes the new widget immediately
-	// Get layout state and force a notification
-	layoutStateId, err := wcore.GetLayoutIdForTab(ctx, tabId)
-	if err == nil {
-		// Get the actual layout state to ensure the pending actions are properly set
-		layoutState, err := wstore.DBGet[*waveobj.LayoutState](ctx, layoutStateId)
-		if err == nil && layoutState != nil {
-			// Force an update to the layout state to trigger frontend re-render
-			layoutState.Version++ // Increment version to force update
-			err = wstore.DBUpdate(ctx, layoutState)
-			if err == nil {
-				// Create layout state update event
-				layoutUpdate := waveobj.WaveObjUpdate{
-					UpdateType: waveobj.UpdateType_Update,
-					OType:      waveobj.OType_LayoutState,
-					OID:        layoutStateId,
-				}
-				
-				// Send via standard method first
-				wps.Broker.SendUpdateEvents([]waveobj.WaveObjUpdate{layoutUpdate})
-				
-				// Also send via bridge for remote instances
-				wps.Broker.PublishWithBridge(wps.WaveEvent{
-					Event:  wps.Event_WaveObjUpdate,
-					Scopes: []string{waveobj.MakeORef(waveobj.OType_LayoutState, layoutStateId).String()},
-					Data:   layoutUpdate,
-				}, "mcp-widget-api")
-				
-				// Add delayed layout state update for MCP compatibility
-				go func(layoutUpdate waveobj.WaveObjUpdate, layoutStateId string) {
-					time.Sleep(150 * time.Millisecond) // Slightly longer delay for layout updates
-					
-					log.Printf("[DEBUG] WidgetAPI: sending delayed layout state update for MCP compatibility")
-					
-					// Send delayed layout update
-					wps.Broker.SendUpdateEvents([]waveobj.WaveObjUpdate{layoutUpdate})
-					
-					wps.Broker.PublishWithBridge(wps.WaveEvent{
-						Event:  wps.Event_WaveObjUpdate,
-						Scopes: []string{waveobj.MakeORef(waveobj.OType_LayoutState, layoutStateId).String()},
-						Data:   layoutUpdate,
-					}, "mcp-widget-api-layout-delayed")
-					
-					log.Printf("[DEBUG] WidgetAPI: delayed layout state update sent for tab %s", tabId)
-				}(layoutUpdate, layoutStateId)
-				
-				log.Printf("[DEBUG] WidgetAPI: forced layout state update and refresh event for tab %s", tabId)
-			}
-		}
-	}
+	writeTraceLog(fmt.Sprintf("WidgetAPI: SendUpdateEvents completed for block %s", block.OID))
 
 	// Prepare response
 	widgetInfo := &WidgetInfo{
