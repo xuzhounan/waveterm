@@ -148,7 +148,7 @@ class ServerStatusViewModel implements ViewModel {
                 
                 // 从baseUrl中提取端口
                 const urlMatch = baseUrl.match(/:(\d+)/);
-                const webPort = urlMatch ? parseInt(urlMatch[1]) : 60289;
+                const webPort = urlMatch ? parseInt(urlMatch[1]) : 8090;
                 
                 const statusData: ServerStatusData = {
                     isRunning: isRunning,
@@ -183,8 +183,8 @@ class ServerStatusViewModel implements ViewModel {
             // 获取当前服务器端点，优先检查当前环境
             const { getWebServerEndpoint } = await import("@/util/endpoints");
             const currentBaseUrl = getWebServerEndpoint().replace('localhost', '127.0.0.1');
-            // 尝试从环境变量获取MCP服务器端口，默认60289
-            const mcpWebPort = process.env.WAVETERM_MCP_WEB_PORT || '60289';
+            // 尝试从环境变量获取MCP服务器端口，默认8090（开发模式端口）
+            const mcpWebPort = process.env.WAVETERM_MCP_WEB_PORT || '8090';
             const persistentBaseUrl = `http://127.0.0.1:${mcpWebPort}`;
             
             // 如果当前环境不是持久化服务器端口，先检查当前环境是否支持持久化服务器API
@@ -284,8 +284,8 @@ class ServerStatusViewModel implements ViewModel {
             // 获取当前服务器端点，优先使用当前环境
             const { getWebServerEndpoint } = await import("@/util/endpoints");
             const currentBaseUrl = getWebServerEndpoint().replace('localhost', '127.0.0.1');
-            // 尝试从环境变量获取MCP服务器端口，默认60289
-            const mcpWebPort = process.env.WAVETERM_MCP_WEB_PORT || '60289';
+            // 尝试从环境变量获取MCP服务器端口，默认8090（开发模式端口）
+            const mcpWebPort = process.env.WAVETERM_MCP_WEB_PORT || '8090';
             const persistentBaseUrl = `http://127.0.0.1:${mcpWebPort}`;
             
             // 如果当前环境不是持久化服务器端口，先尝试当前环境
@@ -348,8 +348,8 @@ class ServerStatusViewModel implements ViewModel {
             // 获取当前服务器端点，优先使用当前环境
             const { getWebServerEndpoint } = await import("@/util/endpoints");
             const currentBaseUrl = getWebServerEndpoint().replace('localhost', '127.0.0.1');
-            // 尝试从环境变量获取MCP服务器端口，默认60289
-            const mcpWebPort = process.env.WAVETERM_MCP_WEB_PORT || '60289';
+            // 尝试从环境变量获取MCP服务器端口，默认8090（开发模式端口）
+            const mcpWebPort = process.env.WAVETERM_MCP_WEB_PORT || '8090';
             const persistentBaseUrl = `http://127.0.0.1:${mcpWebPort}`;
             
             // 如果当前环境不是持久化服务器端口，先尝试当前环境

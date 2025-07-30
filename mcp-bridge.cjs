@@ -41,7 +41,73 @@ class WaveTerminalMCPServer extends Server {
         console.error(`[MCP] URL: ${this.waveTerminalUrl}`);
         console.error(`[MCP] Auth: ${this.authKey ? 'Enabled' : 'Disabled'}`);
         
+        // 配置 fetch 以跳过本地连接的代理
+        this.fetchOptions = this.createFetchOptions();
+        
         this.setupHandlers();
+    }
+
+    createFetchOptions() {
+        // 创建一个 fetch 配置，对本地连接跳过代理
+        const isLocalUrl = this.waveTerminalUrl.includes('127.0.0.1') || this.waveTerminalUrl.includes('localhost');
+        
+        if (isLocalUrl) {
+            // 对于本地连接，使用 dispatcher 跳过代理
+            try {
+                const { Agent } = require('undici');
+                return {
+                    dispatcher: new Agent({
+                        connect: {
+                            rejectUnauthorized: false
+                        }
+                    })
+                };
+            } catch (error) {
+                console.error(`[MCP] Warning: Could not configure undici agent, falling back to env var approach: ${error.message}`);
+                // 备用方案：临时清除代理环境变量
+                return { agent: false };
+            }
+        }
+        
+        return {};
+    }
+
+    // 创建带有正确配置的 fetch 请求
+    async fetchWithConfig(url, options = {}) {
+        // 合并基础配置和传入的选项
+        const mergedOptions = { ...this.fetchOptions, ...options };
+        
+        // 对于本地连接，临时禁用代理环境变量
+        const isLocalUrl = url.includes('127.0.0.1') || url.includes('localhost');
+        let originalProxy = null;
+        
+        if (isLocalUrl) {
+            originalProxy = {
+                http_proxy: process.env.http_proxy,
+                https_proxy: process.env.https_proxy,
+                HTTP_PROXY: process.env.HTTP_PROXY,
+                HTTPS_PROXY: process.env.HTTPS_PROXY
+            };
+            
+            // 临时清除代理设置
+            delete process.env.http_proxy;
+            delete process.env.https_proxy;
+            delete process.env.HTTP_PROXY;
+            delete process.env.HTTPS_PROXY;
+        }
+        
+        try {
+            const response = await fetch(url, mergedOptions);
+            return response;
+        } finally {
+            // 恢复代理设置
+            if (isLocalUrl && originalProxy) {
+                if (originalProxy.http_proxy) process.env.http_proxy = originalProxy.http_proxy;
+                if (originalProxy.https_proxy) process.env.https_proxy = originalProxy.https_proxy;
+                if (originalProxy.HTTP_PROXY) process.env.HTTP_PROXY = originalProxy.HTTP_PROXY;
+                if (originalProxy.HTTPS_PROXY) process.env.HTTPS_PROXY = originalProxy.HTTPS_PROXY;
+            }
+        }
     }
 
     setupHandlers() {
@@ -339,7 +405,7 @@ class WaveTerminalMCPServer extends Server {
 
             switch (name) {
                 case "create_widget":
-                    response = await fetch(`${this.waveTerminalUrl}/api/v1/widgets`, {
+                    response = await this.fetchWithConfig(`${this.waveTerminalUrl}/api/v1/widgets`, {
                         method: "POST",
                         headers,
                         body: JSON.stringify(args)
@@ -363,7 +429,7 @@ class WaveTerminalMCPServer extends Server {
                     }
 
                 case "list_workspaces":
-                    response = await fetch(`${this.waveTerminalUrl}/api/v1/widgets/workspaces`, {
+                    response = await this.fetchWithConfig(`${this.waveTerminalUrl}/api/v1/widgets/workspaces`, {
                         headers
                     });
                     result = await response.json();
@@ -386,7 +452,7 @@ class WaveTerminalMCPServer extends Server {
 
                 case "get_workspace_by_name":
                     const encodedName = encodeURIComponent(args.name);
-                    response = await fetch(`${this.waveTerminalUrl}/api/v1/widgets/workspace/name/${encodedName}`, {
+                    response = await this.fetchWithConfig(`${this.waveTerminalUrl}/api/v1/widgets/workspace/name/${encodedName}`, {
                         headers
                     });
                     result = await response.json();
@@ -414,7 +480,7 @@ class WaveTerminalMCPServer extends Server {
                     }
 
                 case "get_widget_types":
-                    response = await fetch(`${this.waveTerminalUrl}/api/v1/widgets`, {
+                    response = await this.fetchWithConfig(`${this.waveTerminalUrl}/api/v1/widgets`, {
                         headers
                     });
                     result = await response.json();
@@ -439,7 +505,7 @@ class WaveTerminalMCPServer extends Server {
 
                 case "check_server_status":
                     // 检查基本API是否可用
-                    response = await fetch(`${this.waveTerminalUrl}/api/v1/widgets/workspaces`, {
+                    response = await this.fetchWithConfig(`${this.waveTerminalUrl}/api/v1/widgets/workspaces`, {
                         headers
                     });
                     
@@ -463,7 +529,7 @@ class WaveTerminalMCPServer extends Server {
                     };
 
                 case "create_tab":
-                    response = await fetch(`${this.waveTerminalUrl}/api/v1/widgets/tabs`, {
+                    response = await this.fetchWithConfig(`${this.waveTerminalUrl}/api/v1/widgets/tabs`, {
                         method: "POST",
                         headers,
                         body: JSON.stringify(args)
@@ -490,7 +556,7 @@ class WaveTerminalMCPServer extends Server {
                     }
 
                 case "list_tabs":
-                    response = await fetch(`${this.waveTerminalUrl}/api/v1/widgets/workspace/${args.workspace_id}/tabs`, {
+                    response = await this.fetchWithConfig(`${this.waveTerminalUrl}/api/v1/widgets/workspace/${args.workspace_id}/tabs`, {
                         headers
                     });
                     result = await response.json();
@@ -515,7 +581,7 @@ class WaveTerminalMCPServer extends Server {
                     }
 
                 case "set_active_tab":
-                    response = await fetch(`${this.waveTerminalUrl}/api/v1/widgets/tabs/activate`, {
+                    response = await this.fetchWithConfig(`${this.waveTerminalUrl}/api/v1/widgets/tabs/activate`, {
                         method: "POST",
                         headers,
                         body: JSON.stringify(args)
@@ -538,7 +604,7 @@ class WaveTerminalMCPServer extends Server {
                     }
 
                 case "get_workspace":
-                    response = await fetch(`${this.waveTerminalUrl}/api/v1/widgets/workspace/info/${args.workspace_id}`, {
+                    response = await this.fetchWithConfig(`${this.waveTerminalUrl}/api/v1/widgets/workspace/info/${args.workspace_id}`, {
                         headers
                     });
                     result = await response.json();
@@ -565,7 +631,7 @@ class WaveTerminalMCPServer extends Server {
                     }
 
                 case "restart_mcp_server":
-                    response = await fetch(`${this.waveTerminalUrl}/api/v1/widgets/mcp/restart`, {
+                    response = await this.fetchWithConfig(`${this.waveTerminalUrl}/api/v1/widgets/mcp/restart`, {
                         method: "POST",
                         headers,
                         body: JSON.stringify({})
@@ -588,7 +654,7 @@ class WaveTerminalMCPServer extends Server {
                     }
 
                 case "fix_workspace_data":
-                    response = await fetch(`${this.waveTerminalUrl}/api/v1/widgets/debug/fix-workspace`, {
+                    response = await this.fetchWithConfig(`${this.waveTerminalUrl}/api/v1/widgets/debug/fix-workspace`, {
                         headers
                     });
                     result = await response.json();
@@ -614,7 +680,7 @@ class WaveTerminalMCPServer extends Server {
                     if (args.offset) contentUrl.searchParams.set('offset', args.offset.toString());
                     if (args.size) contentUrl.searchParams.set('size', args.size.toString());
                     
-                    response = await fetch(contentUrl.toString(), { headers });
+                    response = await this.fetchWithConfig(contentUrl.toString(), { headers });
                     result = await response.json();
                     
                     if (response.ok && result.success) {
@@ -635,7 +701,7 @@ class WaveTerminalMCPServer extends Server {
                     }
 
                 case "get_block_status":
-                    response = await fetch(`${this.waveTerminalUrl}/api/v1/widgets/block/status/${args.block_id}`, {
+                    response = await this.fetchWithConfig(`${this.waveTerminalUrl}/api/v1/widgets/block/status/${args.block_id}`, {
                         headers
                     });
                     result = await response.json();
@@ -683,7 +749,7 @@ class WaveTerminalMCPServer extends Server {
                     if (args.tab_id) blocksUrl.searchParams.set('tab_id', args.tab_id);
                     if (args.block_type) blocksUrl.searchParams.set('block_type', args.block_type);
                     
-                    response = await fetch(blocksUrl.toString(), { headers });
+                    response = await this.fetchWithConfig(blocksUrl.toString(), { headers });
                     result = await response.json();
                     
                     if (response.ok && result.success) {
@@ -714,7 +780,7 @@ class WaveTerminalMCPServer extends Server {
                     }
 
                 case "send_terminal_input":
-                    response = await fetch(`${this.waveTerminalUrl}/api/v1/widgets/block/${args.block_id}/input`, {
+                    response = await this.fetchWithConfig(`${this.waveTerminalUrl}/api/v1/widgets/block/${args.block_id}/input`, {
                         method: "POST",
                         headers,
                         body: JSON.stringify(args)
@@ -814,7 +880,7 @@ class WaveTerminalMCPServer extends Server {
 
             switch (uri) {
                 case "workspaces://all":
-                    response = await fetch(`${this.waveTerminalUrl}/api/v1/widgets/workspaces`, {
+                    response = await this.fetchWithConfig(`${this.waveTerminalUrl}/api/v1/widgets/workspaces`, {
                         headers
                     });
                     result = await response.json();
@@ -827,7 +893,7 @@ class WaveTerminalMCPServer extends Server {
                     };
 
                 case "widgets://types":
-                    response = await fetch(`${this.waveTerminalUrl}/api/v1/widgets`, {
+                    response = await this.fetchWithConfig(`${this.waveTerminalUrl}/api/v1/widgets`, {
                         headers
                     });
                     result = await response.json();
@@ -840,7 +906,7 @@ class WaveTerminalMCPServer extends Server {
                     };
 
                 case "status://server":
-                    response = await fetch(`${this.waveTerminalUrl}/api/v1/widgets/workspaces`, {
+                    response = await this.fetchWithConfig(`${this.waveTerminalUrl}/api/v1/widgets/workspaces`, {
                         headers
                     });
                     const status = {
@@ -859,7 +925,7 @@ class WaveTerminalMCPServer extends Server {
 
                 case "tabs://all":
                     // Get all workspaces first
-                    response = await fetch(`${this.waveTerminalUrl}/api/v1/widgets/workspaces`, {
+                    response = await this.fetchWithConfig(`${this.waveTerminalUrl}/api/v1/widgets/workspaces`, {
                         headers
                     });
                     const workspacesResult = await response.json();
@@ -872,7 +938,7 @@ class WaveTerminalMCPServer extends Server {
                     const allTabs = [];
                     for (const workspace of workspacesResult.workspaces) {
                         try {
-                            const tabsResponse = await fetch(`${this.waveTerminalUrl}/api/v1/widgets/workspace/${workspace.workspace_id}/tabs`, {
+                            const tabsResponse = await this.fetchWithConfig(`${this.waveTerminalUrl}/api/v1/widgets/workspace/${workspace.workspace_id}/tabs`, {
                                 headers
                             });
                             const tabsResult = await tabsResponse.json();

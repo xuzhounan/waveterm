@@ -5,7 +5,12 @@
       "args": ["/Users/xzn/Desktop/code-project/waveterm/mcp-bridge.cjs"],
       "env": {
         "WAVE_TERMINAL_URL": "http://127.0.0.1:8090",
-        "WAVE_TERMINAL_AUTH_KEY": ""
+        "WAVETERM_WEB_PORT": "8090",
+        "WAVE_TERMINAL_AUTH_KEY": "",
+        "http_proxy": "",
+        "https_proxy": "",
+        "HTTP_PROXY": "",
+        "HTTPS_PROXY": ""
       }
     }
   }

@@ -12,7 +12,6 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -60,12 +59,6 @@ func handleWidgetAPI(w http.ResponseWriter, r *http.Request) {
 		} else if path == "/mcp/restart" {
 			// POST /api/v1/widgets/mcp/restart - Restart MCP server
 			handleMCPServerRestart(w, r, ctx)
-		} else if path == "/persistent-server/start" {
-			// POST /api/v1/widgets/persistent-server/start - Start persistent server
-			handlePersistentServerStart(w, r, ctx)
-		} else if path == "/persistent-server/stop" {
-			// POST /api/v1/widgets/persistent-server/stop - Stop persistent server
-			handlePersistentServerStop(w, r, ctx)
 		} else if path == "/tabs" {
 			// POST /api/v1/widgets/tabs - Create tab
 			handleCreateTab(w, r, ctx)
@@ -101,9 +94,6 @@ func handleWidgetAPI(w http.ResponseWriter, r *http.Request) {
 		} else if path == "/mcp/status" {
 			// GET /api/v1/widgets/mcp/status - Check MCP server status
 			handleMCPServerStatus(w, r, ctx)
-		} else if path == "/persistent-server/status" {
-			// GET /api/v1/widgets/persistent-server/status - Check persistent server status
-			handlePersistentServerStatus(w, r, ctx)
 		} else if path == "/debug/recent-events" && r.Method == "GET" {
 			// 内部调试端点：显示最近事件（仅在开发环境启用）
 			if isDebugMode() {
@@ -725,240 +715,6 @@ func writeErrorResponse(w http.ResponseWriter, message string, statusCode int) {
 	json.NewEncoder(w).Encode(response)
 }
 
-// handlePersistentServerStatus checks the status of the persistent server
-func handlePersistentServerStatus(w http.ResponseWriter, r *http.Request, ctx context.Context) {
-	log.Printf("Checking persistent server status")
-
-	// 检查PID文件是否存在
-	pidFile := "waveterm-server.pid"
-	portFile := "waveterm-server.port"
-
-	isRunning := false
-	var pid int
-	var webPort, wsPort int
-
-	// 读取PID文件
-	if _, err := os.Stat(pidFile); err == nil {
-		if pidData, err := os.ReadFile(pidFile); err == nil {
-			if parsedPid, err := strconv.Atoi(strings.TrimSpace(string(pidData))); err == nil {
-				// 检查进程是否实际运行
-				if cmd := exec.Command("ps", "-p", strconv.Itoa(parsedPid)); cmd.Run() == nil {
-					isRunning = true
-					pid = parsedPid
-				}
-			}
-		}
-	}
-
-	// 读取端口文件
-	if isRunning {
-		if portData, err := os.ReadFile(portFile); err == nil {
-			lines := strings.Split(string(portData), "\n")
-			for _, line := range lines {
-				if strings.HasPrefix(line, "web_port=") {
-					if port, err := strconv.Atoi(strings.TrimPrefix(line, "web_port=")); err == nil {
-						webPort = port
-					}
-				} else if strings.HasPrefix(line, "ws_port=") {
-					if port, err := strconv.Atoi(strings.TrimPrefix(line, "ws_port=")); err == nil {
-						wsPort = port
-					}
-				}
-			}
-		}
-	}
-
-	response := map[string]interface{}{
-		"success": true,
-		"status": map[string]interface{}{
-			"running":  isRunning,
-			"pid":      pid,
-			"web_port": webPort,
-			"ws_port":  wsPort,
-		},
-	}
-
-	if isRunning {
-		response["message"] = "Persistent server is running"
-		response["api_url"] = fmt.Sprintf("http://localhost:%d", webPort)
-	} else {
-		response["message"] = "Persistent server is not running"
-	}
-
-	json.NewEncoder(w).Encode(response)
-}
-
-// handlePersistentServerStart starts the persistent server
-func handlePersistentServerStart(w http.ResponseWriter, r *http.Request, ctx context.Context) {
-	log.Printf("Starting persistent server")
-
-	// 获取当前工作目录
-	workDir, err := os.Getwd()
-	if err != nil {
-		log.Printf("Failed to get working directory: %v", err)
-		writeErrorResponse(w, "Failed to get working directory", http.StatusInternalServerError)
-		return
-	}
-	
-	// 尝试在当前目录查找脚本，如果找不到则在上级目录查找
-	scriptPath := filepath.Join(workDir, "persistent-server.sh")
-	if _, err := os.Stat(scriptPath); os.IsNotExist(err) {
-		// 尝试上级目录（可能从子目录运行）
-		parentDir := filepath.Dir(workDir)
-		scriptPath = filepath.Join(parentDir, "persistent-server.sh")
-		if _, err := os.Stat(scriptPath); os.IsNotExist(err) {
-			// 最后尝试项目根目录的推测路径
-			possiblePaths := []string{
-				"/Users/xzn/Desktop/code-project/waveterm/persistent-server.sh",
-				filepath.Join(os.Getenv("HOME"), "Desktop/code-project/waveterm/persistent-server.sh"),
-			}
-			found := false
-			for _, path := range possiblePaths {
-				if _, err := os.Stat(path); err == nil {
-					scriptPath = path
-					workDir = filepath.Dir(path) // 更新工作目录
-					found = true
-					break
-				}
-			}
-			if !found {
-				log.Printf("persistent-server.sh not found in current dir (%s), parent dir (%s), or common paths", workDir, parentDir)
-				writeErrorResponse(w, fmt.Sprintf("persistent-server.sh not found. Searched in: %s, %s", workDir, parentDir), http.StatusNotFound)
-				return
-			}
-		} else {
-			workDir = parentDir // 更新工作目录为找到脚本的目录
-		}
-	}
-	
-	// 检查脚本是否存在
-	if _, err := os.Stat(scriptPath); os.IsNotExist(err) {
-		log.Printf("Script not found at: %s", scriptPath)
-		writeErrorResponse(w, fmt.Sprintf("persistent-server.sh not found at %s", scriptPath), http.StatusInternalServerError)
-		return
-	}
-
-	// 异步执行启动脚本
-	cmd := exec.Command("bash", scriptPath, "start")
-	cmd.Dir = workDir // 设置工作目录
-	
-	// 创建日志文件记录脚本输出
-	logFile := filepath.Join(workDir, "persistent-server-start.log")
-	logFileWriter, err := os.Create(logFile)
-	if err != nil {
-		log.Printf("Failed to create log file: %v", err)
-		writeErrorResponse(w, "Failed to create log file", http.StatusInternalServerError)
-		return
-	}
-	defer logFileWriter.Close()
-	
-	cmd.Stdout = logFileWriter
-	cmd.Stderr = logFileWriter
-	
-	log.Printf("Executing script: %s with working directory: %s", scriptPath, workDir)
-	
-	// 启动脚本（异步）
-	err = cmd.Start()
-	if err != nil {
-		log.Printf("Failed to start script: %v", err)
-		writeErrorResponse(w, fmt.Sprintf("Failed to start script: %v", err), http.StatusInternalServerError)
-		return
-	}
-	
-	log.Printf("Script started with PID: %d", cmd.Process.Pid)
-	
-	// 在后台等待脚本完成
-	go func() {
-		err := cmd.Wait()
-		if err != nil {
-			log.Printf("Script execution completed with error: %v", err)
-		} else {
-			log.Printf("Script execution completed successfully")
-		}
-	}()
-
-	response := map[string]interface{}{
-		"success": true,
-		"message": "Persistent server start command initiated",
-		"script_path": scriptPath,
-		"working_dir": workDir,
-		"log_file": logFile,
-		"script_pid": cmd.Process.Pid,
-	}
-
-	json.NewEncoder(w).Encode(response)
-}
-
-// handlePersistentServerStop stops the persistent server
-func handlePersistentServerStop(w http.ResponseWriter, r *http.Request, ctx context.Context) {
-	log.Printf("Stopping persistent server")
-
-	// 获取当前工作目录
-	workDir, err := os.Getwd()
-	if err != nil {
-		log.Printf("Failed to get working directory: %v", err)
-		writeErrorResponse(w, "Failed to get working directory", http.StatusInternalServerError)
-		return
-	}
-	
-	// 尝试在当前目录查找脚本，如果找不到则在上级目录查找
-	scriptPath := filepath.Join(workDir, "persistent-server.sh")
-	if _, err := os.Stat(scriptPath); os.IsNotExist(err) {
-		// 尝试上级目录（可能从子目录运行）
-		parentDir := filepath.Dir(workDir)
-		scriptPath = filepath.Join(parentDir, "persistent-server.sh")
-		if _, err := os.Stat(scriptPath); os.IsNotExist(err) {
-			// 最后尝试项目根目录的推测路径
-			possiblePaths := []string{
-				"/Users/xzn/Desktop/code-project/waveterm/persistent-server.sh",
-				filepath.Join(os.Getenv("HOME"), "Desktop/code-project/waveterm/persistent-server.sh"),
-			}
-			found := false
-			for _, path := range possiblePaths {
-				if _, err := os.Stat(path); err == nil {
-					scriptPath = path
-					workDir = filepath.Dir(path) // 更新工作目录
-					found = true
-					break
-				}
-			}
-			if !found {
-				log.Printf("persistent-server.sh not found in current dir (%s), parent dir (%s), or common paths", workDir, parentDir)
-				writeErrorResponse(w, fmt.Sprintf("persistent-server.sh not found. Searched in: %s, %s", workDir, parentDir), http.StatusNotFound)
-				return
-			}
-		} else {
-			workDir = parentDir // 更新工作目录为找到脚本的目录
-		}
-	}
-	
-	// 检查脚本是否存在
-	if _, err := os.Stat(scriptPath); os.IsNotExist(err) {
-		log.Printf("Script not found at: %s", scriptPath)
-		writeErrorResponse(w, fmt.Sprintf("persistent-server.sh not found at %s", scriptPath), http.StatusInternalServerError)
-		return
-	}
-
-	// 执行停止脚本
-	cmd := exec.Command("bash", scriptPath, "stop")
-	cmd.Dir = workDir // 设置工作目录
-	output, err := cmd.CombinedOutput()
-
-	response := map[string]interface{}{
-		"success": err == nil,
-		"output":  string(output),
-	}
-
-	if err != nil {
-		log.Printf("Script execution failed: %v, output: %s", err, string(output))
-		response["error"] = err.Error()
-		w.WriteHeader(http.StatusInternalServerError)
-	} else {
-		response["message"] = "Persistent server stop command executed"
-	}
-
-	json.NewEncoder(w).Encode(response)
-}
 
 // handleGetRecentEvents returns recent cached events for debugging widget creation issues
 func handleGetRecentEvents(w http.ResponseWriter, r *http.Request, ctx context.Context) {

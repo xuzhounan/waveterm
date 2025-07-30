@@ -5,7 +5,7 @@ import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react-swc";
 import { defineConfig } from "electron-vite";
 import flow from "rollup-plugin-flow";
-import { ViteImageOptimizer } from "vite-plugin-image-optimizer";
+// import { ViteImageOptimizer } from "vite-plugin-image-optimizer"; // Temporarily disabled due to compatibility issues
 import { viteStaticCopy } from "vite-plugin-static-copy";
 import svgr from "vite-plugin-svgr";
 import tsconfigPaths from "vite-tsconfig-paths";
@@ -72,7 +72,7 @@ export default defineConfig({
             },
         },
         plugins: [
-            ViteImageOptimizer(),
+            // ViteImageOptimizer(), // Temporarily disabled due to compatibility issues
             tsconfigPaths(),
             flow(),
             svgr({
