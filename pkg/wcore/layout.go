@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/wavetermdev/waveterm/pkg/waveobj"
+	"github.com/wavetermdev/waveterm/pkg/wps"
 	"github.com/wavetermdev/waveterm/pkg/wstore"
 )
 
@@ -114,6 +115,20 @@ func QueueLayoutAction(ctx context.Context, layoutStateId string, actions ...wav
 	if err != nil {
 		return fmt.Errorf("unable to update layout state with new actions: %w", err)
 	}
+
+	// Send WebSocket event to notify frontend of layout changes
+	oref := waveobj.MakeORef(waveobj.OType_LayoutState, layoutStateId)
+	wps.Broker.Publish(wps.WaveEvent{
+		Event:  wps.Event_WaveObjUpdate,
+		Scopes: []string{oref.String()},
+		Data: waveobj.WaveObjUpdate{
+			UpdateType: waveobj.UpdateType_Update,
+			OType:      layoutStateObj.GetOType(),
+			OID:        waveobj.GetOID(layoutStateObj),
+			Obj:        layoutStateObj,
+		},
+	})
+
 	return nil
 }
 
