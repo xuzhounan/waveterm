@@ -418,7 +418,7 @@ export class LayoutModel {
             force ||
             !this.treeState?.rootNode ||
             !this.treeState?.generation ||
-            treeState?.generation > this.treeState.generation ||
+            treeState?.generation >= this.treeState.generation ||
             treeState?.pendingBackendActions?.length
         ) {
             this.treeState = treeState;

@@ -35,12 +35,11 @@ export function withLayoutTreeStateAtomFromTab(tabAtom: Atom<Tab>): WritableLayo
             return layoutTreeState;
         },
         (get, set, value) => {
-            if (get(generationAtom) < value.generation) {
+            if (get(generationAtom) <= value.generation) {
                 const stateAtom = getLayoutStateAtomFromTab(tabAtom, get);
                 if (!stateAtom) return;
                 const waveObjVal = get(stateAtom);
                 if (waveObjVal == null) {
-                    console.log("in withLayoutTreeStateAtomFromTab, waveObjVal is null", value);
                     return;
                 }
                 waveObjVal.rootnode = value.rootNode;

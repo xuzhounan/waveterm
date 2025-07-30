@@ -250,10 +250,9 @@ function updateWaveObject(update: WaveObjUpdate) {
             return;
         }
         const curValue: WaveObjectDataItemType<WaveObj> = globalStore.get(wov.dataAtom);
-        if (curValue.value != null && curValue.value.version >= update.obj.version) {
+        if (curValue.value != null && curValue.value.version > update.obj.version) {
             return;
         }
-        console.log("WaveObj updated", oref);
         globalStore.set(wov.dataAtom, { value: update.obj, loading: false });
     }
     wov.holdTime = Date.now() + defaultHoldTime;
