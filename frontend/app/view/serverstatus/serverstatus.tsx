@@ -201,13 +201,27 @@ class ServerStatusViewModel implements ViewModel {
                 });
             } catch (error) {
                 baseUrl = persistentBaseUrl;
-                response = await fetch(`${persistentBaseUrl}/api/v1/widgets/persistent-server/status`, {
-                    method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    signal: AbortSignal.timeout(3000),
-                });
+                try {
+                    response = await fetch(`${persistentBaseUrl}/api/v1/widgets/persistent-server/status`, {
+                        method: 'GET',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        signal: AbortSignal.timeout(3000),
+                    });
+                } catch (fallbackError) {
+                    // 如果两个端点都失败，返回默认的离线状态
+                    const statusData: PersistentServerStatusData = {
+                        isRunning: false,
+                        pid: undefined,
+                        webPort: undefined,
+                        wsPort: undefined,
+                        apiUrl: undefined,
+                        lastUpdated: Date.now(),
+                    };
+                    globalStore.set(this.persistentStatusDataAtom, statusData);
+                    return;
+                }
             }
             
             if (response.ok) {
@@ -270,17 +284,21 @@ class ServerStatusViewModel implements ViewModel {
                 // 不需要像状态检查那样验证结果，因为启动是操作而不是查询
             } catch (error) {
                 baseUrl = persistentBaseUrl;
-                response = await fetch(`${persistentBaseUrl}/api/v1/widgets/persistent-server/start`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    signal: AbortSignal.timeout(30000), // 启动可能需要更长时间
-                });
+                try {
+                    response = await fetch(`${persistentBaseUrl}/api/v1/widgets/persistent-server/start`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        signal: AbortSignal.timeout(30000), // 启动可能需要更长时间
+                    });
+                } catch (fallbackError) {
+                    // 如果两个端点都失败，静默失败
+                    return;
+                }
             }
             
             const responseData = await response.json();
-            console.log(`持久化服务器启动响应`, responseData);
             
             if (responseData.success) {
                 // 延迟检查状态，等待服务器完全启动
@@ -328,17 +346,21 @@ class ServerStatusViewModel implements ViewModel {
                 // 不需要验证结果，因为停止是操作而不是查询
             } catch (error) {
                 baseUrl = persistentBaseUrl;
-                response = await fetch(`${persistentBaseUrl}/api/v1/widgets/persistent-server/stop`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    signal: AbortSignal.timeout(10000),
-                });
+                try {
+                    response = await fetch(`${persistentBaseUrl}/api/v1/widgets/persistent-server/stop`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        signal: AbortSignal.timeout(10000),
+                    });
+                } catch (fallbackError) {
+                    // 如果两个端点都失败，静默失败
+                    return;
+                }
             }
             
             const responseData = await response.json();
-            console.log(`持久化服务器停止响应`, responseData);
             
             if (responseData.success) {
                 // 立即检查状态
