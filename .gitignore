@@ -50,3 +50,4 @@ db/
 
 # Test executables
 wavesrv-test
+frontend/logs/*
