@@ -254,13 +254,16 @@ func (ws *WidgetAPIService) CreateWidget(ctx context.Context, req CreateWidgetAP
 	}
 
 	// Queue the layout action so the frontend knows how to display the block
+	log.Printf("WidgetAPI: About to call QueueLayoutActionForTab for tabId=%s, blockId=%s", tabId, block.OID)
 	err = wcore.QueueLayoutActionForTab(ctx, tabId, *layoutAction)
 	if err != nil {
+		log.Printf("WidgetAPI: QueueLayoutActionForTab failed: %v", err)
 		return &CreateWidgetAPIResponse{
 			Success: false,
 			Error:   fmt.Sprintf("failed to queue layout action: %s", err.Error()),
 		}, nil
 	}
+	log.Printf("WidgetAPI: QueueLayoutActionForTab completed successfully")
 
 	// Start the block controller if it's a terminal/shell block
 	controllerType := getStringFromMeta(block.Meta, "controller")
