@@ -62,6 +62,7 @@ class ServerStatusViewModel implements ViewModel {
             lastUpdated: Date.now(),
         });
         
+        // 在一体化模式下，持久化服务器状态就是MCP服务器状态
         this.persistentStatusDataAtom = jotai.atom<PersistentServerStatusData>({
             isRunning: false,
             lastUpdated: Date.now(),
@@ -91,7 +92,8 @@ class ServerStatusViewModel implements ViewModel {
 
         // 开始定期检查服务器状态
         this.startStatusChecking();
-        this.startPersistentStatusChecking();
+        // 在一体化模式下，不需要单独检查持久化服务器
+        // this.startPersistentStatusChecking();
     }
 
     get viewComponent(): ViewComponent {
@@ -128,6 +130,7 @@ class ServerStatusViewModel implements ViewModel {
     async checkServerStatus() {
         try {
             globalStore.set(this.loadingAtom, true);
+            globalStore.set(this.persistentLoadingAtom, true);
             
             // 使用动态端点配置而不是硬编码端口
             const { getWebServerEndpoint } = await import("@/util/endpoints");
@@ -160,6 +163,19 @@ class ServerStatusViewModel implements ViewModel {
                     bridgeRemoteUrls: responseData.bridge?.remote_urls || [],
                 };
                 globalStore.set(this.statusDataAtom, statusData);
+                
+                // 在一体化模式下，持久化服务器状态与MCP服务器状态同步
+                const persistentStatusData: PersistentServerStatusData = {
+                    isRunning: isRunning,
+                    webPort: responseData.status?.port || webPort,
+                    wsPort: webPort + 1,
+                    apiUrl: baseUrl,
+                    lastUpdated: Date.now(),
+                };
+                globalStore.set(this.persistentStatusDataAtom, persistentStatusData);
+                
+                // 重置失败计数器
+                this.persistentFailureCount = 0;
             } else {
                 throw new Error(`HTTP ${response.status}`);
             }
@@ -171,273 +187,56 @@ class ServerStatusViewModel implements ViewModel {
                 error: error instanceof Error ? error.message : 'Connection failed',
             };
             globalStore.set(this.statusDataAtom, statusData);
-        } finally {
-            globalStore.set(this.loadingAtom, false);
-        }
-    }
-
-    async checkPersistentServerStatus() {
-        try {
-            globalStore.set(this.persistentLoadingAtom, true);
             
-            // 获取当前服务器端点，优先检查当前环境
-            const { getWebServerEndpoint } = await import("@/util/endpoints");
-            const currentBaseUrl = getWebServerEndpoint().replace('localhost', '127.0.0.1');
-            // 尝试从环境变量获取MCP服务器端口，默认8090（开发模式端口）
-            const mcpWebPort = process.env.WAVETERM_MCP_WEB_PORT || '8090';
-            const persistentBaseUrl = `http://127.0.0.1:${mcpWebPort}`;
-            
-            // 如果当前环境不是持久化服务器端口，先检查当前环境是否支持持久化服务器API
-            let response;
-            let baseUrl = currentBaseUrl;
-            
-            try {
-                response = await fetch(`${currentBaseUrl}/api/v1/widgets/persistent-server/status`, {
-                    method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    signal: AbortSignal.timeout(3000),
-                });
-                
-                if (!response.ok) {
-                    throw new Error(`Current environment response not ok: ${response.status}`);
-                }
-                
-                // 检查响应内容，如果当前环境报告持久化服务器未运行，则尝试持久化服务器端口
-                const tempResponseData = await response.json();
-                if (!tempResponseData.status?.running) {
-                    throw new Error('Current environment reports persistent server not running');
-                }
-                
-                // 如果当前环境报告服务器正在运行，直接使用这个响应
-                // 重新构造响应对象，因为我们已经读取了JSON
-                response = new Response(JSON.stringify(tempResponseData), {
-                    status: response.status,
-                    statusText: response.statusText,
-                    headers: response.headers
-                });
-            } catch (error) {
-                baseUrl = persistentBaseUrl;
-                try {
-                    response = await fetch(`${persistentBaseUrl}/api/v1/widgets/persistent-server/status`, {
-                        method: 'GET',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        signal: AbortSignal.timeout(3000),
-                    });
-                } catch (fallbackError) {
-                    // 如果两个端点都失败，增加失败计数并返回默认的离线状态
-                    this.persistentFailureCount++;
-                    const statusData: PersistentServerStatusData = {
-                        isRunning: false,
-                        pid: undefined,
-                        webPort: undefined,
-                        wsPort: undefined,
-                        apiUrl: undefined,
-                        lastUpdated: Date.now(),
-                    };
-                    globalStore.set(this.persistentStatusDataAtom, statusData);
-                    globalStore.set(this.persistentLoadingAtom, false);
-                    return;
-                }
-            }
-            
-            if (response.ok) {
-                const responseData = await response.json();
-                
-                // 成功获取状态，重置失败计数器
-                this.persistentFailureCount = 0;
-                
-                const isRunning = responseData.success && responseData.status?.running;
-                
-                const statusData: PersistentServerStatusData = {
-                    isRunning: isRunning,
-                    pid: responseData.status?.pid,
-                    webPort: responseData.status?.web_port,
-                    wsPort: responseData.status?.ws_port,
-                    apiUrl: responseData.api_url,
-                    lastUpdated: Date.now(),
-                };
-                globalStore.set(this.persistentStatusDataAtom, statusData);
-            } else {
-                throw new Error(`HTTP ${response.status}`);
-            }
-        } catch (error) {
-            // 持久化服务器不可用
-            const statusData: PersistentServerStatusData = {
+            // 持久化服务器状态也同步更新
+            const persistentStatusData: PersistentServerStatusData = {
                 isRunning: false,
                 lastUpdated: Date.now(),
                 error: error instanceof Error ? error.message : 'Connection failed',
             };
-            globalStore.set(this.persistentStatusDataAtom, statusData);
+            globalStore.set(this.persistentStatusDataAtom, persistentStatusData);
         } finally {
+            globalStore.set(this.loadingAtom, false);
             globalStore.set(this.persistentLoadingAtom, false);
         }
     }
 
+    // 在一体化模式下，不再需要单独的持久化服务器状态检查
+    // 持久化服务器状态将通过 checkServerStatus 方法同步更新
+
     async startPersistentServer() {
-        try {
-            globalStore.set(this.persistentLoadingAtom, true);
-            
-            // 获取当前服务器端点，优先使用当前环境
-            const { getWebServerEndpoint } = await import("@/util/endpoints");
-            const currentBaseUrl = getWebServerEndpoint().replace('localhost', '127.0.0.1');
-            // 尝试从环境变量获取MCP服务器端口，默认8090（开发模式端口）
-            const mcpWebPort = process.env.WAVETERM_MCP_WEB_PORT || '8090';
-            const persistentBaseUrl = `http://127.0.0.1:${mcpWebPort}`;
-            
-            // 如果当前环境不是持久化服务器端口，先尝试当前环境
-            let response;
-            let baseUrl = currentBaseUrl;
-            
-            try {
-                response = await fetch(`${currentBaseUrl}/api/v1/widgets/persistent-server/start`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    signal: AbortSignal.timeout(30000), // 启动可能需要更长时间
-                });
-                
-                if (!response.ok) {
-                    throw new Error(`Current environment response not ok: ${response.status}`);
-                }
-                
-                // 对于启动请求，如果当前环境支持，就直接使用它
-                // 不需要像状态检查那样验证结果，因为启动是操作而不是查询
-            } catch (error) {
-                baseUrl = persistentBaseUrl;
-                try {
-                    response = await fetch(`${persistentBaseUrl}/api/v1/widgets/persistent-server/start`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        signal: AbortSignal.timeout(30000), // 启动可能需要更长时间
-                    });
-                } catch (fallbackError) {
-                    // 如果两个端点都失败，静默失败
-                    return;
-                }
-            }
-            
-            const responseData = await response.json();
-            
-            if (responseData.success) {
-                // 延迟检查状态，等待服务器完全启动
-                setTimeout(() => {
-                    this.checkPersistentServerStatus();
-                }, 3000);
-            }
-            
-            return responseData;
-        } catch (error) {
-            console.error('启动持久化服务器失败:', error);
-            throw error;
-        } finally {
-            globalStore.set(this.persistentLoadingAtom, false);
-        }
+        // 在一体化模式下，服务器已经随应用启动，不需要单独启动
+        console.log('在一体化模式下，服务器已经随Wave Terminal启动');
+        
+        // 立即检查服务器状态以更新UI
+        this.checkServerStatus();
     }
 
     async stopPersistentServer() {
-        try {
-            globalStore.set(this.persistentLoadingAtom, true);
-            
-            // 获取当前服务器端点，优先使用当前环境
-            const { getWebServerEndpoint } = await import("@/util/endpoints");
-            const currentBaseUrl = getWebServerEndpoint().replace('localhost', '127.0.0.1');
-            // 尝试从环境变量获取MCP服务器端口，默认8090（开发模式端口）
-            const mcpWebPort = process.env.WAVETERM_MCP_WEB_PORT || '8090';
-            const persistentBaseUrl = `http://127.0.0.1:${mcpWebPort}`;
-            
-            // 如果当前环境不是持久化服务器端口，先尝试当前环境
-            let response;
-            let baseUrl = currentBaseUrl;
-            
-            try {
-                response = await fetch(`${currentBaseUrl}/api/v1/widgets/persistent-server/stop`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    signal: AbortSignal.timeout(10000),
-                });
-                
-                if (!response.ok) {
-                    throw new Error(`Current environment response not ok: ${response.status}`);
-                }
-                
-                // 对于停止请求，如果当前环境支持，就直接使用它
-                // 不需要验证结果，因为停止是操作而不是查询
-            } catch (error) {
-                baseUrl = persistentBaseUrl;
-                try {
-                    response = await fetch(`${persistentBaseUrl}/api/v1/widgets/persistent-server/stop`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        signal: AbortSignal.timeout(10000),
-                    });
-                } catch (fallbackError) {
-                    // 如果两个端点都失败，静默失败
-                    return;
-                }
-            }
-            
-            const responseData = await response.json();
-            
-            if (responseData.success) {
-                // 立即检查状态
-                setTimeout(() => {
-                    this.checkPersistentServerStatus();
-                }, 1000);
-            }
-            
-            return responseData;
-        } catch (error) {
-            console.error('停止持久化服务器失败:', error);
-            throw error;
-        } finally {
-            globalStore.set(this.persistentLoadingAtom, false);
-        }
+        // 在一体化模式下，服务器与Wave Terminal应用生命周期绑定，不能单独停止
+        console.log('在一体化模式下，服务器不能单独停止，它与Wave Terminal应用生命周期绑定');
+        
+        // 立即检查服务器状态以更新UI
+        this.checkServerStatus();
     }
 
     getSettingsMenuItems(): ContextMenuItem[] {
-        const persistentStatus = globalStore.get(this.persistentStatusDataAtom);
         return [
             {
                 label: "Refresh Status",
                 click: () => {
                     this.checkServerStatus();
-                    this.checkPersistentServerStatus();
                 },
             },
             { type: "separator" },
             {
-                label: "Persistent Server",
+                label: "Integrated Mode Info",
                 type: "separator"
             },
             {
-                label: persistentStatus.isRunning ? "Stop Persistent Server" : "Start Persistent Server",
-                click: async () => {
-                    if (persistentStatus.isRunning) {
-                        try {
-                            await this.stopPersistentServer();
-                            console.log("Persistent server stopped");
-                        } catch (error) {
-                            console.error("Failed to stop persistent server:", error);
-                        }
-                    } else {
-                        try {
-                            await this.startPersistentServer();
-                            console.log("Persistent server started");
-                        } catch (error) {
-                            console.error("Failed to start persistent server:", error);
-                        }
-                    }
+                label: "Server runs with Wave Terminal",
+                click: () => {
+                    console.log("在一体化模式下，服务器随Wave Terminal自动启动");
                 },
             },
             { type: "separator" },
@@ -532,38 +331,12 @@ function ServerStatusView({ model, blockId }: ServerStatusViewProps) {
                         </div>
                     </div>
                     
-                    {/* 持久化服务器控制按钮 */}
-                    <div className="control-buttons">
-                        <button 
-                            className={clsx("control-btn", "start-btn", {
-                                "disabled": persistentStatusData.isRunning || persistentLoading
-                            })}
-                            onClick={async () => {
-                                try {
-                                    await model.startPersistentServer();
-                                } catch (error) {
-                                    console.error('Failed to start server:', error);
-                                }
-                            }}
-                            disabled={persistentStatusData.isRunning || persistentLoading}
-                        >
-                            {persistentLoading ? "Starting..." : "Start Server"}
-                        </button>
-                        <button 
-                            className={clsx("control-btn", "stop-btn", {
-                                "disabled": !persistentStatusData.isRunning || persistentLoading
-                            })}
-                            onClick={async () => {
-                                try {
-                                    await model.stopPersistentServer();
-                                } catch (error) {
-                                    console.error('Failed to stop server:', error);
-                                }
-                            }}
-                            disabled={!persistentStatusData.isRunning || persistentLoading}
-                        >
-                            {persistentLoading ? "Stopping..." : "Stop Server"}
-                        </button>
+                    {/* 一体化模式说明 */}
+                    <div className="integrated-mode-info">
+                        <div className="info-message">
+                            <span className="info-icon">ℹ️</span>
+                            Server runs automatically with Wave Terminal. No manual control needed.
+                        </div>
                     </div>
                 </div>
 
@@ -625,10 +398,10 @@ function ServerStatusView({ model, blockId }: ServerStatusViewProps) {
                 {/* 错误信息 */}
                 {!statusData.isRunning && statusData.error && (
                     <div className="error-info">
-                        <div className="error-title">Connection Error</div>
+                        <div className="error-title">MCP Server Connection Error</div>
                         <div className="error-message">{statusData.error}</div>
                         <div className="error-suggestion">
-                            Try running: <code>./persistent-server.sh start</code>
+                            Server runs automatically with Wave Terminal. Try restarting the application.
                         </div>
                     </div>
                 )}
@@ -667,10 +440,10 @@ function ServerStatusView({ model, blockId }: ServerStatusViewProps) {
                 {/* 持久化服务器错误信息 */}
                 {!persistentStatusData.isRunning && persistentStatusData.error && (
                     <div className="error-info">
-                        <div className="error-title">Persistent Server Connection Error</div>
+                        <div className="error-title">Server Connection Error</div>
                         <div className="error-message">{persistentStatusData.error}</div>
                         <div className="error-suggestion">
-                            Use the "Start Server" button above or run: <code>./persistent-server.sh start</code>
+                            Server runs automatically with Wave Terminal. Check your connection or restart the application.
                         </div>
                     </div>
                 )}
