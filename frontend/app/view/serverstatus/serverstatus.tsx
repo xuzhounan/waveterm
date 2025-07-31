@@ -269,9 +269,7 @@ type ServerStatusViewProps = {
 
 function ServerStatusView({ model, blockId }: ServerStatusViewProps) {
     const statusData = jotai.useAtomValue(model.statusDataAtom);
-    const persistentStatusData = jotai.useAtomValue(model.persistentStatusDataAtom);
     const loading = jotai.useAtomValue(model.loadingAtom);
-    const persistentLoading = jotai.useAtomValue(model.persistentLoadingAtom);
     const osRef = React.useRef<OverlayScrollbarsComponentRef>();
 
     // 清理定时器
@@ -281,12 +279,6 @@ function ServerStatusView({ model, blockId }: ServerStatusViewProps) {
         };
     }, [model]);
 
-    const formatUptime = (uptime: number) => {
-        const hours = Math.floor(uptime / 3600);
-        const minutes = Math.floor((uptime % 3600) / 60);
-        const seconds = uptime % 60;
-        return `${hours}h ${minutes}m ${seconds}s`;
-    };
 
     const formatLastUpdated = (timestamp: number) => {
         const date = new Date(timestamp);
@@ -300,9 +292,9 @@ function ServerStatusView({ model, blockId }: ServerStatusViewProps) {
             options={{ scrollbars: { autoHide: "leave" } }}
         >
             <div className="serverstatus-content">
-                {/* MCP服务器状态指示器 */}
+                {/* 服务器状态指示器 */}
                 <div className="server-section">
-                    <h3 className="section-title">MCP Server Status</h3>
+                    <h3 className="section-title">Server Status</h3>
                     <div className={clsx("status-indicator", { 
                         "running": statusData.isRunning,
                         "stopped": !statusData.isRunning,
@@ -311,23 +303,7 @@ function ServerStatusView({ model, blockId }: ServerStatusViewProps) {
                         <div className="status-dot"></div>
                         <div className="status-text">
                             {loading ? "Checking..." : 
-                             statusData.isRunning ? "MCP Server Running" : "MCP Server Stopped"}
-                        </div>
-                    </div>
-                </div>
-
-                {/* 持久化服务器状态指示器 */}
-                <div className="server-section">
-                    <h3 className="section-title">Persistent Server Status</h3>
-                    <div className={clsx("status-indicator", { 
-                        "running": persistentStatusData.isRunning,
-                        "stopped": !persistentStatusData.isRunning,
-                        "loading": persistentLoading
-                    })}>
-                        <div className="status-dot"></div>
-                        <div className="status-text">
-                            {persistentLoading ? "Checking..." : 
-                             persistentStatusData.isRunning ? "Persistent Server Running" : "Persistent Server Stopped"}
+                             statusData.isRunning ? "Server Running" : "Server Stopped"}
                         </div>
                     </div>
                     
@@ -345,14 +321,6 @@ function ServerStatusView({ model, blockId }: ServerStatusViewProps) {
                     <div className="server-info">
                         <div className="info-grid">
                             <div className="info-item">
-                                <div className="info-label">Web Port</div>
-                                <div className="info-value">{statusData.webPort}</div>
-                            </div>
-                            <div className="info-item">
-                                <div className="info-label">WebSocket Port</div>
-                                <div className="info-value">{statusData.wsPort}</div>
-                            </div>
-                            <div className="info-item">
                                 <div className="info-label">API URL</div>
                                 <div className="info-value">
                                     <a href={statusData.apiUrl} target="_blank" rel="noopener noreferrer">
@@ -369,28 +337,8 @@ function ServerStatusView({ model, blockId }: ServerStatusViewProps) {
                                     <span className="bridge-indicator">
                                         {statusData.bridgeEnabled ? "🟢 Enabled" : "🔴 Disabled"}
                                     </span>
-                                    {statusData.bridgeEnabled && statusData.bridgeRemoteUrls && statusData.bridgeRemoteUrls.length > 0 && (
-                                        <span className="bridge-remotes">
-                                            ({statusData.bridgeRemoteUrls.length} remote{statusData.bridgeRemoteUrls.length > 1 ? 's' : ''})
-                                        </span>
-                                    )}
                                 </div>
                             </div>
-                            {statusData.authKey && (
-                                <div className="info-item">
-                                    <div className="info-label">Auth Key</div>
-                                    <div className="info-value auth-key">
-                                        {statusData.authKey.substring(0, 12)}...
-                                        <button 
-                                            className="copy-btn"
-                                            onClick={() => navigator.clipboard.writeText(statusData.authKey || '')}
-                                            title="Copy full auth key"
-                                        >
-                                            📋
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
                         </div>
                     </div>
                 )}
@@ -398,7 +346,7 @@ function ServerStatusView({ model, blockId }: ServerStatusViewProps) {
                 {/* 错误信息 */}
                 {!statusData.isRunning && statusData.error && (
                     <div className="error-info">
-                        <div className="error-title">MCP Server Connection Error</div>
+                        <div className="error-title">Server Connection Error</div>
                         <div className="error-message">{statusData.error}</div>
                         <div className="error-suggestion">
                             Server runs automatically with Wave Terminal. Try restarting the application.
@@ -406,58 +354,11 @@ function ServerStatusView({ model, blockId }: ServerStatusViewProps) {
                     </div>
                 )}
 
-                {/* 持久化服务器信息 */}
-                {persistentStatusData.isRunning && (
-                    <div className="server-info">
-                        <div className="info-title">Persistent Server Information</div>
-                        <div className="info-grid">
-                            <div className="info-item">
-                                <div className="info-label">Process ID</div>
-                                <div className="info-value">{persistentStatusData.pid}</div>
-                            </div>
-                            <div className="info-item">
-                                <div className="info-label">Web Port</div>
-                                <div className="info-value">{persistentStatusData.webPort}</div>
-                            </div>
-                            <div className="info-item">
-                                <div className="info-label">WebSocket Port</div>
-                                <div className="info-value">{persistentStatusData.wsPort}</div>
-                            </div>
-                            {persistentStatusData.apiUrl && (
-                                <div className="info-item">
-                                    <div className="info-label">API URL</div>
-                                    <div className="info-value">
-                                        <a href={persistentStatusData.apiUrl} target="_blank" rel="noopener noreferrer">
-                                            {persistentStatusData.apiUrl}
-                                        </a>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                )}
-
-                {/* 持久化服务器错误信息 */}
-                {!persistentStatusData.isRunning && persistentStatusData.error && (
-                    <div className="error-info">
-                        <div className="error-title">Server Connection Error</div>
-                        <div className="error-message">{persistentStatusData.error}</div>
-                        <div className="error-suggestion">
-                            Server runs automatically with Wave Terminal. Check your connection or restart the application.
-                        </div>
-                    </div>
-                )}
-
-                {/* MCP API端点信息 */}
+                {/* API端点信息 */}
                 {statusData.isRunning && (
                     <div className="api-endpoints">
-                        <div className="endpoints-title">Available MCP API Endpoints</div>
+                        <div className="endpoints-title">Available API Endpoints</div>
                         <div className="endpoint-list">
-                            <div className="endpoint-item">
-                                <div className="endpoint-method">GET</div>
-                                <div className="endpoint-path">/api/v1/widgets/mcp/status</div>
-                                <div className="endpoint-desc">Check MCP server status</div>
-                            </div>
                             <div className="endpoint-item">
                                 <div className="endpoint-method">GET</div>
                                 <div className="endpoint-path">/api/v1/widgets/workspaces</div>
