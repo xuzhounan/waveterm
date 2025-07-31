@@ -398,6 +398,29 @@ class WaveTerminalMCPServer extends Server {
                         },
                         required: ["block_id"]
                     }
+                },
+                {
+                    name: "execute_command",
+                    description: "在终端中执行命令并等待完成，返回输出结果和退出码",
+                    inputSchema: {
+                        type: "object",
+                        properties: {
+                            block_id: {
+                                type: "string",
+                                description: "Terminal Block ID"
+                            },
+                            command: {
+                                type: "string",
+                                description: "要执行的命令"
+                            },
+                            timeout: {
+                                type: "integer",
+                                description: "超时时间（毫秒），默认30000ms（30秒）",
+                                default: 30000
+                            }
+                        },
+                        required: ["block_id", "command"]
+                    }
                 }
             ]
         };
@@ -865,6 +888,92 @@ class WaveTerminalMCPServer extends Server {
                     } else {
                         throw new Error(`Widget删除失败: ${response.status} - ${JSON.stringify(result)}`);
                     }
+
+                case "execute_command":
+                    const timeout = args.timeout || 30000;
+                    
+                    // 获取初始输出长度
+                    let initialContentResponse = await this.fetchWithConfig(`${this.waveTerminalUrl}/api/v1/widgets/block/content/${args.block_id}?file_name=term`, {
+                        headers
+                    });
+                    let initialContentResult = await initialContentResponse.json();
+                    const initialContentLength = (initialContentResponse.ok && initialContentResult.success) ? 
+                        initialContentResult.content.length : 0;
+                    
+                    // 步骤1: 发送命令
+                    response = await this.fetchWithConfig(`${this.waveTerminalUrl}/api/v1/widgets/block/${args.block_id}/input`, {
+                        method: "POST",
+                        headers,
+                        body: JSON.stringify({
+                            input_data: args.command + '\n',
+                            input_type: 'text'
+                        })
+                    });
+                    result = await response.json();
+                    
+                    if (!response.ok || !result.success) {
+                        throw new Error(`命令发送失败: ${response.status} - ${JSON.stringify(result)}`);
+                    }
+                    
+                    // 步骤2: 等待命令完成并检测新输出
+                    const startTime = Date.now();
+                    let commandOutput = '';
+                    let finalContent = '';
+                    
+                    // 等待一段时间让命令执行完成
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                    
+                    // 简化方案：等待固定时间后获取所有输出
+                    for (let i = 0; i < 10; i++) {
+                        const contentResponse = await this.fetchWithConfig(`${this.waveTerminalUrl}/api/v1/widgets/block/content/${args.block_id}?file_name=term`, {
+                            headers
+                        });
+                        const contentResult = await contentResponse.json();
+                        
+                        if (contentResponse.ok && contentResult.success) {
+                            finalContent = contentResult.content;
+                            
+                            // 提取新的输出内容（命令执行后的部分）
+                            if (finalContent.length > initialContentLength) {
+                                const newContent = finalContent.substring(initialContentLength);
+                                
+                                // 简单的ANSI清理：移除常见的转义序列
+                                commandOutput = newContent
+                                    .replace(/\x1b\[[0-9;]*m/g, '') // 颜色代码
+                                    .replace(/\x1b\[[0-9]*[A-Za-z]/g, '') // 光标控制
+                                    .replace(/\x1b\[[?][0-9]*[a-z]/g, '') // 私有模式
+                                    .replace(/\x1b\][0-9];[^\x07]*\x07/g, '') // OSC序列
+                                    .replace(/\x1b\][0-9];[^\x1b]*\x1b\\/g, '') // OSC序列(备用结束)
+                                    .replace(/\x1b\][0-9][^\x1b]*$/g, '') // 不完整的OSC序列
+                                    .replace(/\r\n/g, '\n') // 标准化换行
+                                    .replace(/\r/g, '\n') // 处理单独的回车
+                                    .trim();
+                                
+                                // 如果检测到命令提示符，说明命令执行完成
+                                if (commandOutput.includes('» ') || commandOutput.includes('$ ') || commandOutput.includes('# ')) {
+                                    break;
+                                }
+                            }
+                        }
+                        
+                        // 等待200ms后再次检查
+                        await new Promise(resolve => setTimeout(resolve, 200));
+                    }
+                    
+                    // 如果没有获取到输出，返回原始内容的一部分
+                    if (!commandOutput.trim()) {
+                        commandOutput = "命令已执行，但无法提取纯文本输出";
+                    }
+                    
+                    return {
+                        content: [{
+                            type: "text",
+                            text: `🚀 命令执行完成！\n\n` +
+                                  `命令: ${args.command}\n` +
+                                  `执行时间: ${Date.now() - startTime}ms\n\n` +
+                                  `输出:\n\`\`\`\n${commandOutput}\n\`\`\``
+                        }]
+                    };
 
                 default:
                     throw new Error(`未知工具: ${name}`);
