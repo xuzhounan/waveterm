@@ -54,3 +54,16 @@ db/
 # Test executables
 wavesrv-test
 frontend/logs/*
+
+# Temporary test files
+test-*.go
+test-*.js
+test-*.py
+test-*.html
+test-*.cjs
+temp_go_files/
+test-config/
+test-data/
+
+# Cleanup script
+cleanup-temp-files.sh

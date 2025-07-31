@@ -2,7 +2,14 @@
 
 ## 概述
 
-Wave Terminal Widget API 是一个REST API系统，允许通过HTTP请求在工作区中创建和管理widgets。该API集成到Wave Terminal的现有架构中，提供了编程式创建widgets的能力。
+Wave Terminal Widget API 是一个**HTTP REST API系统**，允许外部应用程序通过HTTP请求在工作区中创建和管理widgets。该API集成到Wave Terminal的现有架构中，提供了编程式创建widgets的能力。
+
+> ⚠️ **重要**: Widget API与MCP (Model Context Protocol) 是不同的系统。详见 [MCP vs Widget API 概念区分](./mcp-vs-widget-api.md)
+
+### API类型对比
+- **Widget API** (本文档): HTTP REST API，面向外部应用程序
+- **MCP**: Anthropic的Model Context Protocol，面向AI助手
+- **用途区别**: Widget API用于程序集成，MCP用于AI工具调用
 
 ## 架构设计
 
