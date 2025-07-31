@@ -680,9 +680,10 @@ func handleSendBlockInput(w http.ResponseWriter, r *http.Request, ctx context.Co
 	// Set the block ID from URL path
 	req.BlockId = blockId
 
-	// Validate that we have some kind of input
-	if req.InputData == "" && req.SigName == "" && req.TermSize == nil {
-		writeErrorResponse(w, "at least one of input_data, sig_name, or term_size is required", http.StatusBadRequest)
+	// Validate that an input type is specified
+	// Allow empty InputData for text input (e.g., sending newlines/enter)
+	if req.InputType == "" && req.InputData == "" && req.SigName == "" && req.TermSize == nil {
+		writeErrorResponse(w, "input_type must be specified, or at least one of input_data, sig_name, or term_size is required", http.StatusBadRequest)
 		return
 	}
 

@@ -664,6 +664,12 @@ func (ws *WidgetAPIService) createBlockDefFromWidgetType(widgetType string, cust
 	case "terminal":
 		blockDef.Meta["view"] = "term"
 		blockDef.Meta["controller"] = "shell"
+		// Map cwd parameter to the correct meta key
+		if cwd, exists := customMeta["cwd"]; exists {
+			blockDef.Meta["cmd:cwd"] = cwd
+			// Remove the raw cwd key to avoid confusion
+			delete(blockDef.Meta, "cwd")
+		}
 	case "web":
 		blockDef.Meta["view"] = "web"
 		// Add default URL if not provided
@@ -1336,14 +1342,13 @@ func (ws *WidgetAPIService) SendBlockInput(ctx context.Context, req SendBlockInp
 
 	switch req.InputType {
 	case "text", "":
-		if req.InputData == "" {
-			return &SendBlockInputAPIResponse{
-				Success: false,
-				Error:   "input_data is required for text input",
-			}, nil
-		}
+		// Allow empty input_data for cases like sending newlines or empty commands
 		inputUnion.InputData = []byte(req.InputData)
-		inputDescription = fmt.Sprintf("text input (%d bytes)", len(req.InputData))
+		if req.InputData == "" {
+			inputDescription = "empty text input (newline/enter)"
+		} else {
+			inputDescription = fmt.Sprintf("text input (%d bytes)", len(req.InputData))
+		}
 		
 	case "signal":
 		if req.SigName == "" {

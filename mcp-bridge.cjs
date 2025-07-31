@@ -358,7 +358,7 @@ class WaveTerminalMCPServer extends Server {
                             },
                             input_data: { 
                                 type: "string", 
-                                description: "要发送的文本内容（如命令）" 
+                                description: "要发送的文本内容（如命令）。空字符串会发送换行符/回车键" 
                             },
                             input_type: {
                                 type: "string",
@@ -793,7 +793,11 @@ class WaveTerminalMCPServer extends Server {
                         
                         switch (inputType) {
                             case 'text':
-                                inputDescription = `文本输入: "${args.input_data}"`;
+                                if (args.input_data === '') {
+                                    inputDescription = `空文本输入 (换行符/回车键)`;
+                                } else {
+                                    inputDescription = `文本输入: "${args.input_data}"`;
+                                }
                                 break;
                             case 'signal':
                                 inputDescription = `信号: ${args.sig_name}`;
