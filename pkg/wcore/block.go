@@ -189,12 +189,22 @@ func DeleteBlock(ctx context.Context, blockId string, recursive bool) error {
 	if err != nil {
 		return fmt.Errorf("error deleting block: %w", err)
 	}
-	log.Printf("DeleteBlock: parentBlockCount: %d", parentBlockCount)
 	parentORef := waveobj.ParseORefNoErr(block.ParentORef)
+
+	// Queue layout delete action to ensure frontend layout tree is updated
+	if parentORef.OType == waveobj.OType_Tab {
+		layoutAction := waveobj.LayoutActionData{
+			ActionType: LayoutActionDataType_Remove,
+			BlockId:    blockId,
+		}
+		err = QueueLayoutActionForTab(ctx, parentORef.OID, layoutAction)
+		if err != nil {
+			log.Printf("Warning: failed to queue layout delete action for block %s: %v", blockId, err)
+		}
+	}
 
 	if recursive && parentORef.OType == waveobj.OType_Tab && parentBlockCount == 0 {
 		// if parent tab has no blocks, delete the tab
-		log.Printf("DeleteBlock: parent tab has no blocks, deleting tab %s", parentORef.OID)
 		parentWorkspaceId, err := wstore.DBFindWorkspaceForTabId(ctx, parentORef.OID)
 		if err != nil {
 			return fmt.Errorf("error finding workspace for tab to delete %s: %w", parentORef.OID, err)

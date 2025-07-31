@@ -35,8 +35,18 @@ const TabContent = React.memo(({ tabId }: { tabId: string }) => {
             return <Block key={nodeModel.blockId} nodeModel={nodeModel} preview={true} />;
         };
 
-        function onNodeDelete(data: TabLayoutData) {
-            return services.ObjectService.DeleteBlock(data.blockId);
+        async function onNodeDelete(data: TabLayoutData) {
+            try {
+                await services.ObjectService.DeleteBlock(data.blockId);
+            } catch (error) {
+                // If block is already deleted (e.g., via MCP), just log and continue
+                if (error.message?.includes("not found")) {
+                    // Block was already deleted elsewhere, skip deletion
+                } else {
+                    console.error("Error deleting block:", error);
+                    throw error;
+                }
+            }
         }
 
         return {
