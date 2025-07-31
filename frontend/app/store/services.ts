@@ -104,6 +104,9 @@ class WidgetAPIServiceType {
     CreateWidget(arg2: CreateWidgetAPIRequest): Promise<CreateWidgetAPIResponse> {
         return WOS.callBackendService("widgetapi", "CreateWidget", Array.from(arguments))
     }
+    DeleteWidget(arg2: string, arg3: boolean): Promise<DeleteWidgetAPIResponse> {
+        return WOS.callBackendService("widgetapi", "DeleteWidget", Array.from(arguments))
+    }
     GetBlockContent(arg2: string, arg3: string, arg4: number, arg5: number): Promise<GetBlockContentAPIResponse> {
         return WOS.callBackendService("widgetapi", "GetBlockContent", Array.from(arguments))
     }

@@ -439,6 +439,13 @@ declare global {
         blocks?: SavedBlock[];
     };
 
+    // widgetapiservice.DeleteWidgetAPIResponse
+    type DeleteWidgetAPIResponse = {
+        success: boolean;
+        message?: string;
+        error?: string;
+    };
+
     // vdom.DomRect
     type DomRect = {
         top: number;

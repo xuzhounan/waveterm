@@ -946,6 +946,17 @@ type ControllerStatus struct {
 }
 
 // ================================
+// Delete Widget API Structures
+// ================================
+
+// DeleteWidgetAPIResponse represents the response after deleting a widget
+type DeleteWidgetAPIResponse struct {
+	Success bool   `json:"success"`
+	Message string `json:"message,omitempty"`
+	Error   string `json:"error,omitempty"`
+}
+
+// ================================
 // Block Input API Structures
 // ================================
 
@@ -1391,5 +1402,73 @@ func (ws *WidgetAPIService) SendBlockInput(ctx context.Context, req SendBlockInp
 	return &SendBlockInputAPIResponse{
 		Success: true,
 		Message: fmt.Sprintf("Successfully sent %s to terminal", inputDescription),
+	}, nil
+}
+
+// ================================
+// Delete Widget API Methods
+// ================================
+
+// DeleteWidget deletes a widget/block and optionally its parent containers if empty
+func (ws *WidgetAPIService) DeleteWidget(ctx context.Context, blockId string, recursive bool) (*DeleteWidgetAPIResponse, error) {
+	log.Printf("WidgetAPIService.DeleteWidget called with block_id=%s, recursive=%t", blockId, recursive)
+
+	if blockId == "" {
+		return &DeleteWidgetAPIResponse{
+			Success: false,
+			Error:   "block_id is required",
+		}, nil
+	}
+
+	// Validate block exists before attempting deletion
+	block, err := wstore.DBGet[*waveobj.Block](ctx, blockId)
+	if err != nil || block == nil {
+		return &DeleteWidgetAPIResponse{
+			Success: false,
+			Error:   fmt.Sprintf("block not found: %s", blockId),
+		}, nil
+	}
+
+	// 确保EventBridge启用以支持MCP实时更新
+	if !wps.Bridge.IsEnabled() {
+		wps.Bridge.SetEnabled(true)
+		log.Printf("EventBridge auto-enabled for MCP widget deletion")
+	}
+
+	// Add updates context to collect database changes
+	ctx = waveobj.ContextWithUpdates(ctx)
+
+	// Get block info for the response message
+	blockType := getBlockTypeFromMeta(block.Meta)
+	blockTitle := getStringFromMeta(block.Meta, "title")
+	if blockTitle == "" {
+		blockTitle = blockType
+	}
+
+	// Delete the block using wcore.DeleteBlock which handles:
+	// - Stopping controllers
+	// - Cleaning up file storage
+	// - Removing from parent tab
+	// - Optionally deleting empty parent containers
+	err = wcore.DeleteBlock(ctx, blockId, recursive)
+	if err != nil {
+		return &DeleteWidgetAPIResponse{
+			Success: false,
+			Error:   fmt.Sprintf("failed to delete block: %s", err.Error()),
+		}, nil
+	}
+
+	// Send database update events to notify frontend
+	updates := waveobj.ContextGetUpdatesRtn(ctx)
+	wps.Broker.SendUpdateEvents(updates)
+
+	// Clean up file storage for the block
+	filestore.WFS.DeleteZone(ctx, blockId)
+
+	log.Printf("Successfully deleted widget: block_id=%s, type=%s", blockId, blockType)
+
+	return &DeleteWidgetAPIResponse{
+		Success: true,
+		Message: fmt.Sprintf("Widget '%s' (ID: %s) deleted successfully", blockTitle, blockId),
 	}, nil
 }

@@ -347,6 +347,24 @@ class WaveTerminalMCPServer extends Server {
                     }
                 },
                 {
+                    name: "delete_widget",
+                    description: "删除指定的widget/block",
+                    inputSchema: {
+                        type: "object",
+                        properties: {
+                            block_id: { 
+                                type: "string", 
+                                description: "要删除的Block ID" 
+                            },
+                            recursive: { 
+                                type: "boolean", 
+                                description: "是否递归删除空的父级tab/workspace（默认true）" 
+                            }
+                        },
+                        required: ["block_id"]
+                    }
+                },
+                {
                     name: "send_terminal_input",
                     description: "向terminal发送输入（文本、信号或终端大小调整）",
                     inputSchema: {
@@ -821,6 +839,31 @@ class WaveTerminalMCPServer extends Server {
                         };
                     } else {
                         throw new Error(`Terminal输入发送失败: ${response.status} - ${JSON.stringify(result)}`);
+                    }
+
+                case "delete_widget":
+                    response = await this.fetchWithConfig(`${this.waveTerminalUrl}/api/v1/widgets/block/${args.block_id}`, {
+                        method: "DELETE",
+                        headers,
+                        body: JSON.stringify({
+                            recursive: args.recursive !== false // 默认为true
+                        })
+                    });
+                    result = await response.json();
+                    
+                    if (response.ok && result.success) {
+                        return {
+                            content: [{
+                                type: "text",
+                                text: `✅ Widget删除成功！\n\n` +
+                                      `Block ID: ${args.block_id}\n` +
+                                      `递归删除: ${args.recursive !== false ? '是' : '否'}\n\n` +
+                                      `${result.message}\n\n` +
+                                      `💡 Widget已从界面中移除，相关的controller进程也已停止。`
+                            }]
+                        };
+                    } else {
+                        throw new Error(`Widget删除失败: ${response.status} - ${JSON.stringify(result)}`);
                     }
 
                 default:

@@ -119,6 +119,14 @@ func handleWidgetAPI(w http.ResponseWriter, r *http.Request) {
 		} else {
 			http.Error(w, "Not Found", http.StatusNotFound)
 		}
+	case "DELETE":
+		if len(pathParts) == 2 && pathParts[0] == "block" {
+			// DELETE /api/v1/widgets/block/{block_id} - Delete widget/block
+			blockId := pathParts[1]
+			handleDeleteWidget(w, r, ctx, blockId)
+		} else {
+			http.Error(w, "Not Found", http.StatusNotFound)
+		}
 	default:
 		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
 	}
@@ -698,6 +706,47 @@ func handleSendBlockInput(w http.ResponseWriter, r *http.Request, ctx context.Co
 	}
 
 	// Return success status
+	if response.Success {
+		w.WriteHeader(http.StatusOK)
+	} else {
+		w.WriteHeader(http.StatusBadRequest)
+	}
+	json.NewEncoder(w).Encode(response)
+}
+
+// handleDeleteWidget deletes a widget/block
+func handleDeleteWidget(w http.ResponseWriter, r *http.Request, ctx context.Context, blockId string) {
+	if blockId == "" {
+		writeErrorResponse(w, "block_id is required", http.StatusBadRequest)
+		return
+	}
+
+	var req struct {
+		Recursive bool `json:"recursive"`
+	}
+
+	// Parse request body if present (optional)
+	if r.Body != nil {
+		decoder := json.NewDecoder(r.Body)
+		if err := decoder.Decode(&req); err != nil {
+			// If decoding fails, just use default recursive=true
+			req.Recursive = true
+		}
+	} else {
+		req.Recursive = true // default to true if no body
+	}
+
+	log.Printf("Deleting widget: block_id=%s, recursive=%t", blockId, req.Recursive)
+
+	// Call the service to delete the widget
+	response, err := widgetapiservice.WidgetAPIServiceInstance.DeleteWidget(ctx, blockId, req.Recursive)
+	if err != nil {
+		log.Printf("Error deleting widget: %v", err)
+		writeErrorResponse(w, fmt.Sprintf("Internal server error: %s", err.Error()), http.StatusInternalServerError)
+		return
+	}
+
+	// Return appropriate status code
 	if response.Success {
 		w.WriteHeader(http.StatusOK)
 	} else {
