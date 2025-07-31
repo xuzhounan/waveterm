@@ -28,7 +28,6 @@ tasks:
         env:
             WCLOUD_ENDPOINT: "https://api.waveterm.dev/central"
             WCLOUD_WS_ENDPOINT: "wss://wsapi.waveterm.dev/"
-            WAVETERM_DATA_HOME: "/Users/xzn/Library/Application Support/waveterm"
 
     electron:start:
         desc: Run the Electron application directly.
@@ -42,7 +41,6 @@ tasks:
         env:
             WCLOUD_ENDPOINT: "https://api.waveterm.dev/central"
             WCLOUD_WS_ENDPOINT: "wss://wsapi.waveterm.dev/"
-            WAVETERM_DATA_HOME: "/Users/xzn/Library/Application Support/waveterm"
 
     storybook:
         desc: Start the Storybook server.

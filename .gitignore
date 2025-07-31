@@ -18,6 +18,9 @@ artifacts/
 mikework/
 /logs
 
+# Cleanup script backups
+old-files-backup-*/
+
 # Yarn Modern
 .pnp.*
 .yarn/*

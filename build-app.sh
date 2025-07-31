@@ -1,7 +1,38 @@
 #!/bin/bash
 
 # Wave Terminal 应用程序构建脚本
-# 使用说明：./build-app.sh
+# 
+# ⚠️  DEPRECATED: This manual build script is deprecated.
+# Please use the official Task-based build system instead.
+#
+# For development: task dev
+# For packaging:   task package
+# For full build:  task build:backend && npm run build:prod
+#
+# The official build system provides:
+# - Cross-platform support
+# - Proper version management
+# - Integrated dependency handling
+# - Electron Builder integration
+#
+# If you need a custom build, please modify Taskfile.yml instead.
+
+echo "❌ This manual build script has been deprecated."
+echo ""
+echo "Please use the official Task-based build system:"
+echo "  📦 For packaging:     task package"
+echo "  🚀 For development:   task dev"
+echo "  🔨 For backend only:  task build:backend"
+echo "  ⚡ For frontend only: npm run build:prod"
+echo ""
+echo "The Task system provides cross-platform builds, proper version"
+echo "management, and integration with electron-builder."
+echo ""
+echo "See BUILD.md for complete instructions."
+exit 1
+
+# Legacy manual build code below (kept for reference)
+# Remove this section after confirming Task-based builds work properly
 
 set -e
 

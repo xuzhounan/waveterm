@@ -70,7 +70,21 @@ Want to provide input to our future releases? Connect with us on [Discord](https
 
 ## Building from Source
 
-See [Building Wave Terminal](BUILD.md).
+Wave Terminal uses a modern Task-based build system for cross-platform development and packaging.
+
+**Quick Start:**
+```bash
+# Install dependencies
+task init
+
+# Development with hot reloading
+task dev
+
+# Package for distribution
+task package
+```
+
+For complete build instructions and troubleshooting, see [Building Wave Terminal](BUILD.md).
 
 ## Contributing
 

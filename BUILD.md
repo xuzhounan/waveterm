@@ -112,36 +112,65 @@ task init
 
 ## Build and Run
 
-All the methods below will install Node and Go dependencies when they run the first time. All these should be run from within the Git repository.
+Wave Terminal uses [Task](https://taskfile.dev) as its build system. All commands below should be run from within the Git repository root directory.
 
 ### Development server
 
-Run the following command to build the app and run it via Vite's development server (this enables Hot Module Reloading):
+Run the following command to build the app and run it via Vite's development server (enables Hot Module Reloading):
 
 ```sh
 task dev
 ```
 
+This command will:
+- Install dependencies if needed
+- Build the Go backend components (wavesrv, wsh)
+- Build the embedded documentation
+- Start the Electron app with hot reloading
+
 ### Standalone
 
-Run the following command to build the app and run it standalone, without the development server. This will not reload on change:
+Run the following command to build the app and run it standalone, without the development server:
 
 ```sh
 task start
 ```
 
+This is useful for testing the production build without packaging.
+
 ### Packaged
 
-Run the following command to generate a production build and package it. This lets you install the app locally. All artifacts will be placed in `make/`.
+Run the following command to generate a production build and package it for distribution:
 
 ```sh
 task package
 ```
 
-If you're on Linux ARM64, run the following:
+This will:
+- Build all components in production mode
+- Package the app using electron-builder
+- Place all artifacts in the `make/` directory
+
+**Platform-specific notes:**
+- **Linux ARM64**: Run `USE_SYSTEM_FPM=1 task package`
+- **All platforms**: The packaging process will automatically detect your platform and architecture
+
+### Individual Components
+
+You can also build individual components:
 
 ```sh
-USE_SYSTEM_FPM=1 task package
+# Build only the Go backend components
+task build:backend
+
+# Build only the frontend (for development)
+npm run build:dev
+
+# Build only the frontend (for production)  
+npm run build:prod
+
+# Build the documentation site
+task docsite:build:embedded
 ```
 
 ## Debugging
