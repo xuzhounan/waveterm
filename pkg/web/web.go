@@ -489,6 +489,9 @@ func RunWebServer(listener net.Listener) {
 	gr.HandleFunc("/api/v1/bridge/status", BridgeStatusHandler)
 	gr.HandleFunc("/api/v1/bridge/config", BridgeConfigHandler)
 	
+	// Internal API endpoints for MCP
+	gr.HandleFunc("/api/internal/screenshot", handleInternalScreenshot)
+	
 	gr.PathPrefix(docsitePrefix).Handler(http.StripPrefix(docsitePrefix, docsite.GetDocsiteHandler()))
 	gr.PathPrefix(schemaPrefix).Handler(http.StripPrefix(schemaPrefix, schema.GetSchemaHandler()))
 	handler := http.TimeoutHandler(gr, HttpTimeoutDuration, "Timeout")

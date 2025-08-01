@@ -829,3 +829,46 @@ func handleGetRecentEvents(w http.ResponseWriter, r *http.Request, ctx context.C
 
 	json.NewEncoder(w).Encode(response)
 }
+
+// handleInternalScreenshot handles screenshot requests from MCP bridge
+func handleInternalScreenshot(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+
+	var req struct {
+		WorkspaceId string                 `json:"workspace_id"`
+		TabId       string                 `json:"tab_id,omitempty"`
+		BlockId     string                 `json:"block_id,omitempty"`
+		Rect        map[string]interface{} `json:"rect,omitempty"`
+		Format      string                 `json:"format,omitempty"`
+	}
+
+	decoder := json.NewDecoder(r.Body)
+	if err := decoder.Decode(&req); err != nil {
+		log.Printf("Error decoding screenshot request: %v", err)
+		writeErrorResponse(w, "Invalid JSON request body", http.StatusBadRequest)
+		return
+	}
+
+	// 生成一个模拟的base64截图数据（1x1像素的透明PNG）
+	// 在实际实现中，这里应该调用Electron的截图API
+	dummyPngBase64 := "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChAI9jQNBAAAAAAElFTkSuQmCC"
+
+	response := map[string]interface{}{
+		"success": true,
+		"data":    fmt.Sprintf("data:image/png;base64,%s", dummyPngBase64),
+		"message": "Screenshot captured successfully (mock implementation)",
+		"details": map[string]interface{}{
+			"workspace_id": req.WorkspaceId,
+			"tab_id":       req.TabId,
+			"block_id":     req.BlockId,
+			"format":       req.Format,
+		},
+	}
+
+	json.NewEncoder(w).Encode(response)
+}

@@ -421,6 +421,48 @@ class WaveTerminalMCPServer extends Server {
                         },
                         required: ["block_id", "command"]
                     }
+                },
+                {
+                    name: "take_screenshot",
+                    description: "截图Wave Terminal工作区、标签页或widget，保存为文件",
+                    inputSchema: {
+                        type: "object",
+                        properties: {
+                            workspace_id: {
+                                type: "string",
+                                description: "工作区ID"
+                            },
+                            tab_id: {
+                                type: "string",
+                                description: "标签页ID（可选，如果不指定则截取整个工作区）"
+                            },
+                            block_id: {
+                                type: "string",
+                                description: "Widget Block ID（可选，如果指定则只截取该widget）"
+                            },
+                            save_path: {
+                                type: "string",
+                                description: "保存路径（可选，默认保存到临时目录）"
+                            },
+                            rect: {
+                                type: "object",
+                                description: "截图区域（可选，像素坐标）",
+                                properties: {
+                                    x: { type: "integer", description: "左上角X坐标" },
+                                    y: { type: "integer", description: "左上角Y坐标" },
+                                    width: { type: "integer", description: "宽度" },
+                                    height: { type: "integer", description: "高度" }
+                                }
+                            },
+                            format: {
+                                type: "string",
+                                description: "图片格式（png或jpeg，默认png）",
+                                enum: ["png", "jpeg"],
+                                default: "png"
+                            }
+                        },
+                        required: ["workspace_id"]
+                    }
                 }
             ]
         };
@@ -862,6 +904,84 @@ class WaveTerminalMCPServer extends Server {
                         };
                     } else {
                         throw new Error(`Terminal输入发送失败: ${response.status} - ${JSON.stringify(result)}`);
+                    }
+
+                case "take_screenshot":
+                    const fs = require('fs');
+                    const path = require('path');
+                    const os = require('os');
+                    
+                    // 验证必需参数
+                    if (!args.workspace_id) {
+                        throw new Error("workspace_id is required");
+                    }
+                    
+                    // 设置默认保存路径
+                    const format = args.format || 'png';
+                    const screenshotTimestamp = new Date().toISOString().replace(/[:.]/g, '-');
+                    const defaultFileName = `waveterm-screenshot-${screenshotTimestamp}.${format}`;
+                    const savePath = args.save_path || path.join(os.tmpdir(), defaultFileName);
+                    
+                    // 确保保存目录存在
+                    const saveDir = path.dirname(savePath);
+                    if (!fs.existsSync(saveDir)) {
+                        fs.mkdirSync(saveDir, { recursive: true });
+                    }
+                    
+                    try {
+                        // 构建截图API请求
+                        const screenshotPayload = {
+                            workspace_id: args.workspace_id
+                        };
+                        
+                        if (args.tab_id) {
+                            screenshotPayload.tab_id = args.tab_id;
+                        }
+                        if (args.block_id) {
+                            screenshotPayload.block_id = args.block_id;
+                        }
+                        if (args.rect) {
+                            screenshotPayload.rect = args.rect;
+                        }
+                        screenshotPayload.format = format;
+                        
+                        // 暂时实现一个模拟截图功能，生成一个简单的测试图片
+                        // 实际实现需要与Electron的截图API集成
+                        
+                        // 创建一个简单的1x1透明PNG图片
+                        const dummyPngBase64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChAI9jQNBAAAAAAElFTkSuQmCC";
+                        const buffer = Buffer.from(dummyPngBase64, 'base64');
+                        
+                        // 保存到文件
+                        fs.writeFileSync(savePath, buffer);
+                        
+                        const stats = fs.statSync(savePath);
+                        
+                        return {
+                            content: [{
+                                type: "text",
+                                text: `📸 截图功能测试版本！\n\n` +
+                                      `保存路径: ${savePath}\n` +
+                                      `文件大小: ${(stats.size / 1024).toFixed(2)} KB\n` +
+                                      `图片格式: ${format.toUpperCase()}\n` +
+                                      `工作区ID: ${args.workspace_id}\n` +
+                                      (args.tab_id ? `标签页ID: ${args.tab_id}\n` : '') +
+                                      (args.block_id ? `Widget ID: ${args.block_id}\n` : '') +
+                                      (args.rect ? `截图区域: ${args.rect.width}x${args.rect.height} at (${args.rect.x}, ${args.rect.y})\n` : '') +
+                                      `\n⚠️  当前为测试版本，生成了1x1像素的示例图片。\n` +
+                                      `💡 完整实现需要与Wave Terminal的Electron截图API集成。`
+                            }]
+                        };
+                    } catch (error) {
+                        // 如果文件已创建但出错，清理文件
+                        if (fs.existsSync(savePath)) {
+                            try {
+                                fs.unlinkSync(savePath);
+                            } catch (cleanupError) {
+                                console.error('清理临时文件失败:', cleanupError);
+                            }
+                        }
+                        throw error;
                     }
 
                 case "delete_widget":
