@@ -26,13 +26,18 @@ func isDebugMode() bool {
 }
 
 // handleWidgetAPI routes widget API requests to appropriate handlers
+// NOTE: Widget API is disabled except for MCP-related endpoints
 func handleWidgetAPI(w http.ResponseWriter, r *http.Request) {
-	
-	// TODO: Enable authentication in production
-	// if err := authkey.ValidateIncomingRequest(r); err != nil {
-	//	http.Error(w, "Unauthorized", http.StatusUnauthorized)
-	//	return
-	// }
+	// Parse URL path to determine the specific API endpoint
+	path := strings.TrimPrefix(r.URL.Path, "/api/v1/widgets")
+	pathParts := strings.Split(strings.Trim(path, "/"), "/")
+
+	// Only allow MCP-related endpoints
+	if !isMCPRelatedEndpoint(path, r.Method) {
+		w.Header().Set("Content-Type", "application/json")
+		writeErrorResponse(w, "Widget API is disabled. Use MCP tools instead: mcp__wave-terminal__*", http.StatusNotFound)
+		return
+	}
 
 	// Set Content-Type for JSON responses
 	w.Header().Set("Content-Type", "application/json")
@@ -43,11 +48,6 @@ func handleWidgetAPI(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		return
 	}
-
-	// Parse URL path to determine the specific API endpoint
-	path := strings.TrimPrefix(r.URL.Path, "/api/v1/widgets")
-	pathParts := strings.Split(strings.Trim(path, "/"), "/")
-	
 
 	ctx := r.Context()
 
@@ -134,7 +134,7 @@ func handleWidgetAPI(w http.ResponseWriter, r *http.Request) {
 
 // handleCreateWidget creates a new widget in a workspace
 func handleCreateWidget(w http.ResponseWriter, r *http.Request, ctx context.Context) {
-	
+
 	var req widgetapiservice.CreateWidgetAPIRequest
 
 	decoder := json.NewDecoder(r.Body)
@@ -143,7 +143,6 @@ func handleCreateWidget(w http.ResponseWriter, r *http.Request, ctx context.Cont
 		writeErrorResponse(w, "Invalid JSON request body", http.StatusBadRequest)
 		return
 	}
-
 
 	// Validate required fields
 	if req.WorkspaceId == "" {
@@ -165,7 +164,6 @@ func handleCreateWidget(w http.ResponseWriter, r *http.Request, ctx context.Cont
 		return
 	}
 
-	
 	// Return the response
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(response)
@@ -399,11 +397,10 @@ func handleMCPServerStatus(w http.ResponseWriter, r *http.Request, ctx context.C
 		}
 	}
 
-
 	// 获取EventBridge状态信息
 	bridgeStatus := map[string]interface{}{
-		"enabled":      wps.Bridge.IsEnabled(),
-		"remote_urls":  wps.Bridge.GetRemoteURLs(),
+		"enabled":     wps.Bridge.IsEnabled(),
+		"remote_urls": wps.Bridge.GetRemoteURLs(),
 	}
 
 	// 返回兼容两种用途的格式：
@@ -414,8 +411,8 @@ func handleMCPServerStatus(w http.ResponseWriter, r *http.Request, ctx context.C
 		"servers": servers,
 		"bridge":  bridgeStatus, // 添加Bridge状态信息
 		"status": map[string]interface{}{
-			"running": len(servers) > 0 || currentPort > 0, // 如果有连接的客户端或者服务器在运行
-			"port":    currentPort,
+			"running":        len(servers) > 0 || currentPort > 0, // 如果有连接的客户端或者服务器在运行
+			"port":           currentPort,
 			"bridge_enabled": wps.Bridge.IsEnabled(), // 在status中也添加bridge状态
 		},
 	}
@@ -464,6 +461,12 @@ func checkForClaudeCodeClient() bool {
 	cmd := exec.Command("pgrep", "-f", "claude")
 	output, err := cmd.Output()
 	if err != nil {
+		// pgrep returns exit status 1 when no processes are found, which is normal
+		// Only log actual errors (exit status > 1)
+		if exitErr, ok := err.(*exec.ExitError); ok && exitErr.ExitCode() == 1 {
+			// No Claude processes found, this is normal
+			return false
+		}
 		log.Printf("Error checking for Claude processes: %v", err)
 		return false
 	}
@@ -473,6 +476,12 @@ func checkForClaudeCodeClient() bool {
 		cmd2 := exec.Command("pgrep", "-f", "mcp-bridge")
 		output2, err2 := cmd2.Output()
 		if err2 != nil {
+			// pgrep returns exit status 1 when no processes are found, which is normal
+			// Only log actual errors (exit status > 1)
+			if exitErr, ok := err2.(*exec.ExitError); ok && exitErr.ExitCode() == 1 {
+				// No mcp-bridge processes found, this is normal
+				return false
+			}
 			log.Printf("Error checking for mcp-bridge processes: %v", err2)
 			return false
 		}
@@ -484,11 +493,28 @@ func checkForClaudeCodeClient() bool {
 	return false
 }
 
+// isMCPRelatedEndpoint checks if the endpoint is MCP-related and should remain active
+func isMCPRelatedEndpoint(path string, method string) bool {
+	// Allow MCP status and restart endpoints
+	if path == "/mcp/status" && method == "GET" {
+		return true
+	}
+	if path == "/mcp/restart" && method == "POST" {
+		return true
+	}
+
+	// Allow debugging endpoints in development mode
+	if isDebugMode() && path == "/debug/recent-events" && method == "GET" {
+		return true
+	}
+
+	return false
+}
+
 // getCurrentTimestamp returns current timestamp in milliseconds
 func getCurrentTimestamp() int64 {
 	return time.Now().UnixNano() / int64(time.Millisecond)
 }
-
 
 // handleCreateTab creates a new tab in a workspace
 func handleCreateTab(w http.ResponseWriter, r *http.Request, ctx context.Context) {
@@ -593,13 +619,13 @@ func handleGetBlockContent(w http.ResponseWriter, r *http.Request, ctx context.C
 
 	offset := int64(0)
 	size := int64(0)
-	
+
 	if offsetStr := r.URL.Query().Get("offset"); offsetStr != "" {
 		if parsedOffset, err := strconv.ParseInt(offsetStr, 10, 64); err == nil {
 			offset = parsedOffset
 		}
 	}
-	
+
 	if sizeStr := r.URL.Query().Get("size"); sizeStr != "" {
 		if parsedSize, err := strconv.ParseInt(sizeStr, 10, 64); err == nil {
 			size = parsedSize
@@ -765,7 +791,6 @@ func writeErrorResponse(w http.ResponseWriter, message string, statusCode int) {
 	json.NewEncoder(w).Encode(response)
 }
 
-
 // handleGetRecentEvents returns recent cached events for debugging widget creation issues
 func handleGetRecentEvents(w http.ResponseWriter, r *http.Request, ctx context.Context) {
 	log.Printf("Getting recent events for debugging")
@@ -791,11 +816,11 @@ func handleGetRecentEvents(w http.ResponseWriter, r *http.Request, ctx context.C
 	}
 
 	response := map[string]interface{}{
-		"success":      true,
-		"total_events": len(recentEvents),
+		"success":         true,
+		"total_events":    len(recentEvents),
 		"filtered_events": len(filteredEvents),
 		"max_age_minutes": int(maxAge.Minutes()),
-		"events":       filteredEvents,
+		"events":          filteredEvents,
 		"filters": map[string]string{
 			"source":     sourceFilter,
 			"event_type": eventFilter,
