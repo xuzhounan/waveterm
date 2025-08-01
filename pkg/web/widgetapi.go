@@ -845,6 +845,7 @@ func handleInternalScreenshot(w http.ResponseWriter, r *http.Request) {
 		BlockId     string                 `json:"block_id,omitempty"`
 		Rect        map[string]interface{} `json:"rect,omitempty"`
 		Format      string                 `json:"format,omitempty"`
+		SavePath    string                 `json:"save_path,omitempty"`
 	}
 
 	decoder := json.NewDecoder(r.Body)
@@ -854,19 +855,33 @@ func handleInternalScreenshot(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 生成一个模拟的base64截图数据（1x1像素的透明PNG）
-	// 在实际实现中，这里应该调用Electron的截图API
-	dummyPngBase64 := "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChAI9jQNBAAAAAAElFTkSuQmCC"
+	// 验证必需参数
+	if req.WorkspaceId == "" {
+		writeErrorResponse(w, "workspace_id is required", http.StatusBadRequest)
+		return
+	}
+
+	ctx := r.Context()
+	
+	// 调用截图服务
+	screenshotData, err := widgetapiservice.WidgetAPIServiceInstance.CaptureScreenshot(ctx, req.WorkspaceId, req.TabId, req.BlockId, req.Rect, req.Format, req.SavePath)
+	if err != nil {
+		log.Printf("Error capturing screenshot: %v", err)
+		writeErrorResponse(w, fmt.Sprintf("Screenshot capture failed: %s", err.Error()), http.StatusInternalServerError)
+		return
+	}
 
 	response := map[string]interface{}{
 		"success": true,
-		"data":    fmt.Sprintf("data:image/png;base64,%s", dummyPngBase64),
-		"message": "Screenshot captured successfully (mock implementation)",
+		"data":    screenshotData.Data,
+		"message": screenshotData.Message,
 		"details": map[string]interface{}{
 			"workspace_id": req.WorkspaceId,
 			"tab_id":       req.TabId,
 			"block_id":     req.BlockId,
 			"format":       req.Format,
+			"file_path":    screenshotData.FilePath,
+			"file_size":    screenshotData.FileSize,
 		},
 	}
 

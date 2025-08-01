@@ -98,6 +98,9 @@ export const UserInputService = new UserInputServiceType();
 
 // widgetapiservice.WidgetAPIService (widgetapi)
 class WidgetAPIServiceType {
+    CaptureScreenshot(arg2: string, arg3: string, arg4: string, arg5: {[key: string]: any}, arg6: string, arg7: string): Promise<ScreenshotAPIResponse> {
+        return WOS.callBackendService("widgetapi", "CaptureScreenshot", Array.from(arguments))
+    }
     CreateTab(arg2: CreateTabAPIRequest): Promise<CreateTabAPIResponse> {
         return WOS.callBackendService("widgetapi", "CreateTab", Array.from(arguments))
     }

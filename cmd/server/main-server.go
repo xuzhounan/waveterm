@@ -21,6 +21,7 @@ import (
 	"github.com/wavetermdev/waveterm/pkg/remote/conncontroller"
 	"github.com/wavetermdev/waveterm/pkg/remote/fileshare/wshfs"
 	"github.com/wavetermdev/waveterm/pkg/service"
+	"github.com/wavetermdev/waveterm/pkg/service/widgetapiservice"
 	"github.com/wavetermdev/waveterm/pkg/telemetry"
 	"github.com/wavetermdev/waveterm/pkg/telemetry/telemetrydata"
 	"github.com/wavetermdev/waveterm/pkg/util/shellutil"
@@ -357,6 +358,10 @@ func main() {
 	}
 
 	createMainWshClient()
+	
+	// Initialize screenshot event handling
+	wshserver.SetScreenshotResponseHandler(widgetapiservice.WidgetAPIServiceInstance.HandleScreenshotResponse)
+	
 	sigutil.InstallShutdownSignalHandlers(doShutdown)
 	sigutil.InstallSIGUSR1Handler()
 	startConfigWatcher()

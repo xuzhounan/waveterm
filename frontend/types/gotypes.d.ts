@@ -849,6 +849,16 @@ declare global {
         meta?: MetaType;
     };
 
+    // widgetapiservice.ScreenshotAPIResponse
+    type ScreenshotAPIResponse = {
+        success: boolean;
+        data?: string;
+        file_path?: string;
+        file_size?: number;
+        message?: string;
+        error?: string;
+    };
+
     // widgetapiservice.SendBlockInputAPIRequest
     type SendBlockInputAPIRequest = {
         block_id: string;

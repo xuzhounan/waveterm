@@ -922,16 +922,11 @@ class WaveTerminalMCPServer extends Server {
                     const defaultFileName = `waveterm-screenshot-${screenshotTimestamp}.${format}`;
                     const savePath = args.save_path || path.join(os.tmpdir(), defaultFileName);
                     
-                    // 确保保存目录存在
-                    const saveDir = path.dirname(savePath);
-                    if (!fs.existsSync(saveDir)) {
-                        fs.mkdirSync(saveDir, { recursive: true });
-                    }
-                    
                     try {
                         // 构建截图API请求
                         const screenshotPayload = {
-                            workspace_id: args.workspace_id
+                            workspace_id: args.workspace_id,
+                            save_path: savePath
                         };
                         
                         if (args.tab_id) {
@@ -945,42 +940,46 @@ class WaveTerminalMCPServer extends Server {
                         }
                         screenshotPayload.format = format;
                         
-                        // 暂时实现一个模拟截图功能，生成一个简单的测试图片
-                        // 实际实现需要与Electron的截图API集成
+                        // 调用内部截图API
+                        const screenshotResponse = await this.fetchWithConfig(`${this.waveTerminalUrl}/api/internal/screenshot`, {
+                            method: "POST",
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify(screenshotPayload)
+                        });
                         
-                        // 创建一个简单的1x1透明PNG图片
-                        const dummyPngBase64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChAI9jQNBAAAAAAElFTkSuQmCC";
-                        const buffer = Buffer.from(dummyPngBase64, 'base64');
+                        const screenshotResult = await screenshotResponse.json();
                         
-                        // 保存到文件
-                        fs.writeFileSync(savePath, buffer);
+                        if (!screenshotResponse.ok || !screenshotResult.success) {
+                            throw new Error(`截图API调用失败: ${screenshotResult.error || screenshotResponse.statusText}`);
+                        }
                         
-                        const stats = fs.statSync(savePath);
+                        let resultText = `📸 截图捕获成功！\n\n` +
+                                       `工作区ID: ${args.workspace_id}\n` +
+                                       `图片格式: ${format.toUpperCase()}\n`;
+                        
+                        if (args.tab_id) resultText += `标签页ID: ${args.tab_id}\n`;
+                        if (args.block_id) resultText += `Widget ID: ${args.block_id}\n`;
+                        if (args.rect) resultText += `截图区域: ${args.rect.width}x${args.rect.height} at (${args.rect.x}, ${args.rect.y})\n`;
+                        
+                        if (screenshotResult.details.file_path) {
+                            resultText += `保存路径: ${screenshotResult.details.file_path}\n`;
+                            if (screenshotResult.details.file_size) {
+                                resultText += `文件大小: ${(screenshotResult.details.file_size / 1024).toFixed(2)} KB\n`;
+                            }
+                        }
+                        
+                        resultText += `\n✅ ${screenshotResult.message}`;
                         
                         return {
                             content: [{
                                 type: "text",
-                                text: `📸 截图功能测试版本！\n\n` +
-                                      `保存路径: ${savePath}\n` +
-                                      `文件大小: ${(stats.size / 1024).toFixed(2)} KB\n` +
-                                      `图片格式: ${format.toUpperCase()}\n` +
-                                      `工作区ID: ${args.workspace_id}\n` +
-                                      (args.tab_id ? `标签页ID: ${args.tab_id}\n` : '') +
-                                      (args.block_id ? `Widget ID: ${args.block_id}\n` : '') +
-                                      (args.rect ? `截图区域: ${args.rect.width}x${args.rect.height} at (${args.rect.x}, ${args.rect.y})\n` : '') +
-                                      `\n⚠️  当前为测试版本，生成了1x1像素的示例图片。\n` +
-                                      `💡 完整实现需要与Wave Terminal的Electron截图API集成。`
+                                text: resultText
                             }]
                         };
+                        
                     } catch (error) {
-                        // 如果文件已创建但出错，清理文件
-                        if (fs.existsSync(savePath)) {
-                            try {
-                                fs.unlinkSync(savePath);
-                            } catch (cleanupError) {
-                                console.error('清理临时文件失败:', cleanupError);
-                            }
-                        }
                         throw error;
                     }
 

@@ -6,11 +6,16 @@ package widgetapiservice
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"log"
+	"os"
+	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/wavetermdev/waveterm/pkg/blockcontroller"
 	"github.com/wavetermdev/waveterm/pkg/filestore"
 	"github.com/wavetermdev/waveterm/pkg/service/workspaceservice"
@@ -26,6 +31,36 @@ import (
 type WidgetAPIService struct{}
 
 var WidgetAPIServiceInstance = &WidgetAPIService{}
+
+// InitScreenshotEventHandling sets up screenshot response event handling
+func InitScreenshotEventHandling() {
+	log.Printf("[Screenshot] Backend: Initializing screenshot event handling")
+	
+	// Create a subscription for screenshot:response events
+	subscriptionRequest := wps.SubscriptionRequest{
+		Event:     "screenshot:response",
+		Scopes:    []string{}, // Subscribe to all scopes
+		AllScopes: true,
+	}
+	
+	// Subscribe to the event broker
+	wps.Broker.Subscribe("screenshot-handler", subscriptionRequest)
+	
+	log.Printf("[Screenshot] Backend: Screenshot event subscription registered")
+}
+
+// ScreenshotResponse represents the response from frontend screenshot capture
+type ScreenshotResponse struct {
+	RequestID      string `json:"request_id"`
+	Success        bool   `json:"success"`
+	ScreenshotData string `json:"screenshot_data,omitempty"`
+	Format         string `json:"format,omitempty"`
+	Error          string `json:"error,omitempty"`
+}
+
+// screenshotWaitingRequests maps request IDs to response channels
+var screenshotWaitingRequests = make(map[string]chan ScreenshotResponse)
+var screenshotMutex sync.RWMutex
 
 
 // CreateWidgetAPIRequest represents the REST API request for creating a widget
@@ -1471,4 +1506,274 @@ func (ws *WidgetAPIService) DeleteWidget(ctx context.Context, blockId string, re
 		Success: true,
 		Message: fmt.Sprintf("Widget '%s' (ID: %s) deleted successfully", blockTitle, blockId),
 	}, nil
+}
+
+// ================================
+// Screenshot API Structures
+// ================================
+
+// ScreenshotAPIResponse represents the response after capturing a screenshot
+type ScreenshotAPIResponse struct {
+	Success  bool   `json:"success"`
+	Data     string `json:"data,omitempty"`     // Base64 image data with data URI prefix
+	FilePath string `json:"file_path,omitempty"` // Path where screenshot was saved (if saved to file)
+	FileSize int64  `json:"file_size,omitempty"` // Size of the saved file in bytes
+	Message  string `json:"message,omitempty"`
+	Error    string `json:"error,omitempty"`
+}
+
+// CaptureScreenshot captures a screenshot of the specified workspace, tab, or block
+func (ws *WidgetAPIService) CaptureScreenshot(ctx context.Context, workspaceId string, tabId string, blockId string, rect map[string]interface{}, format string, savePath string) (*ScreenshotAPIResponse, error) {
+	log.Printf("WidgetAPIService.CaptureScreenshot called with workspace_id=%s, tab_id=%s, block_id=%s, savePath=%s", workspaceId, tabId, blockId, savePath)
+
+	if workspaceId == "" {
+		return &ScreenshotAPIResponse{
+			Success: false,
+			Error:   "workspace_id is required",
+		}, nil
+	}
+
+	// Validate workspace exists
+	_, err := wcore.GetWorkspace(ctx, workspaceId)
+	if err != nil {
+		return &ScreenshotAPIResponse{
+			Success: false,
+			Error:   fmt.Sprintf("workspace not found: %s", err.Error()),
+		}, nil
+	}
+
+	// Validate tab if specified
+	if tabId != "" {
+		_, err := wstore.DBGet[*waveobj.Tab](ctx, tabId)
+		if err != nil {
+			return &ScreenshotAPIResponse{
+				Success: false,
+				Error:   fmt.Sprintf("tab not found: %s", err.Error()),
+			}, nil
+		}
+	}
+
+	// Validate block if specified
+	if blockId != "" {
+		_, err := wstore.DBGet[*waveobj.Block](ctx, blockId)
+		if err != nil {
+			return &ScreenshotAPIResponse{
+				Success: false,
+				Error:   fmt.Sprintf("block not found: %s", err.Error()),
+			}, nil
+		}
+	}
+
+	// Set default format
+	if format == "" {
+		format = "png"
+	}
+
+	// Try to capture a real screenshot using the frontend
+	imageData, err := ws.captureRealScreenshot(ctx, workspaceId, tabId, blockId, rect, format)
+	var message string
+	if err != nil {
+		log.Printf("[Screenshot] Backend: Failed to capture real screenshot, falling back to placeholder: %v", err)
+		// Fallback to placeholder if real screenshot fails
+		imageData, err = ws.generatePlaceholderScreenshot(workspaceId, tabId, blockId, format)
+		if err != nil {
+			log.Printf("[Screenshot] Backend: Failed to generate placeholder screenshot: %v", err)
+			return &ScreenshotAPIResponse{
+				Success: false,
+				Message: fmt.Sprintf("Screenshot capture failed: %s, and placeholder generation also failed: %s", err.Error(), err.Error()),
+			}, nil
+		}
+		message = "Screenshot captured using placeholder (real screenshot capture not available - requires running Wave Terminal frontend)"
+		log.Printf("[Screenshot] Backend: Successfully generated placeholder screenshot")
+	} else {
+		message = "Screenshot captured successfully"
+	}
+
+	response := &ScreenshotAPIResponse{
+		Success: true,
+		Data:    imageData,
+		Message: message,
+	}
+
+	// Save to file if path is specified
+	if savePath != "" {
+		log.Printf("Attempting to save screenshot to: %s", savePath)
+		err := ws.saveScreenshotToFile(imageData, savePath)
+		if err != nil {
+			log.Printf("Warning: failed to save screenshot to file %s: %v", savePath, err)
+		} else {
+			log.Printf("Successfully saved screenshot to: %s", savePath)
+			response.FilePath = savePath
+			// Get file size
+			if fileInfo, err := os.Stat(savePath); err == nil {
+				response.FileSize = fileInfo.Size()
+				log.Printf("Screenshot file size: %d bytes", response.FileSize)
+			}
+		}
+	} else {
+		log.Printf("No savePath specified, skipping file save")
+	}
+
+	return response, nil
+}
+
+// generatePlaceholderScreenshot creates a simple placeholder image with workspace information
+func (ws *WidgetAPIService) generatePlaceholderScreenshot(workspaceId string, tabId string, blockId string, format string) (string, error) {
+	// For now, return a simple 200x100 green PNG
+	// This is a valid 200x100 green PNG image in base64
+	greenPngBase64 := "iVBORw0KGgoAAAANSUhEUgAAAMgAAABkCAYAAADDhn8LAAAABHNCSVQICAgIfAhkiAAAAAlwSFlzAAAAdgAAAHYBTnsmCAAAABl0RVh0U29mdHdhcmUAd3d3Lmlua3NjYXBlLm9yZ5vuPBoAAAKBSURBVHic7doxAQAACMOwgX+dw/7PShOC5qBVqzYAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAALxjvQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAALVeQSgAEJ5zdmAAAAASUVORK5CYII="
+	
+	// For a more detailed image, we'll create text-based information
+	if format == "jpeg" {
+		// For JPEG, we could create a different placeholder or convert
+		return fmt.Sprintf("data:image/jpeg;base64,%s", greenPngBase64), nil
+	}
+	
+	return fmt.Sprintf("data:image/png;base64,%s", greenPngBase64), nil
+}
+
+// saveScreenshotToFile saves the base64 image data to a file
+func (ws *WidgetAPIService) saveScreenshotToFile(imageData string, savePath string) error {
+	// Parse the data URI to extract base64 data
+	// Format: "data:image/png;base64,..."
+	parts := strings.Split(imageData, ",")
+	if len(parts) != 2 {
+		return fmt.Errorf("invalid image data format")
+	}
+	
+	// Decode base64 data
+	imageBytes, err := base64.StdEncoding.DecodeString(parts[1])
+	if err != nil {
+		return fmt.Errorf("failed to decode base64 image data: %w", err)
+	}
+	
+	// Ensure directory exists
+	dir := filepath.Dir(savePath)
+	if dir != "" && dir != "." {
+		err = os.MkdirAll(dir, 0755)
+		if err != nil {
+			return fmt.Errorf("failed to create directory: %w", err)
+		}
+	}
+	
+	// Write file  
+	err = os.WriteFile(savePath, imageBytes, 0644)
+	if err != nil {
+		return fmt.Errorf("failed to write file: %w", err)
+	}
+	
+	return nil
+}
+
+// HandleScreenshotResponse processes screenshot response events from frontend
+func (ws *WidgetAPIService) HandleScreenshotResponse(responseData map[string]interface{}) {
+	log.Printf("[Screenshot] Backend: Received screenshot response: %+v", responseData)
+	
+	requestID, ok := responseData["request_id"].(string)
+	if !ok {
+		log.Printf("[Screenshot] Backend: Invalid or missing request_id in response: %+v", responseData)
+		return
+	}
+
+	log.Printf("[Screenshot] Backend: Processing response for request: %s", requestID)
+
+	screenshotMutex.RLock()
+	responseChan, exists := screenshotWaitingRequests[requestID]
+	screenshotMutex.RUnlock()
+
+	if !exists {
+		log.Printf("[Screenshot] Backend: No waiting request found for ID: %s (possibly expired or already processed)", requestID)
+		return
+	}
+
+	// Build response
+	response := ScreenshotResponse{
+		RequestID: requestID,
+	}
+
+	if success, ok := responseData["success"].(bool); ok {
+		response.Success = success
+	}
+
+	if screenshotData, ok := responseData["screenshot_data"].(string); ok {
+		response.ScreenshotData = screenshotData
+	}
+
+	if format, ok := responseData["format"].(string); ok {
+		response.Format = format
+	}
+
+	if errorMsg, ok := responseData["error"].(string); ok {
+		response.Error = errorMsg
+	}
+
+	log.Printf("[Screenshot] Backend: Sending response to waiting channel for request: %s", requestID)
+	
+	// Send response to waiting goroutine
+	select {
+	case responseChan <- response:
+		log.Printf("[Screenshot] Backend: Response sent successfully")
+	default:
+		log.Printf("[Screenshot] Backend: Response channel is full or closed")
+	}
+}
+
+// captureRealScreenshot captures a real screenshot using the frontend
+func (ws *WidgetAPIService) captureRealScreenshot(ctx context.Context, workspaceId string, tabId string, blockId string, rect map[string]interface{}, format string) (string, error) {
+	requestID := uuid.New().String()
+	
+	// Create response channel
+	responseChan := make(chan ScreenshotResponse, 1)
+	
+	// Register waiting request
+	screenshotMutex.Lock()
+	screenshotWaitingRequests[requestID] = responseChan
+	screenshotMutex.Unlock()
+	
+	// Cleanup function
+	defer func() {
+		screenshotMutex.Lock()
+		delete(screenshotWaitingRequests, requestID)
+		screenshotMutex.Unlock()
+		close(responseChan)
+	}()
+
+	// Create screenshot request event
+	screenshotEvent := wps.WaveEvent{
+		Event: "screenshot:request",
+		Scopes: []string{
+			fmt.Sprintf("workspace:%s", workspaceId),
+		},
+		Data: map[string]interface{}{
+			"workspace_id": workspaceId,
+			"tab_id":       tabId,
+			"block_id":     blockId,
+			"rect":         rect,
+			"format":       format,
+			"request_id":   requestID,
+		},
+	}
+
+	log.Printf("[Screenshot] Backend: Sending screenshot request event with ID: %s", requestID)
+	
+	// Publish the event to frontend
+	wps.Broker.Publish(screenshotEvent)
+	
+	// Wait for response with timeout
+	timeout := 10 * time.Second
+	select {
+	case response := <-responseChan:
+		log.Printf("[Screenshot] Backend: Received response for request: %s, success: %v", requestID, response.Success)
+		if response.Success {
+			return response.ScreenshotData, nil
+		} else {
+			return "", fmt.Errorf("screenshot capture failed: %s", response.Error)
+		}
+	case <-time.After(timeout):
+		log.Printf("[Screenshot] Backend: Timeout (%v) waiting for screenshot response for request: %s", timeout, requestID)
+		return "", fmt.Errorf("screenshot capture timeout after %v", timeout)
+	case <-ctx.Done():
+		log.Printf("[Screenshot] Backend: Context cancelled while waiting for screenshot response for request: %s", requestID)
+		return "", fmt.Errorf("screenshot capture cancelled: %v", ctx.Err())
+	}
 }

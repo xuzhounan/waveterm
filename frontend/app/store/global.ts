@@ -251,6 +251,75 @@ function initGlobalWaveEventSubs(initOpts: WaveInitOpts) {
                     fileSubject.next(fileData);
                 }
             },
+        },
+        {
+            eventType: "screenshot:request",
+            handler: async (event) => {
+                console.log("[Screenshot] Frontend: Received screenshot request", event);
+                try {
+                    const requestData = event.data;
+                    const { workspace_id, tab_id, block_id, rect, format, request_id } = requestData;
+                    
+                    // Determine screenshot rectangle
+                    let screenshotRect = null;
+                    if (rect && typeof rect === 'object') {
+                        screenshotRect = {
+                            x: rect.x || 0,
+                            y: rect.y || 0,
+                            width: rect.width || 1024,
+                            height: rect.height || 768
+                        };
+                    }
+                    
+                    console.log("[Screenshot] Frontend: Capturing screenshot with rect:", screenshotRect);
+                    
+                    // Capture screenshot using Electron API
+                    const screenshotDataUri = await getApi().captureScreenshot(screenshotRect);
+                    
+                    console.log("[Screenshot] Frontend: Screenshot captured, sending response");
+                    
+                    // Send response event back to backend
+                    const responseEvent: WaveEvent = {
+                        event: "screenshot:response",
+                        scopes: event.scopes, // Use same scopes as request
+                        data: {
+                            request_id: request_id,
+                            success: true,
+                            screenshot_data: screenshotDataUri,
+                            format: format || 'png'
+                        }
+                    };
+                    
+                    // Send the response event via WebSocket
+                    import("./ws").then(ws => {
+                        ws.sendRawRpcMessage({
+                            command: "eventpub",
+                            data: responseEvent
+                        });
+                    });
+                    
+                } catch (error) {
+                    console.error("[Screenshot] Frontend: Error capturing screenshot:", error);
+                    
+                    // Send error response
+                    const errorEvent: WaveEvent = {
+                        event: "screenshot:response", 
+                        scopes: event.scopes,
+                        data: {
+                            request_id: event.data.request_id,
+                            success: false,
+                            error: error.message || "Unknown error occurred"
+                        }
+                    };
+                    
+                    import("./ws").then(ws => {
+                        ws.sendRawRpcMessage({
+                            command: "eventpub",
+                            data: errorEvent
+                        });
+                    });
+                }
+            },
         }
     );
 }

@@ -50,6 +50,17 @@ import (
 	"github.com/wavetermdev/waveterm/pkg/wstore"
 )
 
+// Global handler function for screenshot responses to avoid circular imports
+var handleScreenshotResponse func(map[string]interface{}) = func(data map[string]interface{}) {
+	log.Printf("[Screenshot] Backend: Screenshot response handler not set, data: %+v", data)
+}
+
+// SetScreenshotResponseHandler allows other packages to set the screenshot response handler
+func SetScreenshotResponseHandler(handler func(map[string]interface{})) {
+	handleScreenshotResponse = handler
+	log.Printf("[Screenshot] Backend: Screenshot response handler registered")
+}
+
 var InvalidWslDistroNames = []string{"docker-desktop", "docker-desktop-data"}
 
 type WshServer struct{}
@@ -496,6 +507,22 @@ func (ws *WshServer) EventPublishCommand(ctx context.Context, data wps.WaveEvent
 	if data.Sender == "" {
 		data.Sender = rpcSource
 	}
+	
+	// Handle screenshot response events specially
+	if data.Event == "screenshot:response" {
+		log.Printf("[Screenshot] Backend: Received screenshot response event from frontend")
+		// Import the service and handle the response
+		// We need to import the service package here
+		if responseData, ok := data.Data.(map[string]interface{}); ok {
+			// Call the screenshot response handler
+			go func() {
+				// Import dynamically to avoid circular dependencies
+				// or we can expose the handler through a package variable
+				handleScreenshotResponse(responseData)
+			}()
+		}
+	}
+	
 	wps.Broker.Publish(data)
 	return nil
 }
