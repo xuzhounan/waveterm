@@ -146,6 +146,12 @@
         "preview:showhiddenfiles": {
           "type": "boolean"
         },
+        "screenshot:*": {
+          "type": "boolean"
+        },
+        "screenshot:directory": {
+          "type": "string"
+        },
         "tab:preset": {
           "type": "string"
         },

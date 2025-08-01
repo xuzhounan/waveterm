@@ -61,6 +61,9 @@ const (
 
 	ConfigKey_PreviewShowHiddenFiles         = "preview:showhiddenfiles"
 
+	ConfigKey_ScreenshotClear                = "screenshot:*"
+	ConfigKey_ScreenshotDirectory            = "screenshot:directory"
+
 	ConfigKey_TabPreset                      = "tab:preset"
 
 	ConfigKey_WidgetClear                    = "widget:*"

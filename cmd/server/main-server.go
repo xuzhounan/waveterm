@@ -360,7 +360,13 @@ func main() {
 	createMainWshClient()
 	
 	// Initialize screenshot event handling
-	wshserver.SetScreenshotResponseHandler(widgetapiservice.WidgetAPIServiceInstance.HandleScreenshotResponse)
+	wshserver.SetScreenshotResponseHandler(func(responseData map[string]interface{}) {
+		err := widgetapiservice.WidgetAPIServiceInstance.HandleScreenshotResponse(responseData)
+		if err != nil {
+			log.Printf("[Screenshot] Error handling screenshot response: %v", err)
+		}
+	})
+	widgetapiservice.InitScreenshotEventHandling()
 	
 	sigutil.InstallShutdownSignalHandlers(doShutdown)
 	sigutil.InstallSIGUSR1Handler()

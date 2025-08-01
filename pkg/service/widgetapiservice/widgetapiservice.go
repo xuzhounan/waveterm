@@ -1710,13 +1710,13 @@ func (ws *WidgetAPIService) saveScreenshotToFile(imageData string, savePath stri
 }
 
 // HandleScreenshotResponse processes screenshot response events from frontend
-func (ws *WidgetAPIService) HandleScreenshotResponse(responseData map[string]interface{}) {
+func (ws *WidgetAPIService) HandleScreenshotResponse(responseData map[string]interface{}) error {
 	log.Printf("[Screenshot] Backend: Received screenshot response: %+v", responseData)
 	
 	requestID, ok := responseData["request_id"].(string)
 	if !ok {
 		log.Printf("[Screenshot] Backend: Invalid or missing request_id in response: %+v", responseData)
-		return
+		return fmt.Errorf("invalid or missing request_id in response")
 	}
 
 	log.Printf("[Screenshot] Backend: Processing response for request: %s", requestID)
@@ -1727,7 +1727,7 @@ func (ws *WidgetAPIService) HandleScreenshotResponse(responseData map[string]int
 
 	if !exists {
 		log.Printf("[Screenshot] Backend: No waiting request found for ID: %s (possibly expired or already processed)", requestID)
-		return
+		return fmt.Errorf("no waiting request found for ID: %s", requestID)
 	}
 
 	// Build response
@@ -1760,6 +1760,7 @@ func (ws *WidgetAPIService) HandleScreenshotResponse(responseData map[string]int
 	default:
 		log.Printf("[Screenshot] Backend: Response channel is full or closed")
 	}
+	return nil
 }
 
 // captureRealScreenshot captures a real screenshot using the frontend

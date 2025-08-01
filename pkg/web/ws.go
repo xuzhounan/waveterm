@@ -155,7 +155,7 @@ func processMessage(jmsg map[string]any, outputCh chan any, rpcInputCh chan []by
 
 func ReadLoop(conn *websocket.Conn, outputCh chan any, closeCh chan any, rpcInputCh chan []byte, routeId string) {
 	readWait := wsReadWaitTimeout
-	conn.SetReadLimit(64 * 1024)
+	conn.SetReadLimit(5 * 1024 * 1024) // 5MB for large messages like screenshots
 	conn.SetReadDeadline(time.Now().Add(readWait))
 	defer close(closeCh)
 	for {
