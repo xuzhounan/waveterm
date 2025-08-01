@@ -62,6 +62,41 @@ type ScreenshotResponse struct {
 var screenshotWaitingRequests = make(map[string]chan ScreenshotResponse)
 var screenshotMutex sync.RWMutex
 
+// getScreenshotDirectory returns the configured screenshot directory or default
+func getScreenshotDirectory() string {
+	watcher := wconfig.GetWatcher()
+	if watcher != nil {
+		fullConfig := watcher.GetFullConfig()
+		if fullConfig.Settings.ScreenshotDirectory != "" {
+			return fullConfig.Settings.ScreenshotDirectory
+		}
+	}
+	// Default directory - use user's Downloads folder
+	return "/Users/xzn/Downloads"
+}
+
+// ensureScreenshotDirectoryConfig ensures screenshot directory is written to config
+func ensureScreenshotDirectoryConfig() error {
+	watcher := wconfig.GetWatcher()
+	if watcher != nil {
+		fullConfig := watcher.GetFullConfig()
+		if fullConfig.Settings.ScreenshotDirectory == "" {
+			// Set default directory in config
+			defaultDir := "/Users/xzn/Downloads"
+			configToMerge := waveobj.MetaMapType{
+				"screenshot:directory": defaultDir,
+			}
+			err := wconfig.SetBaseConfigValue(configToMerge)
+			if err != nil {
+				log.Printf("[Screenshot] Failed to set default directory in config: %v", err)
+				return err
+			}
+			log.Printf("[Screenshot] Set default screenshot directory in config: %s", defaultDir)
+		}
+	}
+	return nil
+}
+
 
 // CreateWidgetAPIRequest represents the REST API request for creating a widget
 type CreateWidgetAPIRequest struct {
@@ -1526,6 +1561,12 @@ type ScreenshotAPIResponse struct {
 func (ws *WidgetAPIService) CaptureScreenshot(ctx context.Context, workspaceId string, tabId string, blockId string, rect map[string]interface{}, format string, savePath string) (*ScreenshotAPIResponse, error) {
 	log.Printf("WidgetAPIService.CaptureScreenshot called with workspace_id=%s, tab_id=%s, block_id=%s, savePath=%s", workspaceId, tabId, blockId, savePath)
 
+	// Ensure screenshot directory configuration exists
+	err := ensureScreenshotDirectoryConfig()
+	if err != nil {
+		log.Printf("[Screenshot] Warning: Failed to ensure screenshot directory config: %v", err)
+	}
+
 	if workspaceId == "" {
 		return &ScreenshotAPIResponse{
 			Success: false,
@@ -1534,7 +1575,7 @@ func (ws *WidgetAPIService) CaptureScreenshot(ctx context.Context, workspaceId s
 	}
 
 	// Validate workspace exists
-	_, err := wcore.GetWorkspace(ctx, workspaceId)
+	_, err = wcore.GetWorkspace(ctx, workspaceId)
 	if err != nil {
 		return &ScreenshotAPIResponse{
 			Success: false,
@@ -1571,23 +1612,15 @@ func (ws *WidgetAPIService) CaptureScreenshot(ctx context.Context, workspaceId s
 
 	// Try to capture a real screenshot using the frontend
 	imageData, err := ws.captureRealScreenshot(ctx, workspaceId, tabId, blockId, rect, format)
-	var message string
 	if err != nil {
-		log.Printf("[Screenshot] Backend: Failed to capture real screenshot, falling back to placeholder: %v", err)
-		// Fallback to placeholder if real screenshot fails
-		imageData, err = ws.generatePlaceholderScreenshot(workspaceId, tabId, blockId, format)
-		if err != nil {
-			log.Printf("[Screenshot] Backend: Failed to generate placeholder screenshot: %v", err)
-			return &ScreenshotAPIResponse{
-				Success: false,
-				Message: fmt.Sprintf("Screenshot capture failed: %s, and placeholder generation also failed: %s", err.Error(), err.Error()),
-			}, nil
-		}
-		message = "Screenshot captured using placeholder (real screenshot capture not available - requires running Wave Terminal frontend)"
-		log.Printf("[Screenshot] Backend: Successfully generated placeholder screenshot")
-	} else {
-		message = "Screenshot captured successfully"
+		log.Printf("[Screenshot] Backend: Failed to capture real screenshot: %v", err)
+		return &ScreenshotAPIResponse{
+			Success: false,
+			Error:   fmt.Sprintf("Screenshot capture failed: %s", err.Error()),
+		}, nil
 	}
+	
+	message := "Screenshot captured successfully"
 
 	response := &ScreenshotAPIResponse{
 		Success: true,
@@ -1595,23 +1628,34 @@ func (ws *WidgetAPIService) CaptureScreenshot(ctx context.Context, workspaceId s
 		Message: message,
 	}
 
-	// Save to file if path is specified
+	// Determine save path - use provided path or generate default
+	var actualSavePath string
 	if savePath != "" {
-		log.Printf("Attempting to save screenshot to: %s", savePath)
-		err := ws.saveScreenshotToFile(imageData, savePath)
-		if err != nil {
-			log.Printf("Warning: failed to save screenshot to file %s: %v", savePath, err)
-		} else {
-			log.Printf("Successfully saved screenshot to: %s", savePath)
-			response.FilePath = savePath
-			// Get file size
-			if fileInfo, err := os.Stat(savePath); err == nil {
-				response.FileSize = fileInfo.Size()
-				log.Printf("Screenshot file size: %d bytes", response.FileSize)
-			}
-		}
+		actualSavePath = savePath
 	} else {
-		log.Printf("No savePath specified, skipping file save")
+		// Generate default filename in configured directory
+		screenshotDir := getScreenshotDirectory()
+		timestamp := time.Now().Format("2006-01-02_15-04-05")
+		filename := fmt.Sprintf("waveterm-screenshot_%s.%s", timestamp, format)
+		actualSavePath = filepath.Join(screenshotDir, filename)
+		log.Printf("[Screenshot] Using default save path: %s", actualSavePath)
+	}
+
+	// Always save to file (either specified path or default path)
+	log.Printf("[Screenshot] Saving screenshot to: %s", actualSavePath)
+	err = ws.saveScreenshotToFile(imageData, actualSavePath)
+	if err != nil {
+		log.Printf("[Screenshot] Failed to save screenshot to file %s: %v", actualSavePath, err)
+		// Don't return error, just log warning - data is still returned
+		response.Message = fmt.Sprintf("Screenshot captured successfully, but failed to save to file: %v", err)
+	} else {
+		log.Printf("[Screenshot] Successfully saved screenshot to: %s", actualSavePath)
+		response.FilePath = actualSavePath
+		// Get file size
+		if fileInfo, err := os.Stat(actualSavePath); err == nil {
+			response.FileSize = fileInfo.Size()
+			log.Printf("[Screenshot] Screenshot file size: %d bytes", response.FileSize)
+		}
 	}
 
 	return response, nil

@@ -925,8 +925,7 @@ class WaveTerminalMCPServer extends Server {
                     try {
                         // 构建截图API请求
                         const screenshotPayload = {
-                            workspace_id: args.workspace_id,
-                            save_path: savePath
+                            workspace_id: args.workspace_id
                         };
                         
                         if (args.tab_id) {
@@ -951,8 +950,12 @@ class WaveTerminalMCPServer extends Server {
                         
                         const screenshotResult = await screenshotResponse.json();
                         
-                        if (!screenshotResponse.ok || !screenshotResult.success) {
-                            throw new Error(`截图API调用失败: ${screenshotResult.error || screenshotResponse.statusText}`);
+                        if (!screenshotResponse.ok) {
+                            throw new Error(`截图API请求失败: ${screenshotResponse.status} ${screenshotResponse.statusText}`);
+                        }
+                        
+                        if (!screenshotResult.success) {
+                            throw new Error(`截图捕获失败: ${screenshotResult.error || '未知错误'}`);
                         }
                         
                         let resultText = `📸 截图捕获成功！\n\n` +
@@ -968,6 +971,8 @@ class WaveTerminalMCPServer extends Server {
                             if (screenshotResult.details.file_size) {
                                 resultText += `文件大小: ${(screenshotResult.details.file_size / 1024).toFixed(2)} KB\n`;
                             }
+                        } else {
+                            resultText += `⚠️ 图片数据已返回但文件保存失败\n`;
                         }
                         
                         resultText += `\n✅ ${screenshotResult.message}`;
