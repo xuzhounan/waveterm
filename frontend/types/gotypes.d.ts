@@ -943,6 +943,8 @@ declare global {
         "markdown:fontsize"?: number;
         "markdown:fixedfontsize"?: number;
         "preview:showhiddenfiles"?: boolean;
+        "screenshot:*"?: boolean;
+        "screenshot:directory"?: string;
         "tab:preset"?: string;
         "widget:*"?: boolean;
         "widget:showhelp"?: boolean;
