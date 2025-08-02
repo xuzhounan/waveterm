@@ -258,25 +258,64 @@ function initGlobalWaveEventSubs(initOpts: WaveInitOpts) {
                 console.log("[Screenshot] Frontend: Received screenshot request", event);
                 try {
                     const requestData = event.data;
-                    const { workspace_id, tab_id, block_id, rect, format, request_id } = requestData;
+                    const { workspace_id, tab_id, block_id, rect, format, request_id, capture_mode, ensure_visible } = requestData;
                     
-                    // Determine screenshot rectangle
-                    let screenshotRect = null;
-                    if (rect && typeof rect === 'object') {
+                    // Determine screenshot rectangle based on request type
+                    let screenshotRect = undefined;
+                    
+                    console.log("[Screenshot] Frontend: Request details - workspace_id:", workspace_id, "tab_id:", tab_id, "block_id:", block_id, "rect:", rect);
+                    console.log("[Screenshot] Frontend: Capture mode:", capture_mode, "ensure_visible:", ensure_visible);
+                    
+                    if (rect && typeof rect === 'object' && rect.width > 0 && rect.height > 0) {
+                        // Use specified rectangle
                         screenshotRect = {
                             x: rect.x || 0,
                             y: rect.y || 0,
-                            width: rect.width || 1024,
-                            height: rect.height || 768
+                            width: rect.width,
+                            height: rect.height
                         };
+                        console.log("[Screenshot] Frontend: Using specific rect:", screenshotRect);
+                    } else if (block_id) {
+                        // For block-specific screenshots, try to find the block element
+                        const blockElement = document.querySelector(`[data-blockid="${block_id}"]`);
+                        if (blockElement) {
+                            const blockRect = blockElement.getBoundingClientRect();
+                            screenshotRect = {
+                                x: Math.round(blockRect.x),
+                                y: Math.round(blockRect.y),
+                                width: Math.round(blockRect.width),
+                                height: Math.round(blockRect.height)
+                            };
+                            console.log("[Screenshot] Frontend: Found block element, using its bounds:", screenshotRect);
+                        } else {
+                            console.log("[Screenshot] Frontend: Block element not found, capturing full page");
+                        }
+                    } else if (tab_id) {
+                        // Tab-specific screenshot - capture entire page
+                        console.log("[Screenshot] Frontend: Tab-specific screenshot requested, capturing full page"); 
+                    } else {
+                        // Workspace-level screenshot - capture entire page
+                        console.log("[Screenshot] Frontend: Workspace-level screenshot requested, capturing full page");
                     }
                     
-                    console.log("[Screenshot] Frontend: Capturing screenshot with rect:", screenshotRect);
+                    // If ensure_visible is true, wait a bit more for content to stabilize
+                    if (ensure_visible) {
+                        console.log("[Screenshot] Frontend: Ensuring content is visible, waiting...");
+                        await new Promise(resolve => setTimeout(resolve, 300));
+                    }
                     
                     // Capture screenshot using Electron API
                     const screenshotDataUri = await getApi().captureScreenshot(screenshotRect);
                     
-                    console.log("[Screenshot] Frontend: Screenshot captured, sending response");
+                    console.log("[Screenshot] Frontend: Screenshot captured, data length:", screenshotDataUri?.length || 0);
+                    console.log("[Screenshot] Frontend: Data URI prefix:", screenshotDataUri?.substring(0, 50) || "null");
+                    
+                    // Validate the screenshot data
+                    if (!screenshotDataUri || screenshotDataUri.length < 100) {
+                        throw new Error("Screenshot capture produced empty or invalid data");
+                    }
+                    
+                    console.log("[Screenshot] Frontend: Sending response");
                     
                     // Send response event back to backend
                     const responseEvent: WaveEvent = {
@@ -286,7 +325,8 @@ function initGlobalWaveEventSubs(initOpts: WaveInitOpts) {
                             request_id: request_id,
                             success: true,
                             screenshot_data: screenshotDataUri,
-                            format: format || 'png'
+                            format: format || 'png',
+                            capture_method: capture_mode || 'default'
                         }
                     };
                     

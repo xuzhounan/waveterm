@@ -266,8 +266,94 @@ electron.ipcMain.handle("capture-screenshot", async (event, rect) => {
     if (!tabView) {
         throw new Error("No tab view found for the given webContents id");
     }
-    const image = await tabView.webContents.capturePage(rect);
+    
+    console.log("[Screenshot] Main: Capturing with rect:", rect);
+    console.log("[Screenshot] Main: TabView details - isActiveTab:", tabView.isActiveTab, "waveWindowId:", tabView.waveWindowId);
+    
+    // Get the parent window that contains this tab view
+    const waveWindow = getWaveWindowById(tabView.waveWindowId);
+    if (!waveWindow) {
+        throw new Error("No wave window found for the tab view");
+    }
+    
+    console.log("[Screenshot] Main: Found wave window, capturing window content");
+    
+    // Check if the webContents is ready and visible
+    const webContents = tabView.webContents;
+    console.log("[Screenshot] Main: WebContents state - isLoading:", webContents.isLoading(), "isDestroyed:", webContents.isDestroyed());
+    console.log("[Screenshot] Main: TabView bounds:", tabView.getBounds());
+    console.log("[Screenshot] Main: TabView isOnScreen:", tabView.isOnScreen());
+    
+    // Ensure the tab is active and visible before capturing
+    if (!tabView.isActiveTab || !tabView.isOnScreen()) {
+        console.log("[Screenshot] Main: Tab is not active or not on screen, cannot capture meaningful content");
+        // For now, still try to capture but warn
+    }
+    
+    // Wait a moment for any pending renders
+    await new Promise(resolve => setTimeout(resolve, 200));
+    
+    // Try multiple capture approaches
+    let image;
+    let captureSource = "unknown";
+    
+    try {
+        // Method 1: Try capturing the main window (most reliable for visible content)
+        console.log("[Screenshot] Main: Attempting to capture main window");
+        image = await waveWindow.capturePage();
+        captureSource = "main-window";
+        console.log("[Screenshot] Main: Successfully captured main window");
+    } catch (windowError) {
+        console.log("[Screenshot] Main: Main window capture failed:", windowError.message);
+        
+        try {
+            // Method 2: Fallback to WebContents capture with full page
+            console.log("[Screenshot] Main: Attempting WebContents full page capture");
+            image = await webContents.capturePage();
+            captureSource = "webcontents-fullpage";
+            console.log("[Screenshot] Main: Successfully captured WebContents full page");
+        } catch (fullPageError) {
+            console.log("[Screenshot] Main: WebContents full page capture failed:", fullPageError.message);
+            
+            // Method 3: Try WebContents with specific rect if provided
+            if (rect && rect.width > 0 && rect.height > 0) {
+                console.log("[Screenshot] Main: Attempting WebContents with specific rect:", rect);
+                image = await webContents.capturePage(rect);
+                captureSource = "webcontents-rect";
+                console.log("[Screenshot] Main: Successfully captured WebContents with rect");
+            } else {
+                throw new Error("All capture methods failed");
+            }
+        }
+    }
+    
+    const imageSize = image.getSize();
     const base64String = image.toPNG().toString("base64");
+    
+    console.log("[Screenshot] Main: Successfully captured image using:", captureSource);
+    console.log("[Screenshot] Main: Image size:", imageSize);
+    console.log("[Screenshot] Main: Base64 data length:", base64String.length);
+    
+    // Check if image is likely empty (very small file size suggests blank image)
+    if (base64String.length < 2000) {
+        console.log("[Screenshot] Main: WARNING - Image appears to be very small/blank, trying alternative approach");
+        
+        // Alternative: Try capturing the native window
+        try {
+            console.log("[Screenshot] Main: Attempting native window capture as fallback");
+            const nativeImage = await waveWindow.capturePage();
+            const altSize = nativeImage.getSize();
+            const altBase64 = nativeImage.toPNG().toString("base64");
+            
+            if (altBase64.length > base64String.length) {
+                console.log("[Screenshot] Main: Native window capture produced larger image, using it instead");
+                return `data:image/png;base64,${altBase64}`;
+            }
+        } catch (altError) {
+            console.log("[Screenshot] Main: Alternative capture also failed:", altError.message);
+        }
+    }
+    
     return `data:image/png;base64,${base64String}`;
 });
 

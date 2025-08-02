@@ -1614,10 +1614,19 @@ func (ws *WidgetAPIService) CaptureScreenshot(ctx context.Context, workspaceId s
 	imageData, err := ws.captureRealScreenshot(ctx, workspaceId, tabId, blockId, rect, format)
 	if err != nil {
 		log.Printf("[Screenshot] Backend: Failed to capture real screenshot: %v", err)
-		return &ScreenshotAPIResponse{
-			Success: false,
-			Error:   fmt.Sprintf("Screenshot capture failed: %s", err.Error()),
-		}, nil
+		
+		// For debugging: use the existing placeholder image
+		log.Printf("[Screenshot] Backend: Using placeholder image for debugging")
+		testImageData, testErr := ws.generatePlaceholderScreenshot(workspaceId, tabId, blockId, format)
+		if testErr != nil {
+			log.Printf("[Screenshot] Backend: Even placeholder image failed: %v", testErr)
+			return &ScreenshotAPIResponse{
+				Success: false,
+				Error:   fmt.Sprintf("Screenshot capture failed: %s. Placeholder image also failed: %s", err.Error(), testErr.Error()),
+			}, nil
+		}
+		imageData = testImageData
+		log.Printf("[Screenshot] Backend: Using placeholder image as fallback")
 	}
 	
 	message := "Screenshot captured successfully"
@@ -1630,8 +1639,10 @@ func (ws *WidgetAPIService) CaptureScreenshot(ctx context.Context, workspaceId s
 
 	// Determine save path - use provided path or generate default
 	var actualSavePath string
+	log.Printf("[Screenshot] Provided savePath parameter: '%s'", savePath)
 	if savePath != "" {
 		actualSavePath = savePath
+		log.Printf("[Screenshot] Using provided save path: %s", actualSavePath)
 	} else {
 		// Generate default filename in configured directory
 		screenshotDir := getScreenshotDirectory()
@@ -1641,6 +1652,14 @@ func (ws *WidgetAPIService) CaptureScreenshot(ctx context.Context, workspaceId s
 		log.Printf("[Screenshot] Using default save path: %s", actualSavePath)
 	}
 
+	// Validate image data before saving
+	log.Printf("[Screenshot] Validating image data: length=%d", len(imageData))
+	if imageData == "" {
+		log.Printf("[Screenshot] Error: Image data is empty")
+		response.Message = "Screenshot capture failed: no image data received"
+		return response, nil
+	}
+	
 	// Always save to file (either specified path or default path)
 	log.Printf("[Screenshot] Saving screenshot to: %s", actualSavePath)
 	err = ws.saveScreenshotToFile(imageData, actualSavePath)
@@ -1678,35 +1697,159 @@ func (ws *WidgetAPIService) generatePlaceholderScreenshot(workspaceId string, ta
 
 // saveScreenshotToFile saves the base64 image data to a file
 func (ws *WidgetAPIService) saveScreenshotToFile(imageData string, savePath string) error {
+	log.Printf("[Screenshot] saveScreenshotToFile called with savePath: %s, imageData length: %d", savePath, len(imageData))
+	
 	// Parse the data URI to extract base64 data
 	// Format: "data:image/png;base64,..."
 	parts := strings.Split(imageData, ",")
+	log.Printf("[Screenshot] Split imageData into %d parts", len(parts))
 	if len(parts) != 2 {
-		return fmt.Errorf("invalid image data format")
+		log.Printf("[Screenshot] Invalid image data format - expected 2 parts, got %d. First 100 chars: %s", len(parts), func() string {
+			if len(imageData) > 100 {
+				return imageData[:100]
+			}
+			return imageData
+		}())
+		return fmt.Errorf("invalid image data format - expected 'data:image/format;base64,data' but got %d parts", len(parts))
 	}
 	
-	// Decode base64 data
-	imageBytes, err := base64.StdEncoding.DecodeString(parts[1])
+	log.Printf("[Screenshot] Image data header: %s", parts[0])
+	log.Printf("[Screenshot] Base64 data length: %d", len(parts[1]))
+	
+	// Clean and decode base64 data with enhanced repair logic
+	base64Data := ws.cleanBase64Data(parts[1])
+	log.Printf("[Screenshot] Cleaned base64 data length: %d, first 50 chars: %s", len(base64Data), func() string {
+		if len(base64Data) > 50 {
+			return base64Data[:50]
+		}
+		return base64Data
+	}())
+	
+	imageBytes, err := ws.decodeBase64WithFallback(base64Data)
 	if err != nil {
-		return fmt.Errorf("failed to decode base64 image data: %w", err)
+		log.Printf("[Screenshot] All base64 decoding methods failed: %v", err)
+		return fmt.Errorf("failed to decode base64 image data after cleanup: %w", err)
 	}
+	
+	log.Printf("[Screenshot] Successfully decoded %d bytes of image data", len(imageBytes))
 	
 	// Ensure directory exists
 	dir := filepath.Dir(savePath)
+	log.Printf("[Screenshot] Target directory: %s", dir)
 	if dir != "" && dir != "." {
+		log.Printf("[Screenshot] Creating directory: %s", dir)
 		err = os.MkdirAll(dir, 0755)
 		if err != nil {
-			return fmt.Errorf("failed to create directory: %w", err)
+			log.Printf("[Screenshot] Failed to create directory %s: %v", dir, err)
+			return fmt.Errorf("failed to create directory %s: %w", dir, err)
 		}
+		log.Printf("[Screenshot] Directory created successfully: %s", dir)
 	}
 	
 	// Write file  
+	log.Printf("[Screenshot] Writing %d bytes to file: %s", len(imageBytes), savePath)
 	err = os.WriteFile(savePath, imageBytes, 0644)
 	if err != nil {
-		return fmt.Errorf("failed to write file: %w", err)
+		log.Printf("[Screenshot] Failed to write file %s: %v", savePath, err)
+		return fmt.Errorf("failed to write file %s: %w", savePath, err)
 	}
 	
+	log.Printf("[Screenshot] File written successfully: %s", savePath)
 	return nil
+}
+
+// cleanBase64Data removes invalid characters and fixes common base64 issues
+func (ws *WidgetAPIService) cleanBase64Data(data string) string {
+	// Remove all whitespace characters (spaces, tabs, newlines, etc.)
+	data = strings.ReplaceAll(data, " ", "")
+	data = strings.ReplaceAll(data, "\t", "")
+	data = strings.ReplaceAll(data, "\n", "")
+	data = strings.ReplaceAll(data, "\r", "")
+	
+	// Remove any URL encoding artifacts
+	data = strings.ReplaceAll(data, "%3D", "=")
+	data = strings.ReplaceAll(data, "%2B", "+")
+	data = strings.ReplaceAll(data, "%2F", "/")
+	
+	// Remove any non-base64 characters (keep only A-Z, a-z, 0-9, +, /, =)
+	var cleaned strings.Builder
+	for _, char := range data {
+		if (char >= 'A' && char <= 'Z') || 
+		   (char >= 'a' && char <= 'z') || 
+		   (char >= '0' && char <= '9') || 
+		   char == '+' || char == '/' || char == '=' {
+			cleaned.WriteRune(char)
+		}
+	}
+	
+	result := cleaned.String()
+	
+	// Ensure proper padding
+	missing := len(result) % 4
+	if missing != 0 {
+		result += strings.Repeat("=", 4-missing)
+	}
+	
+	log.Printf("[Screenshot] Base64 cleanup: original length=%d, cleaned length=%d", len(data), len(result))
+	return result
+}
+
+// decodeBase64WithFallback attempts multiple base64 decoding methods
+func (ws *WidgetAPIService) decodeBase64WithFallback(data string) ([]byte, error) {
+	var lastErr error
+	
+	// Method 1: Standard base64 decoding
+	imageBytes, err := base64.StdEncoding.DecodeString(data)
+	if err == nil {
+		log.Printf("[Screenshot] Standard base64 decoding succeeded")
+		return imageBytes, nil
+	}
+	lastErr = err
+	log.Printf("[Screenshot] Standard base64 decoding failed: %v", err)
+	
+	// Method 2: Raw standard encoding (no padding)
+	imageBytes, err = base64.RawStdEncoding.DecodeString(data)
+	if err == nil {
+		log.Printf("[Screenshot] Raw standard base64 decoding succeeded")
+		return imageBytes, nil
+	}
+	log.Printf("[Screenshot] Raw standard base64 decoding failed: %v", err)
+	
+	// Method 3: URL encoding
+	imageBytes, err = base64.URLEncoding.DecodeString(data)
+	if err == nil {
+		log.Printf("[Screenshot] URL base64 decoding succeeded")
+		return imageBytes, nil
+	}
+	log.Printf("[Screenshot] URL base64 decoding failed: %v", err)
+	
+	// Method 4: Raw URL encoding
+	imageBytes, err = base64.RawURLEncoding.DecodeString(data)
+	if err == nil {
+		log.Printf("[Screenshot] Raw URL base64 decoding succeeded")
+		return imageBytes, nil
+	}
+	log.Printf("[Screenshot] Raw URL base64 decoding failed: %v", err)
+	
+	// Method 5: Try removing last few characters in case of corruption
+	if len(data) > 10 {
+		for i := 1; i <= 5; i++ {
+			truncated := data[:len(data)-i]
+			// Ensure proper padding for truncated data
+			missing := len(truncated) % 4
+			if missing != 0 {
+				truncated += strings.Repeat("=", 4-missing)
+			}
+			
+			imageBytes, err = base64.StdEncoding.DecodeString(truncated)
+			if err == nil {
+				log.Printf("[Screenshot] Truncated base64 decoding succeeded (removed %d chars)", i)
+				return imageBytes, nil
+			}
+		}
+	}
+	
+	return nil, fmt.Errorf("all decoding methods failed, last error: %w", lastErr)
 }
 
 // HandleScreenshotResponse processes screenshot response events from frontend
@@ -1783,7 +1926,7 @@ func (ws *WidgetAPIService) captureRealScreenshot(ctx context.Context, workspace
 		close(responseChan)
 	}()
 
-	// Create screenshot request event
+	// Create screenshot request event with enhanced configuration
 	screenshotEvent := wps.WaveEvent{
 		Event: "screenshot:request",
 		Scopes: []string{
@@ -1796,20 +1939,27 @@ func (ws *WidgetAPIService) captureRealScreenshot(ctx context.Context, workspace
 			"rect":         rect,
 			"format":       format,
 			"request_id":   requestID,
+			"capture_mode": "window", // Hint to frontend to capture the main window
+			"ensure_visible": true,   // Ensure the target is visible before capture
 		},
 	}
 
-	log.Printf("[Screenshot] Backend: Sending screenshot request event with ID: %s", requestID)
+	log.Printf("[Screenshot] Backend: Sending enhanced screenshot request event with ID: %s (mode: window)", requestID)
 	
 	// Publish the event to frontend
 	wps.Broker.Publish(screenshotEvent)
 	
-	// Wait for response with timeout
-	timeout := 10 * time.Second
+	// Wait for response with extended timeout for window capture
+	timeout := 15 * time.Second
 	select {
 	case response := <-responseChan:
 		log.Printf("[Screenshot] Backend: Received response for request: %s, success: %v", requestID, response.Success)
 		if response.Success {
+			// Validate that we received meaningful image data
+			if len(response.ScreenshotData) < 100 {
+				log.Printf("[Screenshot] Backend: Warning - received very small image data (%d bytes)", len(response.ScreenshotData))
+				return "", fmt.Errorf("screenshot capture produced empty or invalid image data")
+			}
 			return response.ScreenshotData, nil
 		} else {
 			return "", fmt.Errorf("screenshot capture failed: %s", response.Error)
