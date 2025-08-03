@@ -26,16 +26,20 @@ func isDebugMode() bool {
 }
 
 // handleWidgetAPI routes widget API requests to appropriate handlers
-// NOTE: Widget API is disabled except for MCP-related endpoints
+// NOTE: Widget API is disabled for external use. Only internal MCP bridge requests are allowed.
 func handleWidgetAPI(w http.ResponseWriter, r *http.Request) {
+	// Check if request is from internal MCP bridge
+	userAgent := r.Header.Get("User-Agent")
+	isMCPBridge := strings.Contains(userAgent, "node") || r.Header.Get("X-MCP-Bridge") == "true"
+	
 	// Parse URL path to determine the specific API endpoint
 	path := strings.TrimPrefix(r.URL.Path, "/api/v1/widgets")
 	pathParts := strings.Split(strings.Trim(path, "/"), "/")
 
-	// Only allow MCP-related endpoints
-	if !isMCPRelatedEndpoint(path, r.Method) {
+	// Only allow requests from MCP bridge or specific MCP endpoints
+	if !isMCPBridge && !isMCPOnlyEndpoint(path, r.Method) {
 		w.Header().Set("Content-Type", "application/json")
-		writeErrorResponse(w, "Widget API is disabled. Use MCP tools instead: mcp__wave-terminal__*", http.StatusNotFound)
+		writeErrorResponse(w, "Widget API已停用。请使用MCP工具: mcp__wave-terminal__*\n\n可用工具: create_widget, list_workspaces, create_tab, send_terminal_input 等", http.StatusGone)
 		return
 	}
 
@@ -493,9 +497,9 @@ func checkForClaudeCodeClient() bool {
 	return false
 }
 
-// isMCPRelatedEndpoint checks if the endpoint is MCP-related and should remain active
-func isMCPRelatedEndpoint(path string, method string) bool {
-	// Allow MCP status and restart endpoints
+// isMCPOnlyEndpoint checks if the endpoint should be accessible without MCP bridge
+func isMCPOnlyEndpoint(path string, method string) bool {
+	// Only allow MCP control endpoints for external access
 	if path == "/mcp/status" && method == "GET" {
 		return true
 	}

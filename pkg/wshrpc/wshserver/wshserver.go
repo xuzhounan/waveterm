@@ -508,22 +508,13 @@ func (ws *WshServer) EventPublishCommand(ctx context.Context, data wps.WaveEvent
 		data.Sender = rpcSource
 	}
 	
-	// Handle screenshot response events specially
-	if data.Event == "screenshot:response" {
-		log.Printf("[Screenshot] Backend: Received screenshot response event from frontend")
-		// Import the service and handle the response
-		// We need to import the service package here
-		if responseData, ok := data.Data.(map[string]interface{}); ok {
-			// Call the screenshot response handler
-			go func() {
-				// Import dynamically to avoid circular dependencies
-				// or we can expose the handler through a package variable
-				handleScreenshotResponse(responseData)
-			}()
-		}
-	}
-	
+	// Publish event first to ensure proper event flow
 	wps.Broker.Publish(data)
+	
+	// Log screenshot response events for debugging
+	if data.Event == "screenshot:response" {
+		log.Printf("[Screenshot] Backend: Published screenshot response event to event broker")
+	}
 	return nil
 }
 

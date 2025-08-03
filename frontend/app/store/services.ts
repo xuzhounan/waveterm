@@ -125,7 +125,7 @@ class WidgetAPIServiceType {
     GetWorkspaceWidgets(arg2: string): Promise<GetWorkspaceWidgetsAPIResponse> {
         return WOS.callBackendService("widgetapi", "GetWorkspaceWidgets", Array.from(arguments))
     }
-    HandleScreenshotResponse(responseData: {[key: string]: any}): Promise<void> {
+    HandleScreenshotResponse(arg1: {[key: string]: any}): Promise<void> {
         return WOS.callBackendService("widgetapi", "HandleScreenshotResponse", Array.from(arguments))
     }
     ListBlocks(arg2: ListBlocksAPIRequest): Promise<ListBlocksAPIResponse> {

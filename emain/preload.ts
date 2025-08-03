@@ -52,6 +52,11 @@ contextBridge.exposeInMainWorld("api", {
     onQuicklook: (filePath: string) => ipcRenderer.send("quicklook", filePath),
     openNativePath: (filePath: string) => ipcRenderer.send("open-native-path", filePath),
     captureScreenshot: (rect: Rectangle) => ipcRenderer.invoke("capture-screenshot", rect),
+    captureScreenshotSimple: (rect: Rectangle) => ipcRenderer.invoke("capture-screenshot-simple", rect),
+    saveScreenshotToTemp: (base64Data: string, filename: string, requestId?: string, eventScopes?: any[]) => ipcRenderer.invoke("save-screenshot-to-temp", base64Data, filename, requestId, eventScopes),
+    sendScreenshotResponse: (responseEvent: any) => ipcRenderer.send("send-screenshot-response", responseEvent),
+    onScreenshotResponseFromMain: (callback: (responseEvent: any) => void) => 
+        ipcRenderer.on("screenshot-response-from-main", (_event, responseEvent) => callback(responseEvent)),
     setKeyboardChordMode: () => ipcRenderer.send("set-keyboard-chord-mode"),
 });
 

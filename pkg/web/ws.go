@@ -51,8 +51,8 @@ func RunWebSocketServer(listener net.Listener) {
 }
 
 var WebSocketUpgrader = websocket.Upgrader{
-	ReadBufferSize:   4 * 1024,
-	WriteBufferSize:  32 * 1024,
+	ReadBufferSize:   5 * 1024 * 1024,  // 5MB to handle large screenshot data
+	WriteBufferSize:  5 * 1024 * 1024,  // 5MB to handle large screenshot data
 	HandshakeTimeout: 1 * time.Second,
 	CheckOrigin:      func(r *http.Request) bool { return true },
 }

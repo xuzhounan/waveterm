@@ -260,6 +260,12 @@ function initGlobalWaveEventSubs(initOpts: WaveInitOpts) {
                     const requestData = event.data;
                     const { workspace_id, tab_id, block_id, rect, format, request_id, capture_mode, ensure_visible } = requestData;
                     
+                    // Validate request_id is present
+                    if (!request_id) {
+                        console.error("[Screenshot] Frontend: Missing request_id in screenshot request");
+                        return;
+                    }
+                    
                     // Determine screenshot rectangle based on request type
                     let screenshotRect = undefined;
                     
@@ -305,6 +311,7 @@ function initGlobalWaveEventSubs(initOpts: WaveInitOpts) {
                     }
                     
                     // Capture screenshot using Electron API
+                    console.log("[Screenshot] Frontend: Calling captureScreenshot");
                     const screenshotDataUri = await getApi().captureScreenshot(screenshotRect);
                     
                     console.log("[Screenshot] Frontend: Screenshot captured, data length:", screenshotDataUri?.length || 0);
@@ -315,28 +322,51 @@ function initGlobalWaveEventSubs(initOpts: WaveInitOpts) {
                         throw new Error("Screenshot capture produced empty or invalid data");
                     }
                     
-                    console.log("[Screenshot] Frontend: Sending response");
+                    console.log("[Screenshot] Frontend: Screenshot captured, saving directly in frontend");
                     
-                    // Send response event back to backend
+                    // Save screenshot to temporary directory for backend to read
+                    let savedFilePath = "";
+                    try {
+                        // Check if new API is available
+                        if (getApi().saveScreenshotToTemp) {
+                            // Extract base64 data
+                            const base64Data = screenshotDataUri.split(',')[1];
+                            
+                            // Generate filename with timestamp
+                            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+                            const filename = `waveterm-screenshot-${timestamp}.${format || 'png'}`;
+                            
+                            // Save to temporary directory using new Electron API
+                            // Pass request_id and event scopes to main process
+                            savedFilePath = await getApi().saveScreenshotToTemp(base64Data, filename, request_id, event.scopes);
+                            console.log("[Screenshot] Frontend: Screenshot saved to temp directory:", savedFilePath);
+                        } else {
+                            console.warn("[Screenshot] Frontend: saveScreenshotToTemp API not available, using fallback");
+                            // Fallback: will send data to backend
+                        }
+                        
+                    } catch (saveError) {
+                        console.warn("[Screenshot] Frontend: Failed to save to temp directory, will send data to backend:", saveError);
+                        // Fall back to sending data to backend if temp save fails
+                    }
+                    
+                    // Send success response event back to backend (without large data)
                     const responseEvent: WaveEvent = {
                         event: "screenshot:response",
-                        scopes: event.scopes, // Use same scopes as request
+                        scopes: event.scopes,
                         data: {
                             request_id: request_id,
                             success: true,
-                            screenshot_data: screenshotDataUri,
+                            screenshot_data: savedFilePath ? "saved_in_frontend" : screenshotDataUri, // Send placeholder or full data
                             format: format || 'png',
-                            capture_method: capture_mode || 'default'
+                            capture_method: capture_mode || 'default',
+                            file_path: savedFilePath,
+                            frontend_saved: !!savedFilePath
                         }
                     };
                     
-                    // Send the response event via WebSocket
-                    import("./ws").then(ws => {
-                        ws.sendRawRpcMessage({
-                            command: "eventpub",
-                            data: responseEvent
-                        });
-                    });
+                    // Response event is now sent directly from main process after saving file
+                    console.log("[Screenshot] Frontend: Response will be sent from main process");
                     
                 } catch (error) {
                     console.error("[Screenshot] Frontend: Error capturing screenshot:", error);
@@ -352,16 +382,23 @@ function initGlobalWaveEventSubs(initOpts: WaveInitOpts) {
                         }
                     };
                     
-                    import("./ws").then(ws => {
+                    try {
+                        const ws = await import("./ws");
                         ws.sendRawRpcMessage({
                             command: "eventpub",
                             data: errorEvent
                         });
-                    });
+                        console.log("[Screenshot] Frontend: Error event sent successfully");
+                    } catch (wsError) {
+                        console.error("[Screenshot] Frontend: Failed to send error event:", wsError);
+                    }
                 }
             },
         }
     );
+    
+    // Set up screenshot response forwarding from main process
+    setupScreenshotResponseForwarding();
 }
 
 const blockCache = new Map<string, Map<string, any>>();
@@ -950,6 +987,7 @@ export {
     setNodeFocus,
     setPlatform,
     subscribeToConnEvents,
+    setupScreenshotResponseForwarding,
     unregisterBlockComponentModel,
     useBlockAtom,
     useBlockCache,
@@ -959,3 +997,20 @@ export {
     useSettingsKeyAtom,
     WOS,
 };
+
+// Set up IPC listener for screenshot responses from main process
+function setupScreenshotResponseForwarding() {
+    getApi().onScreenshotResponseFromMain(async (responseEvent) => {
+        console.log("[Screenshot] Frontend: Received response from main process, forwarding via WebSocket:", responseEvent);
+        try {
+            const ws = await import("./ws");
+            ws.sendRawRpcMessage({
+                command: "eventpub",
+                data: responseEvent
+            });
+            console.log("[Screenshot] Frontend: Response event forwarded successfully via WebSocket");
+        } catch (error) {
+            console.error("[Screenshot] Frontend: Failed to forward response event:", error);
+        }
+    });
+}

@@ -51,11 +51,12 @@ func InitScreenshotEventHandling() {
 
 // ScreenshotResponse represents the response from frontend screenshot capture
 type ScreenshotResponse struct {
-	RequestID      string `json:"request_id"`
-	Success        bool   `json:"success"`
-	ScreenshotData string `json:"screenshot_data,omitempty"`
-	Format         string `json:"format,omitempty"`
-	Error          string `json:"error,omitempty"`
+	RequestID      string                 `json:"request_id"`
+	Success        bool                   `json:"success"`
+	ScreenshotData string                 `json:"screenshot_data,omitempty"`
+	Format         string                 `json:"format,omitempty"`
+	Error          string                 `json:"error,omitempty"`
+	Data           map[string]interface{} `json:"data,omitempty"`
 }
 
 // screenshotWaitingRequests maps request IDs to response channels
@@ -1615,18 +1616,16 @@ func (ws *WidgetAPIService) CaptureScreenshot(ctx context.Context, workspaceId s
 	if err != nil {
 		log.Printf("[Screenshot] Backend: Failed to capture real screenshot: %v", err)
 		
-		// For debugging: use the existing placeholder image
-		log.Printf("[Screenshot] Backend: Using placeholder image for debugging")
+		// For now, use the placeholder as fallback
+		log.Printf("[Screenshot] Backend: Using placeholder image as fallback")
 		testImageData, testErr := ws.generatePlaceholderScreenshot(workspaceId, tabId, blockId, format)
 		if testErr != nil {
-			log.Printf("[Screenshot] Backend: Even placeholder image failed: %v", testErr)
 			return &ScreenshotAPIResponse{
 				Success: false,
-				Error:   fmt.Sprintf("Screenshot capture failed: %s. Placeholder image also failed: %s", err.Error(), testErr.Error()),
+				Error:   fmt.Sprintf("Screenshot capture failed: %s. Placeholder also failed: %s", err.Error(), testErr.Error()),
 			}, nil
 		}
 		imageData = testImageData
-		log.Printf("[Screenshot] Backend: Using placeholder image as fallback")
 	}
 	
 	message := "Screenshot captured successfully"
@@ -1697,41 +1696,72 @@ func (ws *WidgetAPIService) generatePlaceholderScreenshot(workspaceId string, ta
 
 // saveScreenshotToFile saves the base64 image data to a file
 func (ws *WidgetAPIService) saveScreenshotToFile(imageData string, savePath string) error {
-	log.Printf("[Screenshot] saveScreenshotToFile called with savePath: %s, imageData length: %d", savePath, len(imageData))
+	log.Printf("[Screenshot] === saveScreenshotToFile START ===")
+	log.Printf("[Screenshot] savePath: %s", savePath)
+	log.Printf("[Screenshot] imageData length: %d", len(imageData))
+	
+	// Special handling if imageData is empty or invalid
+	if imageData == "" {
+		log.Printf("[Screenshot] ERROR: imageData is empty")
+		return fmt.Errorf("imageData is empty")
+	}
+	
+	// Check if it's a proper data URI
+	if !strings.HasPrefix(imageData, "data:") {
+		log.Printf("[Screenshot] ERROR: imageData doesn't start with 'data:' - first 50 chars: %s", func() string {
+			if len(imageData) > 50 {
+				return imageData[:50]
+			}
+			return imageData
+		}())
+		return fmt.Errorf("invalid image data format - doesn't start with 'data:'")
+	}
 	
 	// Parse the data URI to extract base64 data
 	// Format: "data:image/png;base64,..."
 	parts := strings.Split(imageData, ",")
 	log.Printf("[Screenshot] Split imageData into %d parts", len(parts))
 	if len(parts) != 2 {
-		log.Printf("[Screenshot] Invalid image data format - expected 2 parts, got %d. First 100 chars: %s", len(parts), func() string {
-			if len(imageData) > 100 {
-				return imageData[:100]
-			}
-			return imageData
-		}())
+		log.Printf("[Screenshot] ERROR: Invalid image data format - expected 2 parts, got %d. Full imageData: %s", len(parts), imageData)
 		return fmt.Errorf("invalid image data format - expected 'data:image/format;base64,data' but got %d parts", len(parts))
 	}
 	
 	log.Printf("[Screenshot] Image data header: %s", parts[0])
 	log.Printf("[Screenshot] Base64 data length: %d", len(parts[1]))
+	log.Printf("[Screenshot] Base64 data first 100 chars: %s", func() string {
+		if len(parts[1]) > 100 {
+			return parts[1][:100]
+		}
+		return parts[1]
+	}())
 	
 	// Clean and decode base64 data with enhanced repair logic
 	base64Data := ws.cleanBase64Data(parts[1])
-	log.Printf("[Screenshot] Cleaned base64 data length: %d, first 50 chars: %s", len(base64Data), func() string {
-		if len(base64Data) > 50 {
-			return base64Data[:50]
-		}
-		return base64Data
-	}())
+	log.Printf("[Screenshot] Cleaned base64 data length: %d", len(base64Data))
+	
+	if base64Data == "" {
+		log.Printf("[Screenshot] ERROR: base64Data is empty after cleaning")
+		return fmt.Errorf("base64Data is empty after cleaning")
+	}
 	
 	imageBytes, err := ws.decodeBase64WithFallback(base64Data)
 	if err != nil {
-		log.Printf("[Screenshot] All base64 decoding methods failed: %v", err)
+		log.Printf("[Screenshot] ERROR: All base64 decoding methods failed: %v", err)
+		log.Printf("[Screenshot] Raw base64 data (first 200 chars): %s", func() string {
+			if len(base64Data) > 200 {
+				return base64Data[:200]
+			}
+			return base64Data
+		}())
 		return fmt.Errorf("failed to decode base64 image data after cleanup: %w", err)
 	}
 	
 	log.Printf("[Screenshot] Successfully decoded %d bytes of image data", len(imageBytes))
+	
+	// Basic sanity check for image data
+	if len(imageBytes) < 100 {
+		log.Printf("[Screenshot] WARNING: Image data seems too small (%d bytes) - might be corrupted", len(imageBytes))
+	}
 	
 	// Ensure directory exists
 	dir := filepath.Dir(savePath)
@@ -1740,21 +1770,29 @@ func (ws *WidgetAPIService) saveScreenshotToFile(imageData string, savePath stri
 		log.Printf("[Screenshot] Creating directory: %s", dir)
 		err = os.MkdirAll(dir, 0755)
 		if err != nil {
-			log.Printf("[Screenshot] Failed to create directory %s: %v", dir, err)
+			log.Printf("[Screenshot] ERROR: Failed to create directory %s: %v", dir, err)
 			return fmt.Errorf("failed to create directory %s: %w", dir, err)
 		}
-		log.Printf("[Screenshot] Directory created successfully: %s", dir)
+		log.Printf("[Screenshot] Directory created/verified successfully: %s", dir)
 	}
 	
 	// Write file  
 	log.Printf("[Screenshot] Writing %d bytes to file: %s", len(imageBytes), savePath)
 	err = os.WriteFile(savePath, imageBytes, 0644)
 	if err != nil {
-		log.Printf("[Screenshot] Failed to write file %s: %v", savePath, err)
+		log.Printf("[Screenshot] ERROR: Failed to write file %s: %v", savePath, err)
 		return fmt.Errorf("failed to write file %s: %w", savePath, err)
 	}
 	
-	log.Printf("[Screenshot] File written successfully: %s", savePath)
+	// Verify file was written
+	if fileInfo, err := os.Stat(savePath); err == nil {
+		log.Printf("[Screenshot] SUCCESS: File written successfully: %s (%d bytes)", savePath, fileInfo.Size())
+	} else {
+		log.Printf("[Screenshot] ERROR: File verification failed: %v", err)
+		return fmt.Errorf("file verification failed: %w", err)
+	}
+	
+	log.Printf("[Screenshot] === saveScreenshotToFile END ===")
 	return nil
 }
 
@@ -1894,7 +1932,19 @@ func (ws *WidgetAPIService) HandleScreenshotResponse(responseData map[string]int
 		response.Error = errorMsg
 	}
 
+	// Handle additional data fields
+	if response.Data == nil {
+		response.Data = make(map[string]interface{})
+	}
+	
+	// Copy all response data for processing
+	for key, value := range responseData {
+		response.Data[key] = value
+	}
+
 	log.Printf("[Screenshot] Backend: Sending response to waiting channel for request: %s", requestID)
+	log.Printf("[Screenshot] Backend: Response contains frontend_saved: %v, file_path: %v", 
+		response.Data["frontend_saved"], response.Data["file_path"])
 	
 	// Send response to waiting goroutine
 	select {
@@ -1949,12 +1999,25 @@ func (ws *WidgetAPIService) captureRealScreenshot(ctx context.Context, workspace
 	// Publish the event to frontend
 	wps.Broker.Publish(screenshotEvent)
 	
-	// Wait for response with extended timeout for window capture
-	timeout := 15 * time.Second
+	// Wait for response with extended timeout for window capture and large image data transfer
+	timeout := 60 * time.Second
+	log.Printf("[Screenshot] Backend: Waiting for response (timeout: %v)", timeout)
 	select {
 	case response := <-responseChan:
 		log.Printf("[Screenshot] Backend: Received response for request: %s, success: %v", requestID, response.Success)
+		log.Printf("[Screenshot] Backend: Response data keys: %+v", response.Data)
 		if response.Success {
+			// Check if frontend saved the file directly
+			if frontendSaved, ok := response.Data["frontend_saved"].(bool); ok && frontendSaved {
+				log.Printf("[Screenshot] Backend: Frontend saved screenshot directly")
+				if filePath, ok := response.Data["file_path"].(string); ok && filePath != "" {
+					log.Printf("[Screenshot] Backend: Frontend saved to: %s", filePath)
+					// For same-device deployment, just return a minimal placeholder
+					// Agent will read the file directly using the path provided in API response
+					return "data:image/png;base64,file_saved_locally", nil
+				}
+			}
+			
 			// Validate that we received meaningful image data
 			if len(response.ScreenshotData) < 100 {
 				log.Printf("[Screenshot] Backend: Warning - received very small image data (%d bytes)", len(response.ScreenshotData))

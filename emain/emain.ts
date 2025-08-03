@@ -8,6 +8,7 @@ import { FastAverageColor } from "fast-average-color";
 import fs from "fs";
 import * as child_process from "node:child_process";
 import * as path from "path";
+import * as os from "os";
 import { PNG } from "pngjs";
 import { sprintf } from "sprintf-js";
 import { Readable } from "stream";
@@ -86,10 +87,95 @@ if (isDev) {
     console.log("waveterm-app WAVETERM_DEV set");
 }
 
+async function handleScreenshotRequest(event: WaveEvent) {
+    console.log("[Screenshot] Main: Handling screenshot request:", event);
+    
+    try {
+        const requestData = event.data;
+        const { workspace_id, tab_id, block_id, rect, format, request_id, capture_mode, ensure_visible } = requestData;
+        
+        // Find the appropriate window/tab
+        const waveWindow = workspace_id ? getWaveWindowByWorkspaceId(workspace_id) : focusedWaveWindow;
+        if (!waveWindow) {
+            throw new Error("No wave window found for screenshot");
+        }
+        
+        // Get the active tab view
+        const tabView = waveWindow.allTabViews.find(tv => tv.waveTabId === tab_id || tv.isActiveTab);
+        if (!tabView) {
+            throw new Error("No tab view found for screenshot");
+        }
+        
+        // Capture screenshot
+        const webContents = tabView.webContents;
+        const image = await webContents.capturePage();
+        const base64String = image.toPNG().toString("base64");
+        const screenshotDataUri = `data:image/png;base64,${base64String}`;
+        
+        // Save to temp file
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+        const filename = `waveterm-screenshot-${timestamp}.${format || 'png'}`;
+        const tempDir = path.join(os.tmpdir(), 'waveterm-screenshots');
+        await fs.promises.mkdir(tempDir, { recursive: true });
+        const filePath = path.join(tempDir, filename);
+        const buffer = Buffer.from(base64String, 'base64');
+        await fs.promises.writeFile(filePath, buffer);
+        
+        console.log("[Screenshot] Main: Screenshot saved to:", filePath);
+        
+        // Send response event
+        const responseEvent: WaveEvent = {
+            event: "screenshot:response",
+            scopes: event.scopes || [],
+            data: {
+                request_id: request_id,
+                success: true,
+                screenshot_data: "saved_in_frontend",
+                format: format || 'png',
+                capture_method: 'electron-main-direct',
+                file_path: filePath,
+                frontend_saved: true
+            }
+        };
+        
+        console.log("[Screenshot] Main: Sending response event:", responseEvent);
+        await RpcApi.EventPublishCommand(ElectronWshClient, responseEvent);
+        console.log("[Screenshot] Main: Response event sent successfully");
+        
+    } catch (error) {
+        console.error("[Screenshot] Main: Error handling screenshot request:", error);
+        
+        // Send error response
+        const errorEvent: WaveEvent = {
+            event: "screenshot:response",
+            scopes: event.scopes || [],
+            data: {
+                request_id: event.data.request_id,
+                success: false,
+                error: error.message || "Screenshot capture failed"
+            }
+        };
+        
+        try {
+            await RpcApi.EventPublishCommand(ElectronWshClient, errorEvent);
+        } catch (err) {
+            console.error("[Screenshot] Main: Failed to send error response:", err);
+        }
+    }
+}
+
 function handleWSEvent(evtMsg: WSEventType) {
     fireAndForget(async () => {
         console.log("handleWSEvent", evtMsg?.eventtype);
-        if (evtMsg.eventtype == "electron:newwindow") {
+        if (evtMsg.eventtype == "screenshot:request") {
+            console.log("[Screenshot] Main: Received screenshot request via WebSocket:", evtMsg.data);
+            const event: WaveEvent = {
+                event: "screenshot:request",
+                scopes: evtMsg.scopes || [],
+                data: evtMsg.data
+            };
+            await handleScreenshotRequest(event);
+        } else if (evtMsg.eventtype == "electron:newwindow") {
             console.log("electron:newwindow", evtMsg.data);
             const windowId: string = evtMsg.data;
             const windowData: WaveWindow = (await services.ObjectService.GetObject("window:" + windowId)) as WaveWindow;
@@ -262,6 +348,8 @@ electron.ipcMain.on("get-cursor-point", (event) => {
 });
 
 electron.ipcMain.handle("capture-screenshot", async (event, rect) => {
+    console.log("[Screenshot] Main: === Starting screenshot capture ===");
+    console.log("[Screenshot] Main: Requested rect:", rect);
     const tabView = getWaveTabViewByWebContentsId(event.sender.id);
     if (!tabView) {
         throw new Error("No tab view found for the given webContents id");
@@ -354,7 +442,116 @@ electron.ipcMain.handle("capture-screenshot", async (event, rect) => {
         }
     }
     
+    // Final attempt: Try screen capture if everything else failed
+    if (base64String.length < 2000) {
+        try {
+            console.log("[Screenshot] Main: Final attempt - screen capture");
+            const { screen } = require('electron');
+            const screenImage = await screen.capturePage();
+            const screenBase64 = screenImage.toPNG().toString("base64");
+            
+            if (screenBase64.length > base64String.length) {
+                console.log("[Screenshot] Main: Screen capture successful, using it");
+                console.log("[Screenshot] Main: Screen image size:", screenImage.getSize());
+                return `data:image/png;base64,${screenBase64}`;
+            }
+        } catch (screenError) {
+            console.log("[Screenshot] Main: Screen capture also failed:", screenError.message);
+        }
+    }
+    
     return `data:image/png;base64,${base64String}`;
+});
+
+// Simple and reliable screenshot implementation
+electron.ipcMain.handle("capture-screenshot-simple", async (event, rect) => {
+    console.log("[Screenshot] Simple: Starting screen capture");
+    
+    try {
+        const { screen } = require('electron');
+        
+        // Method 1: Try screen capture (most reliable)
+        console.log("[Screenshot] Simple: Attempting screen capture");
+        const screenImage = await screen.capturePage();
+        const screenSize = screenImage.getSize();
+        const screenBase64 = screenImage.toPNG().toString("base64");
+        
+        console.log("[Screenshot] Simple: Screen capture successful");
+        console.log("[Screenshot] Simple: Image size:", screenSize);
+        console.log("[Screenshot] Simple: Base64 length:", screenBase64.length);
+        
+        return `data:image/png;base64,${screenBase64}`;
+        
+    } catch (error) {
+        console.error("[Screenshot] Simple: Screen capture failed:", error);
+        throw new Error(`Screenshot failed: ${error.message}`);
+    }
+});
+
+electron.ipcMain.handle("save-screenshot-to-temp", async (event, base64Data, filename, requestId, eventScopes) => {
+    console.log("[Screenshot] SaveToTemp: Starting file save");
+    
+    try {
+        const os = require('os');
+        const path = require('path');
+        const fs = require('fs').promises;
+        
+        // Validate filename to prevent path traversal attacks
+        if (!filename || filename.includes('/') || filename.includes('\\') || filename.includes('..')) {
+            throw new Error('Invalid filename: contains path separators or traversal sequences');
+        }
+        
+        // Create temp directory if it doesn't exist
+        const tempDir = path.join(os.tmpdir(), 'waveterm-screenshots');
+        await fs.mkdir(tempDir, { recursive: true });
+        
+        // Generate full file path
+        const filePath = path.join(tempDir, filename);
+        
+        // Convert base64 to buffer and save
+        const buffer = Buffer.from(base64Data, 'base64');
+        await fs.writeFile(filePath, buffer);
+        
+        console.log("[Screenshot] SaveToTemp: File saved successfully to:", filePath);
+        
+        // Send response event directly from main process
+        if (requestId && ElectronWshClient) {
+            const responseEvent: WaveEvent = {
+                event: "screenshot:response",
+                scopes: eventScopes || [],
+                data: {
+                    request_id: requestId,
+                    success: true,
+                    screenshot_data: "saved_in_frontend",
+                    format: 'png',
+                    capture_method: 'electron-main',
+                    file_path: filePath,
+                    frontend_saved: true
+                }
+            };
+            
+            console.log("[Screenshot] Main: Sending response event directly:", responseEvent);
+            try {
+                await RpcApi.EventPublishCommand(ElectronWshClient, responseEvent);
+                console.log("[Screenshot] Main: Response event sent successfully");
+            } catch (err) {
+                console.error("[Screenshot] Main: Failed to send response event:", err);
+            }
+        }
+        
+        return filePath;
+        
+    } catch (error) {
+        console.error("[Screenshot] SaveToTemp: Failed to save file:", error);
+        throw new Error(`Failed to save screenshot: ${error.message}`);
+    }
+});
+
+// IPC handler for sending screenshot response from main process
+electron.ipcMain.on("send-screenshot-response", (event, responseEvent) => {
+    console.log("[Screenshot] Main: Forwarding screenshot response to renderer");
+    // Send the event back to the same renderer that requested it
+    event.sender.send("screenshot-response-from-main", responseEvent);
 });
 
 electron.ipcMain.on("get-env", (event, varName) => {

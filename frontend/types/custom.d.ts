@@ -102,6 +102,8 @@ declare global {
         onQuicklook: (filePath: string) => void;
         openNativePath(filePath: string): void;
         captureScreenshot(rect: Electron.Rectangle): Promise<string>;
+        captureScreenshotSimple(rect: Electron.Rectangle): Promise<string>;
+        saveScreenshotToTemp(base64Data: string, filename: string): Promise<string>;
         setKeyboardChordMode: () => void;
     };
 
