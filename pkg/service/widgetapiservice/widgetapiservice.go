@@ -36,17 +36,10 @@ var WidgetAPIServiceInstance = &WidgetAPIService{}
 func InitScreenshotEventHandling() {
 	log.Printf("[Screenshot] Backend: Initializing screenshot event handling")
 	
-	// Create a subscription for screenshot:response events
-	subscriptionRequest := wps.SubscriptionRequest{
-		Event:     "screenshot:response",
-		Scopes:    []string{}, // Subscribe to all scopes
-		AllScopes: true,
-	}
+	// Note: The actual event handling is done in wshserver.EventPublishCommand
+	// which calls the handler set by SetScreenshotResponseHandler in main-server.go
 	
-	// Subscribe to the event broker
-	wps.Broker.Subscribe("screenshot-handler", subscriptionRequest)
-	
-	log.Printf("[Screenshot] Backend: Screenshot event subscription registered")
+	log.Printf("[Screenshot] Backend: Screenshot event handling initialized")
 }
 
 // ScreenshotResponse represents the response from frontend screenshot capture
@@ -1612,20 +1605,32 @@ func (ws *WidgetAPIService) CaptureScreenshot(ctx context.Context, workspaceId s
 	}
 
 	// Try to capture a real screenshot using the frontend
-	imageData, err := ws.captureRealScreenshot(ctx, workspaceId, tabId, blockId, rect, format)
+	imageDataOrPath, err := ws.captureRealScreenshot(ctx, workspaceId, tabId, blockId, rect, format)
 	if err != nil {
 		log.Printf("[Screenshot] Backend: Failed to capture real screenshot: %v", err)
-		
-		// For now, use the placeholder as fallback
-		log.Printf("[Screenshot] Backend: Using placeholder image as fallback")
-		testImageData, testErr := ws.generatePlaceholderScreenshot(workspaceId, tabId, blockId, format)
-		if testErr != nil {
-			return &ScreenshotAPIResponse{
-				Success: false,
-				Error:   fmt.Sprintf("Screenshot capture failed: %s. Placeholder also failed: %s", err.Error(), testErr.Error()),
-			}, nil
-		}
-		imageData = testImageData
+		return &ScreenshotAPIResponse{
+			Success: false,
+			Error:   fmt.Sprintf("Screenshot capture failed: %s", err.Error()),
+		}, nil
+	}
+	
+	// Check if the result is a file path (frontend saved directly)
+	var imageData string
+	var frontendSavedPath string
+	var isFrontendSaved bool
+	
+	// If the result doesn't start with "data:", it's likely a file path
+	if !strings.HasPrefix(imageDataOrPath, "data:") && strings.Contains(imageDataOrPath, "/") {
+		// This is a file path from frontend
+		frontendSavedPath = imageDataOrPath
+		isFrontendSaved = true
+		log.Printf("[Screenshot] Backend: Using frontend-saved file: %s", frontendSavedPath)
+		// Don't load the file data, just use the path
+		imageData = "" // Empty data since file is already saved
+	} else {
+		// This is actual image data
+		imageData = imageDataOrPath
+		isFrontendSaved = false
 	}
 	
 	message := "Screenshot captured successfully"
@@ -1636,37 +1641,53 @@ func (ws *WidgetAPIService) CaptureScreenshot(ctx context.Context, workspaceId s
 		Message: message,
 	}
 
-	// Determine save path - use provided path or generate default
-	var actualSavePath string
-	log.Printf("[Screenshot] Provided savePath parameter: '%s'", savePath)
-	if savePath != "" {
-		actualSavePath = savePath
-		log.Printf("[Screenshot] Using provided save path: %s", actualSavePath)
+	// Handle file path based on whether frontend saved it
+	if isFrontendSaved {
+		// Frontend already saved the file, just use that path
+		response.FilePath = frontendSavedPath
+		// Get file size
+		if fileInfo, err := os.Stat(frontendSavedPath); err == nil {
+			response.FileSize = fileInfo.Size()
+			log.Printf("[Screenshot] Frontend-saved file size: %d bytes", response.FileSize)
+		} else {
+			log.Printf("[Screenshot] Warning: Cannot stat frontend-saved file: %v", err)
+		}
+		response.Message = "Screenshot captured and saved by frontend"
 	} else {
-		// Generate default filename in configured directory
-		screenshotDir := getScreenshotDirectory()
-		timestamp := time.Now().Format("2006-01-02_15-04-05")
-		filename := fmt.Sprintf("waveterm-screenshot_%s.%s", timestamp, format)
-		actualSavePath = filepath.Join(screenshotDir, filename)
-		log.Printf("[Screenshot] Using default save path: %s", actualSavePath)
-	}
+		// We have image data, need to save it
+		var actualSavePath string
+		log.Printf("[Screenshot] Provided savePath parameter: '%s'", savePath)
+		if savePath != "" {
+			actualSavePath = savePath
+			log.Printf("[Screenshot] Using provided save path: %s", actualSavePath)
+		} else {
+			// Generate default filename in configured directory
+			screenshotDir := getScreenshotDirectory()
+			timestamp := time.Now().Format("2006-01-02_15-04-05")
+			filename := fmt.Sprintf("waveterm-screenshot_%s.%s", timestamp, format)
+			actualSavePath = filepath.Join(screenshotDir, filename)
+			log.Printf("[Screenshot] Using default save path: %s", actualSavePath)
+		}
 
-	// Validate image data before saving
-	log.Printf("[Screenshot] Validating image data: length=%d", len(imageData))
-	if imageData == "" {
-		log.Printf("[Screenshot] Error: Image data is empty")
-		response.Message = "Screenshot capture failed: no image data received"
-		return response, nil
-	}
-	
-	// Always save to file (either specified path or default path)
-	log.Printf("[Screenshot] Saving screenshot to: %s", actualSavePath)
-	err = ws.saveScreenshotToFile(imageData, actualSavePath)
-	if err != nil {
-		log.Printf("[Screenshot] Failed to save screenshot to file %s: %v", actualSavePath, err)
-		// Don't return error, just log warning - data is still returned
-		response.Message = fmt.Sprintf("Screenshot captured successfully, but failed to save to file: %v", err)
-	} else {
+		// Validate image data before saving
+		log.Printf("[Screenshot] Validating image data: length=%d", len(imageData))
+		if imageData == "" {
+			log.Printf("[Screenshot] Error: Image data is empty")
+			response.Success = false
+			response.Error = "Screenshot capture failed: no image data received"
+			return response, nil
+		}
+		
+		// Save to file
+		log.Printf("[Screenshot] Saving screenshot to: %s", actualSavePath)
+		err = ws.saveScreenshotToFile(imageData, actualSavePath)
+		if err != nil {
+			log.Printf("[Screenshot] Failed to save screenshot to file %s: %v", actualSavePath, err)
+			response.Success = false
+			response.Error = fmt.Sprintf("Failed to save screenshot: %v", err)
+			return response, nil
+		}
+		
 		log.Printf("[Screenshot] Successfully saved screenshot to: %s", actualSavePath)
 		response.FilePath = actualSavePath
 		// Get file size
@@ -2012,9 +2033,9 @@ func (ws *WidgetAPIService) captureRealScreenshot(ctx context.Context, workspace
 				log.Printf("[Screenshot] Backend: Frontend saved screenshot directly")
 				if filePath, ok := response.Data["file_path"].(string); ok && filePath != "" {
 					log.Printf("[Screenshot] Backend: Frontend saved to: %s", filePath)
-					// For same-device deployment, just return a minimal placeholder
-					// Agent will read the file directly using the path provided in API response
-					return "data:image/png;base64,file_saved_locally", nil
+					// Store the file path for later use in the response
+					// We'll handle this specially in CaptureScreenshot method
+					return filePath, nil
 				}
 			}
 			

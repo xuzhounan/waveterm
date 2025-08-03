@@ -240,11 +240,17 @@ function initGlobalWS(
 
 function sendRawRpcMessage(msg: RpcMessage) {
     const wsMsg: WSRpcCommand = { wscommand: "rpc", message: msg };
+    console.log("[WS] sendRawRpcMessage:", msg.command, msg.data);
     sendWSCommand(wsMsg);
 }
 
 function sendWSCommand(cmd: WSCommandType) {
-    globalWS?.pushMessage(cmd);
+    if (!globalWS) {
+        console.error("[WS] globalWS is not initialized!");
+        return;
+    }
+    console.log("[WS] sendWSCommand - connection state:", globalWS.open);
+    globalWS.pushMessage(cmd);
 }
 
 export {

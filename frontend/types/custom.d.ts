@@ -103,7 +103,9 @@ declare global {
         openNativePath(filePath: string): void;
         captureScreenshot(rect: Electron.Rectangle): Promise<string>;
         captureScreenshotSimple(rect: Electron.Rectangle): Promise<string>;
-        saveScreenshotToTemp(base64Data: string, filename: string): Promise<string>;
+        saveScreenshotToTemp(base64Data: string, filename: string, requestId?: string, eventScopes?: any[]): Promise<string>;
+        sendScreenshotResponse: (responseEvent: any) => void;
+        onScreenshotResponseFromMain: (callback: (responseEvent: any) => void) => void;
         setKeyboardChordMode: () => void;
     };
 
