@@ -508,13 +508,22 @@ func (ws *WshServer) EventPublishCommand(ctx context.Context, data wps.WaveEvent
 		data.Sender = rpcSource
 	}
 	
-	// Publish event first to ensure proper event flow
-	wps.Broker.Publish(data)
-	
-	// Log screenshot response events for debugging
+	// Handle screenshot response events directly before publishing
+	log.Printf("[Screenshot] Backend: EventPublishCommand received event: '%s' (looking for 'screenshot:response')", data.Event)
 	if data.Event == "screenshot:response" {
-		log.Printf("[Screenshot] Backend: Published screenshot response event to event broker")
+		log.Printf("[Screenshot] Backend: Received screenshot response event from frontend")
+		if responseData, ok := data.Data.(map[string]interface{}); ok {
+			// Call the registered handler directly
+			if handleScreenshotResponse != nil {
+				handleScreenshotResponse(responseData)
+			} else {
+				log.Printf("[Screenshot] Backend: No screenshot response handler registered")
+			}
+		}
 	}
+	
+	// Publish event to broker
+	wps.Broker.Publish(data)
 	return nil
 }
 
