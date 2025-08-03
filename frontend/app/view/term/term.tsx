@@ -119,6 +119,11 @@ class TermViewModel implements ViewModel {
             if (blockData?.meta?.controller == "cmd") {
                 return "";
             }
+            // Check for custom name in meta
+            const customName = blockData?.meta?.name || blockData?.meta?.title;
+            if (customName && typeof customName === "string" && customName.trim()) {
+                return customName.trim();
+            }
             return "Terminal";
         });
         this.viewText = jotai.atom((get) => {
@@ -202,6 +207,18 @@ class TermViewModel implements ViewModel {
                     title: "Input will be sent to all connected terminals (click to disable)",
                     onClick: () => {
                         globalStore.set(atoms.isTermMultiInput, false);
+                    },
+                });
+            }
+            
+            // Add edit name button for basic terminals
+            if (this.isBasicTerm(get)) {
+                rtn.push({
+                    elemtype: "iconbutton",
+                    icon: "edit",
+                    title: "Edit Terminal Name",
+                    click: () => {
+                        this.editTerminalName();
                     },
                 });
             }
@@ -785,6 +802,24 @@ class TermViewModel implements ViewModel {
             ],
         });
         return fullMenu;
+    }
+
+    editTerminalName() {
+        const currentName = globalStore.get(this.blockAtom)?.meta?.name || 
+                           globalStore.get(this.blockAtom)?.meta?.title || 
+                           "";
+        
+        const newName = prompt("Enter terminal name:", currentName);
+        
+        if (newName !== null) {
+            // If empty string, remove the custom name
+            const metaUpdate = newName.trim() ? { name: newName.trim() } : { name: null };
+            
+            RpcApi.SetMetaCommand(TabRpcClient, {
+                oref: WOS.makeORef("block", this.blockId),
+                meta: metaUpdate,
+            });
+        }
     }
 }
 
