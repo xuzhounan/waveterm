@@ -907,20 +907,12 @@ class WaveTerminalMCPServer extends Server {
                     }
 
                 case "take_screenshot":
-                    const fs = require('fs');
-                    const path = require('path');
-                    const os = require('os');
+                    console.error('[MCP] Taking screenshot with optimized flow...');
                     
                     // 验证必需参数
                     if (!args.workspace_id) {
                         throw new Error("workspace_id is required");
                     }
-                    
-                    // 设置默认保存路径
-                    const format = args.format || 'png';
-                    const screenshotTimestamp = new Date().toISOString().replace(/[:.]/g, '-');
-                    const defaultFileName = `waveterm-screenshot-${screenshotTimestamp}.${format}`;
-                    const savePath = args.save_path || path.join(os.tmpdir(), defaultFileName);
                     
                     try {
                         // 构建截图API请求
@@ -937,7 +929,7 @@ class WaveTerminalMCPServer extends Server {
                         if (args.rect) {
                             screenshotPayload.rect = args.rect;
                         }
-                        screenshotPayload.format = format;
+                        screenshotPayload.format = args.format || 'png';
                         
                         // 调用内部截图API
                         const screenshotResponse = await this.fetchWithConfig(`${this.waveTerminalUrl}/api/internal/screenshot`, {
@@ -960,19 +952,21 @@ class WaveTerminalMCPServer extends Server {
                         
                         let resultText = `📸 截图捕获成功！\n\n` +
                                        `工作区ID: ${args.workspace_id}\n` +
-                                       `图片格式: ${format.toUpperCase()}\n`;
+                                       `图片格式: ${screenshotPayload.format.toUpperCase()}\n`;
                         
                         if (args.tab_id) resultText += `标签页ID: ${args.tab_id}\n`;
                         if (args.block_id) resultText += `Widget ID: ${args.block_id}\n`;
                         if (args.rect) resultText += `截图区域: ${args.rect.width}x${args.rect.height} at (${args.rect.x}, ${args.rect.y})\n`;
                         
-                        if (screenshotResult.details.file_path) {
-                            resultText += `保存路径: ${screenshotResult.details.file_path}\n`;
+                        // 重要：返回文件路径而不是图片数据
+                        if (screenshotResult.details && screenshotResult.details.file_path) {
+                            resultText += `\n📁 文件路径: ${screenshotResult.details.file_path}\n`;
                             if (screenshotResult.details.file_size) {
                                 resultText += `文件大小: ${(screenshotResult.details.file_size / 1024).toFixed(2)} KB\n`;
                             }
+                            resultText += `\n💡 提示: 请使用文件读取工具查看截图内容`;
                         } else {
-                            resultText += `⚠️ 图片数据已返回但文件保存失败\n`;
+                            resultText += `\n⚠️ 警告: 未获取到文件路径，请检查日志`;
                         }
                         
                         resultText += `\n✅ ${screenshotResult.message}`;
@@ -985,6 +979,7 @@ class WaveTerminalMCPServer extends Server {
                         };
                         
                     } catch (error) {
+                        console.error('[MCP] Screenshot error:', error);
                         throw error;
                     }
 
