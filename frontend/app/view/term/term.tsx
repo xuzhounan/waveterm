@@ -24,7 +24,9 @@ import {
     useBlockAtom,
     WOS,
 } from "@/store/global";
+import { modalsModel } from "@/store/modalmodel";
 import * as services from "@/store/services";
+import { editBlockCustomName } from "@/app/util/blockutil";
 import * as keyutil from "@/util/keyutil";
 import { boundNumber, fireAndForget, stringToBase64, useAtomValueSafe } from "@/util/util";
 import { computeBgStyleFromMeta } from "@/util/waveutil";
@@ -116,13 +118,14 @@ class TermViewModel implements ViewModel {
             if (termMode == "vdom") {
                 return "Wave App";
             }
-            if (blockData?.meta?.controller == "cmd") {
-                return "";
-            }
-            // Check for custom name in meta
+            // Check for custom name in meta first
             const customName = blockData?.meta?.name || blockData?.meta?.title;
             if (customName && typeof customName === "string" && customName.trim()) {
                 return customName.trim();
+            }
+            // If no custom name and it's a cmd controller, return empty string
+            if (blockData?.meta?.controller == "cmd") {
+                return "";
             }
             return "Terminal";
         });
@@ -211,18 +214,6 @@ class TermViewModel implements ViewModel {
                 });
             }
             
-            // Add edit name button for basic terminals
-            if (this.isBasicTerm(get)) {
-                rtn.push({
-                    elemtype: "iconbutton",
-                    icon: "edit",
-                    title: "Edit Terminal Name",
-                    click: () => {
-                        this.editTerminalName();
-                    },
-                });
-            }
-            
             return rtn;
         });
         this.manageConnection = jotai.atom((get) => {
@@ -290,15 +281,13 @@ class TermViewModel implements ViewModel {
             // 添加终端控制按钮（在终端模式和cmd模式下都显示）
             const termMode = get(this.termMode);
             const shouldShowButtons = termMode !== "vdom"; // 只要不是vdom模式就显示
-            console.log("Terminal buttons check:", { shouldShowButtons, termMode, blockId: this.blockId });
             if (shouldShowButtons) {
-                console.log("Adding terminal control buttons to right toolbar");
+                
                 rtn.push({
                     elemtype: "iconbutton",
                     icon: "clock-rotate-left",
                     title: "查看历史命令",
                     click: () => {
-                        console.log("History button clicked");
                         this.showHistoryPanel();
                     },
                 });
@@ -307,41 +296,51 @@ class TermViewModel implements ViewModel {
                     icon: "chevron-down",
                     title: "滚动到底部",
                     click: () => {
-                        console.log("Scroll to bottom button clicked");
                         this.scrollToBottom();
+                    },
+                });
+                
+                // Add edit name button for all non-vdom terminals
+                rtn.push({
+                    elemtype: "iconbutton",
+                    icon: "pencil",
+                    title: "Edit Terminal Name",
+                    click: () => {
+                        this.editTerminalName();
                     },
                 });
             }
 
             // 原有的重启按钮逻辑
-            if (blockData?.meta?.["controller"] != "cmd" && shellProcStatus != "done") {
-                return rtn;
+            const shouldShowRestartButton = 
+                (blockData?.meta?.["controller"] == "cmd" || shellProcStatus == "done") && 
+                connStatus?.status == "connected";
+                
+            if (shouldShowRestartButton) {
+                let iconName: string = null;
+                let title: string = null;
+                const noun = isCmd ? "Command" : "Shell";
+                if (shellProcStatus == "init") {
+                    iconName = "play";
+                    title = "Click to Start " + noun;
+                } else if (shellProcStatus == "running") {
+                    iconName = "refresh";
+                    title = noun + " Running. Click to Restart";
+                } else if (shellProcStatus == "done") {
+                    iconName = "refresh";
+                    title = noun + " Exited. Click to Restart";
+                }
+                if (iconName != null) {
+                    const buttonDecl: IconButtonDecl = {
+                        elemtype: "iconbutton",
+                        icon: iconName,
+                        click: this.forceRestartController.bind(this),
+                        title: title,
+                    };
+                    rtn.push(buttonDecl);
+                }
             }
-            if (connStatus?.status != "connected") {
-                return rtn;
-            }
-            let iconName: string = null;
-            let title: string = null;
-            const noun = isCmd ? "Command" : "Shell";
-            if (shellProcStatus == "init") {
-                iconName = "play";
-                title = "Click to Start " + noun;
-            } else if (shellProcStatus == "running") {
-                iconName = "refresh";
-                title = noun + " Running. Click to Restart";
-            } else if (shellProcStatus == "done") {
-                iconName = "refresh";
-                title = noun + " Exited. Click to Restart";
-            }
-            if (iconName != null) {
-                const buttonDecl: IconButtonDecl = {
-                    elemtype: "iconbutton",
-                    icon: iconName,
-                    click: this.forceRestartController.bind(this),
-                    title: title,
-                };
-                rtn.push(buttonDecl);
-            }
+            
             return rtn;
         });
         this.isCmdController = jotai.atom((get) => {
@@ -809,17 +808,7 @@ class TermViewModel implements ViewModel {
                            globalStore.get(this.blockAtom)?.meta?.title || 
                            "";
         
-        const newName = prompt("Enter terminal name:", currentName);
-        
-        if (newName !== null) {
-            // If empty string, remove the custom name
-            const metaUpdate = newName.trim() ? { name: newName.trim() } : { name: null };
-            
-            RpcApi.SetMetaCommand(TabRpcClient, {
-                oref: WOS.makeORef("block", this.blockId),
-                meta: metaUpdate,
-            });
-        }
+        editBlockCustomName(this.blockId, "term", currentName);
     }
 }
 

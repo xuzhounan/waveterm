@@ -5,9 +5,11 @@ import { BlockNodeModel } from "@/app/block/blocktypes";
 import { Search, useSearch } from "@/app/element/search";
 import { createBlock, getApi, getBlockMetaKeyAtom, getSettingsKeyAtom, openLink } from "@/app/store/global";
 import { getSimpleControlShiftAtom } from "@/app/store/keymodel";
+import { modalsModel } from "@/app/store/modalmodel";
 import { ObjectService } from "@/app/store/services";
 import { RpcApi } from "@/app/store/wshclientapi";
 import { TabRpcClient } from "@/app/store/wshrpcutil";
+import { editBlockCustomName } from "@/app/util/blockutil";
 import {
     BlockHeaderSuggestionControl,
     SuggestionControlNoData,
@@ -78,7 +80,14 @@ export class WebViewModel implements ViewModel {
         this.isLoading = atom(false);
         this.refreshIcon = atom("rotate-right");
         this.viewIcon = atom("globe");
-        this.viewName = atom("Web");
+        this.viewName = atom((get) => {
+            const blockData = get(this.blockAtom);
+            const customName = blockData?.meta?.name || blockData?.meta?.title;
+            if (customName && typeof customName === "string" && customName.trim()) {
+                return customName.trim();
+            }
+            return "Web";
+        });
         this.urlInputRef = createRef<HTMLInputElement>();
         this.webviewRef = createRef<WebviewTag>();
         this.domReady = atom(false);
@@ -159,6 +168,14 @@ export class WebViewModel implements ViewModel {
             }
             const url = get(this.url);
             return [
+                {
+                    elemtype: "iconbutton",
+                    icon: "pencil",
+                    title: "Edit Web View Name",
+                    click: () => {
+                        this.editBlockName();
+                    },
+                },
                 {
                     elemtype: "iconbutton",
                     icon: "arrow-up-right-from-square",
@@ -593,6 +610,14 @@ export class WebViewModel implements ViewModel {
                 },
             },
         ];
+    }
+
+    editBlockName() {
+        const currentName = globalStore.get(this.blockAtom)?.meta?.name || 
+                           globalStore.get(this.blockAtom)?.meta?.title || 
+                           "";
+        
+        editBlockCustomName(this.blockId, "web", currentName);
     }
 }
 

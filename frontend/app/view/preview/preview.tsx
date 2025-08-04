@@ -7,8 +7,10 @@ import { CopyButton } from "@/app/element/copybutton";
 import { CenteredDiv } from "@/app/element/quickelems";
 import { ContextMenuModel } from "@/app/store/contextmenu";
 import { tryReinjectKey } from "@/app/store/keymodel";
+import { modalsModel } from "@/app/store/modalmodel";
 import { RpcApi } from "@/app/store/wshclientapi";
 import { TabRpcClient } from "@/app/store/wshrpcutil";
+import { editBlockCustomName } from "@/app/util/blockutil";
 import { BlockHeaderSuggestionControl } from "@/app/suggestion/suggestion";
 import { CodeEditor } from "@/app/view/codeeditor/codeeditor";
 import { Markdown } from "@/element/markdown";
@@ -212,7 +214,14 @@ export class PreviewModel implements ViewModel {
             const blockData = get(this.blockAtom);
             return blockData?.meta?.edit ?? false;
         });
-        this.viewName = atom("Preview");
+        this.viewName = atom((get) => {
+            const blockData = get(this.blockAtom);
+            const customName = blockData?.meta?.name || blockData?.meta?.title;
+            if (customName && typeof customName === "string" && customName.trim()) {
+                return customName.trim();
+            }
+            return "Preview";
+        });
         this.viewText = atom((get) => {
             let headerPath = get(this.metaFilePath);
             const connStatus = get(this.connStatus);
@@ -334,6 +343,14 @@ export class PreviewModel implements ViewModel {
                 return [
                     {
                         elemtype: "iconbutton",
+                        icon: "pencil",
+                        title: "Edit Preview Name",
+                        click: () => {
+                            this.editBlockName();
+                        },
+                    },
+                    {
+                        elemtype: "iconbutton",
                         icon: showHiddenFiles ? "eye" : "eye-slash",
                         click: () => {
                             globalStore.set(this.showHiddenFiles, (prev) => !prev);
@@ -349,13 +366,31 @@ export class PreviewModel implements ViewModel {
                 return [
                     {
                         elemtype: "iconbutton",
+                        icon: "pencil",
+                        title: "Edit Preview Name",
+                        click: () => {
+                            this.editBlockName();
+                        },
+                    },
+                    {
+                        elemtype: "iconbutton",
                         icon: "book",
                         title: "Table of Contents",
                         click: () => this.markdownShowTocToggle(),
                     },
                 ] as IconButtonDecl[];
             }
-            return null;
+            // For other file types, just show edit button
+            return [
+                {
+                    elemtype: "iconbutton",
+                    icon: "pencil",
+                    title: "Edit Preview Name",
+                    click: () => {
+                        this.editBlockName();
+                    },
+                },
+            ] as IconButtonDecl[];
         });
         this.metaFilePath = atom<string>((get) => {
             const file = get(this.blockAtom)?.meta?.file;
@@ -472,6 +507,14 @@ export class PreviewModel implements ViewModel {
 
     markdownShowTocToggle() {
         globalStore.set(this.markdownShowToc, !globalStore.get(this.markdownShowToc));
+    }
+
+    editBlockName() {
+        const currentName = globalStore.get(this.blockAtom)?.meta?.name || 
+                           globalStore.get(this.blockAtom)?.meta?.title || 
+                           "";
+        
+        editBlockCustomName(this.blockId, "preview", currentName);
     }
 
     get viewComponent(): ViewComponent {

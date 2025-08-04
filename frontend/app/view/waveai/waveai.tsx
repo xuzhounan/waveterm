@@ -4,10 +4,12 @@
 import { Button } from "@/app/element/button";
 import { Markdown } from "@/app/element/markdown";
 import { TypingIndicator } from "@/app/element/typingindicator";
+import { modalsModel } from "@/app/store/modalmodel";
 import { RpcResponseHelper, WshClient } from "@/app/store/wshclient";
 import { RpcApi } from "@/app/store/wshclientapi";
 import { makeFeBlockRouteId } from "@/app/store/wshrouter";
 import { DefaultRouter, TabRpcClient } from "@/app/store/wshrpcutil";
+import { editBlockCustomName } from "@/app/util/blockutil";
 import { atoms, createBlock, fetchWaveFile, getApi, globalStore, WOS } from "@/store/global";
 import { BlockService, ObjectService } from "@/store/services";
 import { adaptFromReactOrNativeKeyEvent, checkKeyPressed } from "@/util/keyutil";
@@ -95,7 +97,14 @@ export class WaveAiModel implements ViewModel {
         this.blockId = blockId;
         this.blockAtom = WOS.getWaveObjectAtom<Block>(`block:${blockId}`);
         this.viewIcon = atom("sparkles");
-        this.viewName = atom("Wave AI");
+        this.viewName = atom((get) => {
+            const blockData = get(this.blockAtom);
+            const customName = blockData?.meta?.name || blockData?.meta?.title;
+            if (customName && typeof customName === "string" && customName.trim()) {
+                return customName.trim();
+            }
+            return "Wave AI";
+        });
         this.messagesAtom = atom([]);
         this.messagesSplitAtom = splitAtom(this.messagesAtom);
         this.latestMessageAtom = atom((get) => get(this.messagesAtom).slice(-1)[0]);
@@ -284,13 +293,21 @@ export class WaveAiModel implements ViewModel {
             return viewTextChildren;
         });
         this.endIconButtons = atom((_) => {
+            let editButton: IconButtonDecl = {
+                elemtype: "iconbutton",
+                icon: "pencil",
+                title: "Edit Wave AI Name",
+                click: () => {
+                    this.editBlockName();
+                },
+            };
             let clearButton: IconButtonDecl = {
                 elemtype: "iconbutton",
                 icon: "delete-left",
                 title: "Clear Chat History",
                 click: this.clearMessages.bind(this),
             };
-            return [clearButton];
+            return [editButton, clearButton];
         });
     }
 
@@ -433,6 +450,14 @@ export class WaveAiModel implements ViewModel {
     async clearMessages() {
         await BlockService.SaveWaveAiData(this.blockId, []);
         globalStore.set(this.messagesAtom, []);
+    }
+
+    editBlockName() {
+        const currentName = globalStore.get(this.blockAtom)?.meta?.name || 
+                           globalStore.get(this.blockAtom)?.meta?.title || 
+                           "";
+        
+        editBlockCustomName(this.blockId, "waveai", currentName);
     }
 
     keyDownHandler(waveEvent: WaveKeyboardEvent): boolean {

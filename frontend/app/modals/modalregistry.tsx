@@ -3,6 +3,7 @@
 
 import { MessageModal } from "@/app/modals/messagemodal";
 import { AboutModal } from "./about";
+import { BlockNameEditModal } from "./blocknameeditmodal";
 import { TosModal } from "./tos";
 import { UserInputModal } from "./userinputmodal";
 
@@ -11,6 +12,7 @@ const modalRegistry: { [key: string]: React.ComponentType<any> } = {
     [UserInputModal.displayName || "UserInputModal"]: UserInputModal,
     [AboutModal.displayName || "AboutModal"]: AboutModal,
     [MessageModal.displayName || "MessageModal"]: MessageModal,
+    [BlockNameEditModal.displayName || "BlockNameEditModal"]: BlockNameEditModal,
 };
 
 export const getModalComponent = (key: string): React.ComponentType<any> | undefined => {

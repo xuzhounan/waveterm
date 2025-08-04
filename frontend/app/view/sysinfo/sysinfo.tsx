@@ -11,9 +11,11 @@ import * as jotai from "jotai";
 import * as React from "react";
 
 import { useDimensionsWithExistingRef } from "@/app/hook/useDimensions";
+import { modalsModel } from "@/app/store/modalmodel";
 import { waveEventSubscribe } from "@/app/store/wps";
 import { RpcApi } from "@/app/store/wshclientapi";
 import { TabRpcClient } from "@/app/store/wshrpcutil";
+import { editBlockCustomName } from "@/app/util/blockutil";
 import { atoms } from "@/store/global";
 import { OverlayScrollbarsComponent, OverlayScrollbarsComponentRef } from "overlayscrollbars-react";
 import "./sysinfo.scss";
@@ -212,6 +214,11 @@ class SysinfoViewModel implements ViewModel {
             return "chart-line"; // should not be hardcoded
         });
         this.viewName = jotai.atom((get) => {
+            const blockData = get(this.blockAtom);
+            const customName = blockData?.meta?.name || blockData?.meta?.title;
+            if (customName && typeof customName === "string" && customName.trim()) {
+                return customName.trim();
+            }
             return get(this.plotTypeSelectedAtom);
         });
         this.incrementCount = jotai.atom(null, async (get, set) => {
@@ -238,6 +245,26 @@ class SysinfoViewModel implements ViewModel {
             const connAtom = getConnStatusAtom(connName);
             return get(connAtom);
         });
+        this.endIconButtons = jotai.atom((get) => {
+            const rtn: IconButtonDecl[] = [];
+            rtn.push({
+                elemtype: "iconbutton",
+                icon: "pencil",
+                title: "Edit System Info Name",
+                click: () => {
+                    this.editBlockName();
+                },
+            });
+            return rtn;
+        });
+    }
+
+    editBlockName() {
+        const currentName = globalStore.get(this.blockAtom)?.meta?.name || 
+                           globalStore.get(this.blockAtom)?.meta?.title || 
+                           "";
+        
+        editBlockCustomName(this.blockId, "sysinfo", currentName);
     }
 
     get viewComponent(): ViewComponent {
