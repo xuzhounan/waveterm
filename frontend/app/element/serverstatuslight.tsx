@@ -45,7 +45,7 @@ class ServerStatusLightModel {
             // 使用动态端点检查服务器状态，确保使用127.0.0.1避免代理干扰
             const endpoint = getWebServerEndpoint().replace('localhost', '127.0.0.1');
             
-            const response = await fetch(`${endpoint}/api/v1/widgets`, {
+            const response = await fetch(`${endpoint}/api/v1/widgets/mcp/status`, {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
@@ -232,7 +232,7 @@ export const ServerStatusLight: React.FC<ServerStatusLightProps> = ({
                                     className="action-btn"
                                     onClick={(e) => {
                                         e.stopPropagation();
-                                        window.open(`${getWebServerEndpoint()}/api/v1/widgets`, '_blank');
+                                        window.open(`${getWebServerEndpoint()}/api/v1/widgets/mcp/status`, '_blank');
                                     }}
                                 >
                                     <i className="fa fa-external-link" /> Open API
