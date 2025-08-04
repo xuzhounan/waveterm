@@ -19,6 +19,9 @@ const config = {
     nodeGypRebuild: false,
     electronCompile: false,
     asar: true,
+    asarUnpack: [
+        "dist/bin/**/*"
+    ],
     files: [
         "dist/main/**/*",
         "dist/preload/**/*", 
