@@ -619,6 +619,12 @@ export class WebViewModel implements ViewModel {
         
         editBlockCustomName(this.blockId, "web", currentName);
     }
+
+    // Dispose method for cleanup when block is deleted
+    dispose() {
+        // No special cleanup needed for legacy webview implementation
+        // The webview tag will be automatically cleaned up by React
+    }
 }
 
 const BookmarkTypeahead = memo(
