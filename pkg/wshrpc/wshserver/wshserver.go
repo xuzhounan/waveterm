@@ -509,7 +509,6 @@ func (ws *WshServer) EventPublishCommand(ctx context.Context, data wps.WaveEvent
 	}
 	
 	// Handle screenshot response events directly before publishing
-	log.Printf("[Screenshot] Backend: EventPublishCommand received event: '%s' (looking for 'screenshot:response')", data.Event)
 	if data.Event == "screenshot:response" {
 		log.Printf("[Screenshot] Backend: Received screenshot response event from frontend")
 		if responseData, ok := data.Data.(map[string]interface{}); ok {
