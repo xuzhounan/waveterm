@@ -45,6 +45,7 @@ import {
     WaveBrowserWindow,
 } from "./emain-window";
 import { ElectronWshClient, initElectronWshClient } from "./emain-wsh";
+import { setupWebViewIPC } from "./emain-webview-manager";
 import { getLaunchSettings } from "./launchsettings";
 import { log } from "./log";
 import { makeAppMenu, makeDockTaskbar } from "./menu";
@@ -968,6 +969,9 @@ async function appMain() {
     await initDocsite();
     setTimeout(runActiveTimer, 5000); // start active timer, wait 5s just to be safe
     setTimeout(sendDisplaysTDataEvent, 5000);
+
+    // Initialize WebView IPC handlers
+    setupWebViewIPC();
 
     makeAppMenu();
     makeDockTaskbar();

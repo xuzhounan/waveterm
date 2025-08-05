@@ -58,6 +58,39 @@ contextBridge.exposeInMainWorld("api", {
     onScreenshotResponseFromMain: (callback: (responseEvent: any) => void) => 
         ipcRenderer.on("screenshot-response-from-main", (_event, responseEvent) => callback(responseEvent)),
     setKeyboardChordMode: () => ipcRenderer.send("set-keyboard-chord-mode"),
+    
+    // WebView API
+    webViewCreate: (options: any) => ipcRenderer.invoke("webview:create", options),
+    webViewNavigate: (blockId: string, url: string) => ipcRenderer.invoke("webview:navigate", blockId, url),
+    webViewGoBack: (blockId: string) => ipcRenderer.invoke("webview:go-back", blockId),
+    webViewGoForward: (blockId: string) => ipcRenderer.invoke("webview:go-forward", blockId),
+    webViewReload: (blockId: string) => ipcRenderer.invoke("webview:reload", blockId),
+    webViewStop: (blockId: string) => ipcRenderer.invoke("webview:stop", blockId),
+    webViewFindInPage: (blockId: string, text: string, options?: any) => 
+        ipcRenderer.invoke("webview:find-in-page", blockId, text, options),
+    webViewStopFindInPage: (blockId: string, action: string) => 
+        ipcRenderer.invoke("webview:stop-find-in-page", blockId, action),
+    webViewSetZoomFactor: (blockId: string, factor: number) => 
+        ipcRenderer.invoke("webview:set-zoom-factor", blockId, factor),
+    webViewGetZoomFactor: (blockId: string) => 
+        ipcRenderer.invoke("webview:get-zoom-factor", blockId),
+    webViewToggleDevTools: (blockId: string) => 
+        ipcRenderer.invoke("webview:toggle-dev-tools", blockId),
+    webViewSetAudioMuted: (blockId: string, muted: boolean) => 
+        ipcRenderer.invoke("webview:set-audio-muted", blockId, muted),
+    webViewIsAudioMuted: (blockId: string) => 
+        ipcRenderer.invoke("webview:is-audio-muted", blockId),
+    webViewExecuteJavaScript: (blockId: string, code: string) => 
+        ipcRenderer.invoke("webview:execute-javascript", blockId, code),
+    webViewGetState: (blockId: string) => 
+        ipcRenderer.invoke("webview:get-state", blockId),
+    webViewDestroy: (blockId: string) => 
+        ipcRenderer.invoke("webview:destroy", blockId),
+    onWebViewEvent: (blockId: string, event: string, callback: (data: any) => void) => {
+        const channel = `webview:${blockId}:${event}`;
+        ipcRenderer.on(channel, (_, data) => callback(data));
+        return () => ipcRenderer.removeAllListeners(channel);
+    },
 });
 
 // Custom event for "new-window"

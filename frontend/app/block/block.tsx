@@ -29,7 +29,7 @@ import { isBlank, useAtomValueSafe } from "@/util/util";
 import { HelpViewModel } from "@/view/helpview/helpview";
 import { TermViewModel } from "@/view/term/term";
 import { WaveAiModel } from "@/view/waveai/waveai";
-import { WebViewModel } from "@/view/webview/webview";
+import { createWebViewModel } from "@/view/webview";
 import clsx from "clsx";
 import { atom, useAtomValue } from "jotai";
 import { memo, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
@@ -41,7 +41,7 @@ import { blockViewToIcon, blockViewToName } from "./blockutil";
 const BlockRegistry: Map<string, ViewModelClass> = new Map();
 BlockRegistry.set("term", TermViewModel);
 BlockRegistry.set("preview", PreviewModel);
-BlockRegistry.set("web", WebViewModel);
+// "web" is handled by createWebViewModel factory function
 BlockRegistry.set("waveai", WaveAiModel);
 BlockRegistry.set("cpuplot", SysinfoViewModel);
 BlockRegistry.set("sysinfo", SysinfoViewModel);
@@ -52,6 +52,11 @@ BlockRegistry.set("help", HelpViewModel);
 BlockRegistry.set("launcher", LauncherViewModel);
 
 function makeViewModel(blockId: string, blockView: string, nodeModel: BlockNodeModel): ViewModel {
+    // Special handling for web view to use factory function
+    if (blockView === "web") {
+        return createWebViewModel(blockId, nodeModel);
+    }
+    
     const ctor = BlockRegistry.get(blockView);
     if (ctor != null) {
         return new ctor(blockId, nodeModel);
