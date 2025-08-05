@@ -449,10 +449,20 @@ export class LayoutModel {
                         case LayoutTreeActionType.DeleteNode: {
                             const leaf = this?.getNodeByBlockId(action.blockid);
                             if (leaf) {
-                                await this.closeNode(leaf.id);
+                                // When processing DeleteNode from backend events, don't call onNodeDelete
+                                // as the block is already deleted on the backend
+                                const deleteAction: LayoutTreeDeleteNodeAction = {
+                                    type: LayoutTreeActionType.DeleteNode,
+                                    nodeId: leaf.id,
+                                };
+                                this.treeReducer(deleteAction);
+                                // Note: We don't call onNodeDelete here because this action comes from
+                                // the backend after the block is already deleted
                             } else {
-                                console.error(
-                                    "Cannot apply eventbus layout action DeleteNode, could not find leaf node with blockId",
+                                // This is expected when the node was already deleted locally
+                                // (e.g., user initiated deletion that triggered backend deletion)
+                                console.debug(
+                                    "Layout action DeleteNode: node already deleted, blockId:",
                                     action.blockid
                                 );
                             }
@@ -1119,7 +1129,8 @@ export class LayoutModel {
                 await this.onNodeDelete?.(ephemeralNode.data);
                 return;
             }
-            console.error("unable to close node, cannot find it in tree", nodeId);
+            // Node already deleted, this is normal in some cases (e.g., event-driven deletion)
+            console.debug("closeNode: node not found in tree, may have been already deleted", nodeId);
             return;
         }
         if (nodeId === this.magnifiedNodeId) {
