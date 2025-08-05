@@ -705,7 +705,7 @@ func (bc *BlockController) manageRunningShellProcess(shellProc *shellexec.ShellP
 		for {
 			nr, err := ptyBuffer.Read(buf)
 			if nr > 0 {
-				log.Printf("📄 收到输出 (BlockId: %s, %d bytes): %q", bc.BlockId, nr, string(buf[:nr]))
+				// log.Printf("📄 收到输出 (BlockId: %s, %d bytes): %q", bc.BlockId, nr, string(buf[:nr]))
 				err := HandleAppendBlockFile(bc.BlockId, wavebase.BlockFile_Term, buf[:nr])
 				if err != nil {
 					log.Printf("error appending to blockfile: %v\n", err)
@@ -728,7 +728,7 @@ func (bc *BlockController) manageRunningShellProcess(shellProc *shellexec.ShellP
 		}()
 		for ic := range shellInputCh {
 			if len(ic.InputData) > 0 {
-				log.Printf("🖥️ 写入命令到 pty (BlockId: %s): %q", bc.BlockId, string(ic.InputData))
+				// log.Printf("🖥️ 写入命令到 pty (BlockId: %s): %q", bc.BlockId, string(ic.InputData))
 				shellProc.Cmd.Write(ic.InputData)
 			}
 			if ic.TermSize != nil {
@@ -933,7 +933,7 @@ func (bc *BlockController) SendInput(inputUnion *BlockInputUnion) error {
 		return fmt.Errorf("no shell input chan")
 	}
 	if len(inputUnion.InputData) > 0 {
-		log.Printf("📤 发送命令到 shell channel (BlockId: %s): %q", bc.BlockId, string(inputUnion.InputData))
+		// log.Printf("📤 发送命令到 shell channel (BlockId: %s): %q", bc.BlockId, string(inputUnion.InputData))
 	}
 	shellInputCh <- inputUnion
 	return nil

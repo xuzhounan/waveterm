@@ -96,7 +96,7 @@ func (svc *WindowService) MoveBlockToNewWindow(ctx context.Context, currentTabId
 	if err != nil {
 		return nil, fmt.Errorf("error getting tab: %w", err)
 	}
-	log.Printf("tab.BlockIds[%s]: %v", tab.OID, tab.BlockIds)
+	// log.Printf("tab.BlockIds[%s]: %v", tab.OID, tab.BlockIds)
 	var foundBlock bool
 	for _, tabBlockId := range tab.BlockIds {
 		if tabBlockId == blockId {

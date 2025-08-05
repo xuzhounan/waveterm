@@ -1369,7 +1369,7 @@ func getTabIdFromBlock(block *waveobj.Block) string {
 
 // SendBlockInput sends input (text, signals, or terminal resize) to a block
 func (ws *WidgetAPIService) SendBlockInput(ctx context.Context, req SendBlockInputAPIRequest) (*SendBlockInputAPIResponse, error) {
-	log.Printf("WidgetAPIService.SendBlockInput called with block_id=%s, input_type=%s", req.BlockId, req.InputType)
+	// log.Printf("WidgetAPIService.SendBlockInput called with block_id=%s, input_type=%s", req.BlockId, req.InputType)
 
 	if req.BlockId == "" {
 		return &SendBlockInputAPIResponse{
@@ -1461,7 +1461,7 @@ func (ws *WidgetAPIService) SendBlockInput(ctx context.Context, req SendBlockInp
 		}, nil
 	}
 
-	log.Printf("Successfully sent %s to block %s", inputDescription, req.BlockId)
+	// log.Printf("Successfully sent %s to block %s", inputDescription, req.BlockId)
 
 	return &SendBlockInputAPIResponse{
 		Success: true,

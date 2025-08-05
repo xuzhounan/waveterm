@@ -297,7 +297,7 @@ func (ws *WshServer) CreateSubBlockCommand(ctx context.Context, data wshrpc.Comm
 }
 
 func (ws *WshServer) SetViewCommand(ctx context.Context, data wshrpc.CommandBlockSetViewData) error {
-	log.Printf("SETVIEW: %s | %q\n", data.BlockId, data.View)
+	// log.Printf("SETVIEW: %s | %q\n", data.BlockId, data.View)
 	ctx = waveobj.ContextWithUpdates(ctx)
 	block, err := wstore.DBGet[*waveobj.Block](ctx, data.BlockId)
 	if err != nil {
@@ -344,7 +344,7 @@ func (ws *WshServer) ControllerInputCommand(ctx context.Context, data wshrpc.Com
 			return fmt.Errorf("error decoding input data: %w", err)
 		}
 		inputUnion.InputData = inputBuf[:nw]
-		log.Printf("📥 收到命令 (BlockId: %s): %q", data.BlockId, string(inputBuf[:nw]))
+		// log.Printf("📥 收到命令 (BlockId: %s): %q", data.BlockId, string(inputBuf[:nw]))
 	}
 	return bc.SendInput(inputUnion)
 }
