@@ -1019,12 +1019,13 @@ class WaveTerminalMCPServer extends Server {
                     const initialContentLength = (initialContentResponse.ok && initialContentResult.success) ? 
                         initialContentResult.content.length : 0;
                     
-                    // 步骤1: 发送命令
+                    // 步骤1: 发送命令（不添加额外的字符）
+                    // 首先发送命令文本
                     response = await this.fetchWithConfig(`${this.waveTerminalUrl}/api/v1/widgets/block/${args.block_id}/input`, {
                         method: "POST",
                         headers,
                         body: JSON.stringify({
-                            input_data: args.command + '\n',
+                            input_data: args.command,
                             input_type: 'text'
                         })
                     });
@@ -1034,16 +1035,36 @@ class WaveTerminalMCPServer extends Server {
                         throw new Error(`命令发送失败: ${response.status} - ${JSON.stringify(result)}`);
                     }
                     
+                    // 短暂等待，然后发送回车键
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    
+                    // 发送回车键来执行命令
+                    response = await this.fetchWithConfig(`${this.waveTerminalUrl}/api/v1/widgets/block/${args.block_id}/input`, {
+                        method: "POST",
+                        headers,
+                        body: JSON.stringify({
+                            input_data: '\n',
+                            input_type: 'text'
+                        })
+                    });
+                    result = await response.json();
+                    
+                    if (!response.ok || !result.success) {
+                        throw new Error(`回车键发送失败: ${response.status} - ${JSON.stringify(result)}`);
+                    }
+                    
                     // 步骤2: 等待命令完成并检测新输出
                     const startTime = Date.now();
                     let commandOutput = '';
                     let finalContent = '';
+                    let previousContent = '';
+                    let stableCount = 0;
                     
-                    // 等待一段时间让命令执行完成
-                    await new Promise(resolve => setTimeout(resolve, 1000));
+                    // 等待一段时间让命令开始执行
+                    await new Promise(resolve => setTimeout(resolve, 500));
                     
-                    // 简化方案：等待固定时间后获取所有输出
-                    for (let i = 0; i < 10; i++) {
+                    // 智能等待：检测输出是否稳定
+                    for (let i = 0; i < Math.floor(timeout / 200); i++) {
                         const contentResponse = await this.fetchWithConfig(`${this.waveTerminalUrl}/api/v1/widgets/block/content/${args.block_id}?file_name=term`, {
                             headers
                         });
@@ -1052,24 +1073,40 @@ class WaveTerminalMCPServer extends Server {
                         if (contentResponse.ok && contentResult.success) {
                             finalContent = contentResult.content;
                             
+                            // 检查内容是否已经稳定（连续3次相同）
+                            if (finalContent === previousContent) {
+                                stableCount++;
+                                if (stableCount >= 3) {
+                                    break; // 输出已稳定
+                                }
+                            } else {
+                                stableCount = 0;
+                            }
+                            previousContent = finalContent;
+                            
                             // 提取新的输出内容（命令执行后的部分）
                             if (finalContent.length > initialContentLength) {
                                 const newContent = finalContent.substring(initialContentLength);
                                 
-                                // 简单的ANSI清理：移除常见的转义序列
+                                // 增强的ANSI清理和格式化
                                 commandOutput = newContent
                                     .replace(/\x1b\[[0-9;]*m/g, '') // 颜色代码
                                     .replace(/\x1b\[[0-9]*[A-Za-z]/g, '') // 光标控制
-                                    .replace(/\x1b\[[?][0-9]*[a-z]/g, '') // 私有模式
+                                    .replace(/\x1b\[[?][0-9]*[hlr]/g, '') // 私有模式
+                                    .replace(/\x1b[()][0-9A-Za-z]/g, '') // 字符集切换
                                     .replace(/\x1b\][0-9];[^\x07]*\x07/g, '') // OSC序列
                                     .replace(/\x1b\][0-9];[^\x1b]*\x1b\\/g, '') // OSC序列(备用结束)
                                     .replace(/\x1b\][0-9][^\x1b]*$/g, '') // 不完整的OSC序列
+                                    .replace(/\x1b[>=]/g, '') // 其他转义序列
                                     .replace(/\r\n/g, '\n') // 标准化换行
                                     .replace(/\r/g, '\n') // 处理单独的回车
+                                    .replace(/[^\x20-\x7E\n\t]/g, '') // 移除非打印字符
                                     .trim();
                                 
                                 // 如果检测到命令提示符，说明命令执行完成
-                                if (commandOutput.includes('» ') || commandOutput.includes('$ ') || commandOutput.includes('# ')) {
+                                if (commandOutput.includes('» ') || commandOutput.includes('$ ') || commandOutput.includes('# ') || commandOutput.includes('> ')) {
+                                    // 等待一点额外时间确保输出完整
+                                    await new Promise(resolve => setTimeout(resolve, 200));
                                     break;
                                 }
                             }
@@ -1079,9 +1116,29 @@ class WaveTerminalMCPServer extends Server {
                         await new Promise(resolve => setTimeout(resolve, 200));
                     }
                     
-                    // 如果没有获取到输出，返回原始内容的一部分
-                    if (!commandOutput.trim()) {
-                        commandOutput = "命令已执行，但无法提取纯文本输出";
+                    // 清理输出：移除命令回显和多余的提示符
+                    const lines = commandOutput.split('\n');
+                    const cleanedLines = [];
+                    let skipEcho = true;
+                    
+                    for (const line of lines) {
+                        // 跳过命令回显（通常是第一行）
+                        if (skipEcho && line.includes(args.command)) {
+                            skipEcho = false;
+                            continue;
+                        }
+                        // 移除只包含提示符的行
+                        if (line.match(/^[^»$#>]*[»$#>]\s*$/)) {
+                            continue;
+                        }
+                        cleanedLines.push(line);
+                    }
+                    
+                    commandOutput = cleanedLines.join('\n').trim();
+                    
+                    // 如果没有获取到输出，返回提示信息
+                    if (!commandOutput) {
+                        commandOutput = "命令已执行";
                     }
                     
                     return {
