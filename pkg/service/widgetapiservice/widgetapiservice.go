@@ -1418,10 +1418,12 @@ func (ws *WidgetAPIService) SendBlockInput(ctx context.Context, req SendBlockInp
 	switch req.InputType {
 	case "text", "":
 		// Allow empty input_data for cases like sending newlines or empty commands
-		inputUnion.InputData = []byte(req.InputData)
+		// Fix: When sending empty input (Enter key), use \r instead of \n for better compatibility
 		if req.InputData == "" {
-			inputDescription = "empty text input (newline/enter)"
+			inputUnion.InputData = []byte("\r")
+			inputDescription = "empty text input (carriage return/enter)"
 		} else {
+			inputUnion.InputData = []byte(req.InputData)
 			inputDescription = fmt.Sprintf("text input (%d bytes)", len(req.InputData))
 		}
 		

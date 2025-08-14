@@ -343,8 +343,13 @@ func (ws *WshServer) ControllerInputCommand(ctx context.Context, data wshrpc.Com
 		if err != nil {
 			return fmt.Errorf("error decoding input data: %w", err)
 		}
-		inputUnion.InputData = inputBuf[:nw]
-		// log.Printf("📥 收到命令 (BlockId: %s): %q", data.BlockId, string(inputBuf[:nw]))
+		// Fix: Convert standalone \n to \r for better terminal compatibility
+		decodedData := inputBuf[:nw]
+		if len(decodedData) == 1 && decodedData[0] == '\n' {
+			decodedData = []byte("\r")
+		}
+		inputUnion.InputData = decodedData
+		// log.Printf("📥 收到命令 (BlockId: %s): %q", data.BlockId, string(decodedData))
 	}
 	return bc.SendInput(inputUnion)
 }
